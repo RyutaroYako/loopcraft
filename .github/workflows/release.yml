@@ -4,52 +4,90 @@ on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  release:
+  # 依存関係のインストールやテストは、OIDC のトークンも書き込みの権限も持たないジョブで行う
+  verify:
     runs-on: ubuntu-latest
-    environment: npm
     permissions:
-      contents: write
-      id-token: write
+      contents: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      published: ${{ steps.plan.outputs.published }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+      dist-tag: ${{ steps.plan.outputs.dist-tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
-        # 公開するジョブには、ほかの実行が書いたキャッシュを持ち込まない
+        # 公開するものを作るジョブには、ほかの実行が書いたキャッシュを持ち込まない
         with:
           node-version: "24"
           cache: false
-      - name: Check the tag
-        run: |
-          version=$(node -p 'require("./apps/cli/package.json").version')
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::タグ $GITHUB_REF_NAME が apps/cli/package.json の版 $version と一致しません"
-            exit 1
-          fi
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::タグ $GITHUB_REF_NAME のコミットが main にありません"
-            exit 1
-          fi
+      - name: Plan the release
+        id: plan
+        run: node scripts/release-plan.ts
       - run: vp check
       - run: vp exec --filter @loopcraft/web playwright install --with-deps chromium
       - run: vp test run --coverage
+      # catalog: と workspace: を解決するため、npm ではなく pnpm で固める
+      - name: Pack
+        run: (cd apps/cli && pnpm pack --pack-destination "$RUNNER_TEMP/package")
+      - name: Smoke test the package
+        run: scripts/smoke-test.sh "$RUNNER_TEMP"/package/loopcraft-*.tgz
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package
+          path: ${{ runner.temp }}/package/loopcraft-*.tgz
+          if-no-files-found: error
+
+  publish:
+    needs: verify
+    if: needs.verify.outputs.published == 'false'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: package
       - name: Publish to npm
-        working-directory: apps/cli
-        # catalog: と workspace: を解決するため、npm ではなく pnpm で公開する。認証は OIDC
-        run: vp pm publish --no-git-checks --tag "$DIST_TAG"
+        run: |
+          if ! npm publish loopcraft-*.tgz --tag "$DIST_TAG"; then
+            echo "::error::npm への公開に失敗しました。npm の trusted publisher（ワークフロー release.yml、environment npm）を確かめてください"
+            exit 1
+          fi
         env:
-          DIST_TAG: ${{ contains(github.ref_name, '-') && 'next' || 'latest' }}
+          DIST_TAG: ${{ needs.verify.outputs.dist-tag }}
+
+  release:
+    needs: [verify, publish]
+    # 公開済みで publish を飛ばしたときも作る
+    if: ${{ !cancelled() && needs.verify.result == 'success' && needs.publish.result != 'failure' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
       - name: Create the GitHub release
-        run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --prerelease="$PRERELEASE"
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "::notice::GitHub Release $GITHUB_REF_NAME は作成済みです"
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --prerelease="$PRERELEASE"
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
-          PRERELEASE: ${{ contains(github.ref_name, '-') }}
+          GH_REPO: ${{ github.repository }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}

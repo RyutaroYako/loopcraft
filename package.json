@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vp run @loopcraft/web#dev",
     "gen:schema": "vp run @loopcraft/core#gen:schema",
-    "release": "vp run loopcraft#release"
+    "release": "node scripts/release-preflight.ts && vp run loopcraft#release"
   },
   "devDependencies": {
     "@types/node": "catalog:",
