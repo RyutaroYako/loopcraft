@@ -258,13 +258,21 @@ describe("startServer", () => {
     later.close();
   });
 
-  it("つないだ時点の版を知らせる", async () => {
+  it("つないだ時点の版と、それを書いた画面を知らせる", async () => {
     const { server, file } = await start();
     const events = await openEvents(server);
     expect(await events.next("event: revision")).toContain(
-      `"revision":"${revisionOf(await readFile(file, "utf8"))}"`,
+      `"revision":"${revisionOf(await readFile(file, "utf8"))}","writer":null`,
     );
     events.close();
+    await api(server, "/api/document", {
+      method: "PUT",
+      headers: { "x-loopcraft-client": "tab-a" },
+      body: JSON.stringify({ diagram: createSampleDiagram(), baseRevision: null, force: true }),
+    });
+    const later = await openEvents(server);
+    expect(await later.next("event: revision")).toContain('"writer":"tab-a"');
+    later.close();
   });
 
   it("シンボリックリンクなら、リンク先の変更を見張る", async () => {

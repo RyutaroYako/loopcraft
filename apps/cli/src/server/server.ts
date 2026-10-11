@@ -198,7 +198,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     response.write("retry: 1000\n: connected\n\n");
     // つないだ時点の版を知らせる。切れている間の変更や、見張りが止まっていることを、
     // 後から開いた画面やつなぎ直した画面にも伝えるため
-    response.write(`event: revision\ndata: ${JSON.stringify({ revision: knownRevision })}\n\n`);
+    response.write(
+      `event: revision\ndata: ${JSON.stringify({ revision: knownRevision, writer: lastWriter })}\n\n`,
+    );
     if (unwatchedReason !== undefined) {
       response.write(
         `event: watch-error\ndata: ${JSON.stringify({ reason: unwatchedReason })}\n\n`,
