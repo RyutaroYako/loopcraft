@@ -22,6 +22,15 @@ export type Selection =
   | { kind: "link"; id: LinkId }
   | { kind: "loop"; id: LoopId };
 
+export interface Gesture {
+  /** 履歴に残さずに途中経過を表示する */
+  preview(next: Diagram): void;
+  /** 開始時からの変化を 1 回の編集として履歴に残す */
+  end(): void;
+  /** 開始時の図に戻し、履歴にも残さない */
+  cancel(): void;
+}
+
 export interface Viewport {
   /** 画面上での原点の位置 */
   x: number;
@@ -33,7 +42,7 @@ export interface Notice {
   tone: "error" | "info";
   title: string;
   details?: string[];
-  action?: { label: string; run: () => void };
+  actions?: { label: string; run: () => void }[];
 }
 
 export interface NodeBox {
@@ -74,6 +83,18 @@ export function variablesOfLoop(links: readonly LinkId[], linkById: ReadonlyMap<
   });
 }
 
+/**
+ * フォーカスしていた要素が消えた（削除・元に戻す）ときに、キーボード操作を続けられるよう
+ * 描画が追いついた後でキャンバスへフォーカスを移す
+ */
+function keepFocusInCanvas() {
+  requestAnimationFrame(() => {
+    if (document.activeElement === document.body) {
+      document.querySelector<SVGSVGElement>(".canvas-svg")?.focus();
+    }
+  });
+}
+
 export function createEditor(initial: Diagram) {
   // 直前の編集をすぐ次の編集に使えるよう、最新の図はシグナルとは別に持つ
   // （シグナルの読み取りは次のマイクロタスクまで更新されない）
@@ -84,7 +105,7 @@ export function createEditor(initial: Diagram) {
   const redoStack: Diagram[] = [];
   const [historySize, setHistorySize] = createSignal({ undo: 0, redo: 0 });
   let coalesce: { key: string; at: number } | undefined;
-  let gestureBase: Diagram | undefined;
+  let activeGesture: { base: Diagram } | undefined;
 
   const [selection, setSelection] = createSignal<Selection | null>(null);
   const [editingVariable, setEditingVariable] = createSignal<VariableId | null>(null);
@@ -95,6 +116,7 @@ export function createEditor(initial: Diagram) {
   /** キャンバスの表示領域の大きさ。描画には使わないのでシグナルにしない */
   let currentSize: Size = { width: 0, height: 0 };
   const [notice, setNotice] = createSignal<Notice | null>(null);
+  let currentNotice: Notice | null = null;
   const [fontsVersion, setFontsVersion] = createSignal(0);
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -180,42 +202,60 @@ export function createEditor(initial: Diagram) {
 
   /** 履歴に残る編集。coalesceKey が直前と同じなら 1 回の編集にまとめる */
   function commit(next: Diagram, coalesceKey?: string) {
+    finishGesture();
     if (next === present) return;
     const now = Date.now();
     const merge =
       coalesceKey !== undefined && coalesce?.key === coalesceKey && now - coalesce.at < COALESCE_MS;
-    if (!merge) {
-      undoStack.push(present);
-      if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
-    }
+    if (!merge) pushUndo(present);
     coalesce = coalesceKey === undefined ? undefined : { key: coalesceKey, at: now };
     redoStack.length = 0;
     show(next);
     updateHistorySize();
   }
 
-  /** ドラッグのように途中経過を見せつつ、終わったときに 1 回の編集として残す */
-  function beginGesture() {
-    gestureBase = present;
+  /**
+   * ドラッグや名前の入力のように途中経過を見せつつ、終わったときに 1 回の編集として残す。
+   * 返したハンドルは自分のジェスチャーにしか効かないので、別のジェスチャーや編集が
+   * 割り込んだ後に古いハンドルを呼んでも履歴は壊れない。
+   */
+  function beginGesture(): Gesture {
+    finishGesture();
+    const state = { base: present };
+    activeGesture = state;
+    return {
+      preview(next) {
+        if (activeGesture === state) show(next);
+      },
+      end() {
+        if (activeGesture === state) finishGesture();
+      },
+      cancel() {
+        if (activeGesture !== state) return;
+        activeGesture = undefined;
+        show(state.base);
+      },
+    };
   }
 
-  function previewGesture(next: Diagram) {
-    if (gestureBase === undefined) return;
-    show(next);
-  }
-
-  function endGesture() {
-    const base = gestureBase;
-    gestureBase = undefined;
-    if (base === undefined || base === present) return;
-    undoStack.push(base);
-    if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  /** 進行中のジェスチャーがあれば、そこまでを 1 回の編集として履歴に残す */
+  function finishGesture() {
+    const state = activeGesture;
+    activeGesture = undefined;
+    if (!state || state.base === present) return;
+    pushUndo(state.base);
     redoStack.length = 0;
     coalesce = undefined;
     updateHistorySize();
   }
 
+  function pushUndo(diagram: Diagram) {
+    undoStack.push(diagram);
+    if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  }
+
   function undo() {
+    finishGesture();
     const previous = undoStack.pop();
     if (!previous) return;
     redoStack.push(present);
@@ -223,16 +263,19 @@ export function createEditor(initial: Diagram) {
     show(previous);
     updateHistorySize();
     dropStaleSelection(previous);
+    keepFocusInCanvas();
   }
 
   function redo() {
+    finishGesture();
     const next = redoStack.pop();
     if (!next) return;
-    undoStack.push(present);
+    pushUndo(present);
     coalesce = undefined;
     show(next);
     updateHistorySize();
     dropStaleSelection(next);
+    keepFocusInCanvas();
   }
 
   function dropStaleSelection(target: Diagram) {
@@ -245,9 +288,19 @@ export function createEditor(initial: Diagram) {
   }
 
   function notify(next: Notice) {
+    // 操作を求めるエラーを、すぐ消える案内で押し流さない
+    const shown = currentNotice;
+    if (next.tone === "info" && shown?.tone === "error" && shown.actions?.length) return;
+    currentNotice = next;
     clearTimeout(noticeTimer);
     setNotice(next);
-    if (next.tone === "info") noticeTimer = setTimeout(() => setNotice(null), NOTICE_MS);
+    if (next.tone === "info") noticeTimer = setTimeout(() => dismissNotice(), NOTICE_MS);
+  }
+
+  function dismissNotice() {
+    clearTimeout(noticeTimer);
+    currentNotice = null;
+    setNotice(null);
   }
 
   function select(next: Selection | null) {
@@ -293,6 +346,7 @@ export function createEditor(initial: Diagram) {
     if (selected.kind === "link") commit(edit.removeLinks(present, new Set([selected.id])));
     if (selected.kind === "loop") commit(edit.removeLoop(present, selected.id));
     setSelection(null);
+    keepFocusInCanvas();
   }
 
   function featureLoop(links: LinkId[]) {
@@ -438,8 +492,6 @@ export function createEditor(initial: Diagram) {
 
     commit,
     beginGesture,
-    previewGesture,
-    endGesture,
     undo,
     redo,
     select,
@@ -447,7 +499,7 @@ export function createEditor(initial: Diagram) {
     setHoveredLoop,
     setFocusedLoop,
     setViewportSize,
-    setNotice,
+    dismissNotice,
     notify,
     addVariableAt,
     connect,

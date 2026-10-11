@@ -1,5 +1,6 @@
 import { useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
+import { AutosaveIndicator } from "./AutosaveIndicator.tsx";
 import { pickJsonFile } from "../editor/file.ts";
 import * as edit from "../model/edit.ts";
 import { FileIcon, LogoMark, OpenIcon, RedoIcon, SaveIcon, UndoIcon } from "./icons.tsx";
@@ -33,6 +34,7 @@ export function Toolbar() {
           onCompositionEnd={(event) => setTitle(event.currentTarget.value)}
         />
       </label>
+      <AutosaveIndicator />
       <div class="toolbar-group" role="group" aria-label="履歴">
         <button
           type="button"

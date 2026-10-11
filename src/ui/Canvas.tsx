@@ -1,5 +1,5 @@
 import { For, Show, createMemo, createSignal, onSettled, useContext } from "solid-js";
-import { EditorContext } from "../editor/editor.ts";
+import { EditorContext, type Gesture } from "../editor/editor.ts";
 import * as edit from "../model/edit.ts";
 import { curvatureFromHandle } from "../model/geometry.ts";
 import type { LinkId, LoopId, Point, VariableId } from "../model/schema.ts";
@@ -15,12 +15,24 @@ import {
 import { EmptyState } from "./EmptyState.tsx";
 import { FitIcon, MinusIcon, PlusIcon } from "./icons.tsx";
 
-type Drag =
-  | { kind: "pan"; start: Point; origin: Point; moved: boolean }
-  | { kind: "move"; id: VariableId; start: Point; origin: Point; moved: boolean }
-  | { kind: "connect"; from: VariableId }
-  | { kind: "curve"; id: LinkId }
-  | { kind: "marker"; id: LoopId; offset: Point };
+/** 一度に追跡するポインタは 1 本だけ。2 本目の指などは無視する */
+interface DragBase {
+  pointerId: number;
+  /** 押した位置（画面座標）。しきい値を超えるまではクリック扱い */
+  start: Point;
+  moved: boolean;
+}
+
+type Drag = DragBase &
+  (
+    | { kind: "pan"; origin: Point }
+    | { kind: "move"; id: VariableId; origin: Point; grab: Point; gesture: Gesture }
+    | { kind: "connect"; from: VariableId }
+    | { kind: "curve"; id: LinkId; gesture: Gesture }
+    | { kind: "marker"; id: LoopId; offset: Point; gesture: Gesture }
+  );
+
+type DragInit = Drag extends infer D ? (D extends Drag ? Omit<D, keyof DragBase> : never) : never;
 
 /** これ以下の移動はクリックとみなす（画面上の px） */
 const DRAG_THRESHOLD = 3;
@@ -51,87 +63,96 @@ export function Canvas() {
     return undefined;
   };
 
-  const startDrag = (event: PointerEvent, next: Drag) => {
+  /** ドラッグを始められたら true。別のポインタでドラッグ中なら何もしない */
+  const canStartDrag = (event: PointerEvent) => {
+    if (event.button !== 0) return false;
     event.stopPropagation();
+    return drag === undefined;
+  };
+
+  const startDrag = (event: PointerEvent, init: () => DragInit) => {
     try {
       svg!.setPointerCapture(event.pointerId);
     } catch {
       // 既に離されたポインタなどはキャプチャできないが、ドラッグ自体は続けられる
     }
-    drag = next;
+    drag = {
+      pointerId: event.pointerId,
+      start: screenPoint(event),
+      moved: false,
+      ...init(),
+    } as Drag;
   };
 
   const onBackgroundPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0) return;
+    if (!canStartDrag(event)) return;
     editor.setEditingVariable(null);
     const { x, y } = editor.viewport();
-    startDrag(event, { kind: "pan", start: screenPoint(event), origin: { x, y }, moved: false });
+    startDrag(event, () => ({ kind: "pan", origin: { x, y } }));
   };
 
   const onNodePointerDown = (event: PointerEvent, id: VariableId) => {
-    if (event.button !== 0) return;
+    if (!canStartDrag(event)) return;
     editor.select({ kind: "variable", id });
     if (editor.editingVariable() === id) return;
     editor.setEditingVariable(null);
     const variable = editor.current().variables.find((item) => item.id === id);
     if (!variable) return;
-    editor.beginGesture();
-    startDrag(event, {
+    startDrag(event, () => ({
       kind: "move",
       id,
-      start: worldPoint(event),
       origin: variable.position,
-      moved: false,
-    });
+      grab: worldPoint(event),
+      gesture: editor.beginGesture(),
+    }));
   };
 
   const onHandlePointerDown = (event: PointerEvent, from: VariableId) => {
-    if (event.button !== 0) return;
+    if (!canStartDrag(event)) return;
     editor.setEditingVariable(null);
-    startDrag(event, { kind: "connect", from });
+    startDrag(event, () => ({ kind: "connect", from }));
     setLinkDraft({ from, to: worldPoint(event) });
   };
 
   const onCurvePointerDown = (event: PointerEvent, id: LinkId) => {
-    if (event.button !== 0) return;
-    editor.beginGesture();
-    startDrag(event, { kind: "curve", id });
+    if (!canStartDrag(event)) return;
+    startDrag(event, () => ({ kind: "curve", id, gesture: editor.beginGesture() }));
   };
 
   const onMarkerPointerDown = (event: PointerEvent, id: LoopId, position: Point) => {
-    if (event.button !== 0) return;
+    if (!canStartDrag(event)) return;
     editor.select({ kind: "loop", id });
     const point = worldPoint(event);
-    editor.beginGesture();
-    startDrag(event, {
+    startDrag(event, () => ({
       kind: "marker",
       id,
       offset: { x: position.x - point.x, y: position.y - point.y },
-    });
+      gesture: editor.beginGesture(),
+    }));
   };
 
   const onPointerMove = (event: PointerEvent) => {
-    if (!drag) return;
-    const point = worldPoint(event);
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const screen = screenPoint(event);
+    if (!drag.moved) {
+      if (Math.hypot(screen.x - drag.start.x, screen.y - drag.start.y) < DRAG_THRESHOLD) return;
+      drag.moved = true;
+    }
+    const point = editor.screenToWorld(screen);
     switch (drag.kind) {
       case "pan": {
-        const screen = screenPoint(event);
-        const dx = screen.x - drag.start.x;
-        const dy = screen.y - drag.start.y;
-        if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-        drag.moved = true;
         setPanning(true);
-        const { x, y } = drag.origin;
-        editor.panBy(x + dx - editor.viewport().x, y + dy - editor.viewport().y);
+        const x = drag.origin.x + screen.x - drag.start.x;
+        const y = drag.origin.y + screen.y - drag.start.y;
+        editor.panBy(x - editor.viewport().x, y - editor.viewport().y);
         return;
       }
       case "move": {
-        const dx = point.x - drag.start.x;
-        const dy = point.y - drag.start.y;
-        if (!drag.moved && Math.hypot(dx, dy) * editor.viewport().zoom < DRAG_THRESHOLD) return;
-        drag.moved = true;
-        const position = { x: Math.round(drag.origin.x + dx), y: Math.round(drag.origin.y + dy) };
-        editor.previewGesture(edit.moveVariables(editor.current(), new Map([[drag.id, position]])));
+        const position = {
+          x: Math.round(drag.origin.x + point.x - drag.grab.x),
+          y: Math.round(drag.origin.y + point.y - drag.grab.y),
+        };
+        drag.gesture.preview(edit.moveVariables(editor.current(), new Map([[drag.id, position]])));
         return;
       }
       case "connect": {
@@ -152,7 +173,7 @@ export function Canvas() {
         if (!link || !from || !to) return;
         const curvature =
           Math.round(curvatureFromHandle(from.center, to.center, point) * 100) / 100;
-        editor.previewGesture(edit.updateLink(editor.current(), link.id, { curvature }));
+        drag.gesture.preview(edit.updateLink(editor.current(), link.id, { curvature }));
         return;
       }
       case "marker": {
@@ -160,20 +181,21 @@ export function Canvas() {
           x: Math.round(point.x + drag.offset.x),
           y: Math.round(point.y + drag.offset.y),
         };
-        editor.previewGesture(edit.updateLoop(editor.current(), drag.id, { marker }));
+        drag.gesture.preview(edit.updateLoop(editor.current(), drag.id, { marker }));
         return;
       }
     }
   };
 
   const onPointerUp = (event: PointerEvent) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
     const finished = drag;
     drag = undefined;
     setPanning(false);
-    if (!finished) return;
+    const cancelled = event.type !== "pointerup";
     switch (finished.kind) {
       case "pan":
-        if (!finished.moved) {
+        if (!finished.moved && !cancelled) {
           editor.select(null);
           editor.setFocusedLoop(null);
         }
@@ -181,12 +203,12 @@ export function Canvas() {
       case "move":
       case "curve":
       case "marker":
-        editor.endGesture();
+        if (cancelled) finished.gesture.cancel();
+        else finished.gesture.end();
         return;
       case "connect": {
-        const draft = linkDraft();
         setLinkDraft(null);
-        if (event.type === "pointercancel" || !draft) return;
+        if (cancelled || !finished.moved) return;
         const point = worldPoint(event);
         const target = nodeAt(point);
         if (target === finished.from) return;
@@ -280,9 +302,11 @@ export function Canvas() {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onLostPointerCapture={onPointerUp}
         onDblClick={onDoubleClick}
-        role="application"
+        role="group"
         aria-label="システム図のキャンバス"
+        tabindex="-1"
       >
         <defs>
           <pattern

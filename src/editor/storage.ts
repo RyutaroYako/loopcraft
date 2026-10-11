@@ -32,9 +32,17 @@ export function loadStoredDiagram(): StoredDiagram {
   };
 }
 
+const BACKUP_PREFIX = `${STORAGE_KEY}:backup:`;
+
 function backup(text: string) {
-  const key = `${STORAGE_KEY}:backup:${Date.now()}`;
+  const prefix = BACKUP_PREFIX;
   try {
+    // 読み込めないまま何度開き直しても、同じ内容の退避が増え続けないようにする
+    for (let index = 0; index < localStorage.length; index++) {
+      const existing = localStorage.key(index);
+      if (existing?.startsWith(prefix) && localStorage.getItem(existing) === text) return existing;
+    }
+    const key = `${prefix}${Date.now()}`;
     localStorage.setItem(key, text);
     return key;
   } catch {
@@ -60,4 +68,41 @@ export function watchOtherTabs(listener: () => void) {
   };
   window.addEventListener("storage", onStorage);
   return () => window.removeEventListener("storage", onStorage);
+}
+
+export interface Backup {
+  key: string;
+  savedAt: Date;
+}
+
+/** 読み込めなかったときに退避したデータの一覧。新しい順 */
+export function listBackups(): Backup[] {
+  try {
+    const backups: Backup[] = [];
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (key?.startsWith(BACKUP_PREFIX)) {
+        backups.push({ key, savedAt: new Date(Number(key.slice(BACKUP_PREFIX.length))) });
+      }
+    }
+    return backups.toSorted((a, b) => b.savedAt.getTime() - a.savedAt.getTime());
+  } catch {
+    return [];
+  }
+}
+
+export function readBackup(key: string): string | undefined {
+  try {
+    return localStorage.getItem(key) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function removeBackup(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // 消せなくても一覧に残るだけで、編集には影響しない
+  }
 }

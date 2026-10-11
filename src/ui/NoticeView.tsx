@@ -18,20 +18,22 @@ export function NoticeView() {
                 <p class="notice-more">ほか {(notice.details?.length ?? 0) - 8} 件</p>
               </Show>
             </Show>
-            <Show when={notice.action} keyed>
-              {(action) => (
-                <div class="notice-actions">
-                  <button type="button" class="button small" onClick={() => action.run()}>
-                    {action.label}
-                  </button>
-                </div>
-              )}
+            <Show when={notice.actions?.length}>
+              <div class="notice-actions">
+                <For each={notice.actions}>
+                  {(action) => (
+                    <button type="button" class="button small" onClick={() => action.run()}>
+                      {action.label}
+                    </button>
+                  )}
+                </For>
+              </div>
             </Show>
           </div>
           <button
             type="button"
             class="icon-button"
-            onClick={() => editor.setNotice(null)}
+            onClick={() => editor.dismissNotice()}
             aria-label="閉じる"
           >
             <CloseIcon />

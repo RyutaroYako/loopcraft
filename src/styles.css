@@ -250,7 +250,7 @@ kbd {
 
 .toolbar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 0 12px 0 16px;
@@ -309,6 +309,52 @@ kbd {
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
+.save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.save-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+button.save-status {
+  border-color: rgb(190 52 85 / 0.3);
+  background: var(--negative-soft);
+  font-weight: 500;
+  color: var(--negative);
+  transition: transform 0.2s var(--ease-out);
+}
+
+button.save-status:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+button.save-status .save-dot {
+  background: var(--negative);
+  opacity: 1;
+  animation: save-pulse 1.6s var(--ease-out) infinite;
+}
+
+@keyframes save-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 .toolbar-group {
   display: flex;
   align-items: center;
@@ -338,6 +384,15 @@ kbd {
   touch-action: none;
   user-select: none;
   cursor: default;
+}
+
+.canvas-svg:focus {
+  outline: none;
+}
+
+.canvas-svg:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: -2px;
 }
 
 .canvas-svg.panning {
@@ -388,6 +443,23 @@ kbd {
 
 .node:hover .node-body {
   stroke: var(--faint);
+}
+
+.node:focus-visible,
+.polarity:focus-visible,
+.loop-marker:focus-visible {
+  outline: none;
+}
+
+.node:focus-visible .node-body,
+.polarity:focus-visible circle,
+.loop-marker:focus-visible .loop-marker-bg {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.node:focus-visible .node-handle {
+  opacity: 1;
 }
 
 .node.selected .node-body {
@@ -788,6 +860,9 @@ kbd {
 }
 
 .notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   padding-top: 4px;
 }
 
@@ -837,6 +912,7 @@ kbd {
 
 .inspector {
   overflow-y: auto;
+  outline: none;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1122,6 +1198,58 @@ kbd {
 
 .relation:hover {
   background: var(--surface-2);
+}
+
+.backup-list {
+  display: grid;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.backup-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.button.danger-text {
+  color: var(--negative);
+}
+
+.backup-date {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.relation-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.relation-add {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease-out);
+}
+
+.relation-add:hover,
+.relation-add:focus-visible {
+  border-color: var(--accent);
+  color: var(--ink);
 }
 
 .loop-path {
@@ -1439,7 +1567,8 @@ kbd {
 
   .button-label,
   .brand-name,
-  .canvas-hint {
+  .canvas-hint,
+  .save-status.ok .save-label {
     display: none;
   }
 }

@@ -1,5 +1,7 @@
 import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
 import { EditorContext, type Editor, type LoopEntry } from "../editor/editor.ts";
+import { downloadText } from "../editor/file.ts";
+import { listBackups, readBackup, removeBackup } from "../editor/storage.ts";
 import * as edit from "../model/edit.ts";
 import type { LoopKind } from "../model/loop.ts";
 import type { Link, LinkId, LoopId, VariableId } from "../model/schema.ts";
@@ -34,7 +36,7 @@ function Inspector() {
     return selection?.kind === "loop" ? selection.id : undefined;
   };
   return (
-    <section class="inspector" aria-label="選択中の項目">
+    <section class="inspector" aria-label="選択中の項目" tabindex="-1">
       <Switch fallback={<DiagramInspector />}>
         <Match when={selectedVariable()} keyed>
           {(id) => <VariableInspector id={id} />}
@@ -137,7 +139,89 @@ function DiagramInspector() {
           editor.commit(edit.setDescription(editor.current(), value), "diagram-description")
         }
       />
+      <BackupList />
     </div>
+  );
+}
+
+/** 読み込めなかったときに退避したデータ。あるときだけ表示し、書き出しと削除ができる */
+function BackupList() {
+  const editor = useContext(EditorContext);
+  const [backups, setBackups] = createSignal(listBackups());
+  /** 削除の確認中の項目。唯一の写しを消すので、一度確かめてから消す */
+  const [confirming, setConfirming] = createSignal<string | null>(null);
+  const download = (key: string, savedAt: Date) => {
+    const text = readBackup(key);
+    if (text === undefined) {
+      setBackups(listBackups());
+      editor.notify({
+        tone: "error",
+        title: "退避したデータが見つかりません",
+        details: ["別のタブで削除された可能性があります"],
+      });
+      return;
+    }
+    downloadText(text, `system-diagram-backup-${savedAt.getTime()}.json`);
+  };
+  const isConfirming = (key: string) => confirming() === key;
+  let list: HTMLDivElement | undefined;
+  const remove = (key: string) => {
+    removeBackup(key);
+    setConfirming(null);
+    setBackups(listBackups());
+    // 押したボタンは行ごと消えるので、残りの項目か検査パネルへフォーカスを移す
+    requestAnimationFrame(() => {
+      const next = list?.isConnected ? list.querySelector("button") : null;
+      (next ?? document.querySelector<HTMLElement>(".inspector"))?.focus();
+    });
+  };
+  return (
+    <Show when={backups().length > 0}>
+      <div class="backup-list" ref={(element) => (list = element)}>
+        <p class="field-label">退避したデータ</p>
+        <p class="visually-hidden" aria-live="polite">
+          {confirming() ? "削除すると元に戻せません。「削除する」か「やめる」を選んでください" : ""}
+        </p>
+        <p class="field-hint">開けなかった前回の図です。書き出して内容を確かめられます</p>
+        <ul>
+          <For each={backups()} keyed={(backup) => backup.key}>
+            {(backup) => (
+              <li>
+                <span class="backup-date">{backup().savedAt.toLocaleString("ja-JP")}</span>
+                {/*
+                  確認中もボタン自体は差し替えず、表示と働きだけを切り替える。
+                  押したボタンにフォーカスが残るので、キーボードでもそのまま選べる
+                  （「削除」を押すと同じ位置の「やめる」にフォーカスが乗る）
+                */}
+                <button
+                  type="button"
+                  class={[
+                    "button",
+                    "ghost",
+                    "small",
+                    { "danger-text": isConfirming(backup().key) },
+                  ]}
+                  onClick={() =>
+                    isConfirming(backup().key)
+                      ? remove(backup().key)
+                      : download(backup().key, backup().savedAt)
+                  }
+                >
+                  {isConfirming(backup().key) ? "削除する" : "書き出す"}
+                </button>
+                <button
+                  type="button"
+                  class="button ghost small"
+                  onClick={() => setConfirming(isConfirming(backup().key) ? null : backup().key)}
+                >
+                  {isConfirming(backup().key) ? "やめる" : "削除"}
+                </button>
+              </li>
+            )}
+          </For>
+        </ul>
+      </div>
+    </Show>
   );
 }
 
@@ -151,6 +235,14 @@ function VariableInspector(props: { id: VariableId }) {
       effects: links.filter((link) => link.from === props.id),
     };
   });
+  /** 自分自身と、既に同じ向きで繋がっている出来事を除いた候補 */
+  const candidates = (linked: VariableId[]) => {
+    const excluded = new Set<VariableId>([props.id, ...linked]);
+    return editor
+      .diagram()
+      .variables.filter((variable) => !excluded.has(variable.id))
+      .map((variable) => ({ id: variable.id, label: variable.label || "名称未設定" }));
+  };
   const update = (patch: Parameters<typeof edit.updateVariable>[2], key: string) =>
     editor.commit(edit.updateVariable(editor.current(), props.id, patch), `${key}:${props.id}`);
   return (
@@ -177,12 +269,18 @@ function VariableInspector(props: { id: VariableId }) {
           empty="この出来事に影響する矢印はありません"
           links={related().causes}
           labelOf={(link) => labelOf(editor, link.from)}
+          addLabel="原因を追加"
+          candidates={candidates(related().causes.map((link) => link.from))}
+          onAdd={(other) => editor.connect(other, props.id)}
         />
         <RelationList
           title="結果"
           empty="この出来事から出る矢印はありません"
           links={related().effects}
           labelOf={(link) => labelOf(editor, link.to)}
+          addLabel="結果を追加"
+          candidates={candidates(related().effects.map((link) => link.to))}
+          onAdd={(other) => editor.connect(props.id, other)}
         />
       </div>
       <DeleteButton label="出来事を削除" />
@@ -199,6 +297,9 @@ function RelationList(props: {
   empty: string;
   links: Link[];
   labelOf: (link: Link) => string;
+  addLabel: string;
+  candidates: { id: VariableId; label: string }[];
+  onAdd: (id: VariableId) => void;
 }) {
   const editor = useContext(EditorContext);
   return (
@@ -222,6 +323,56 @@ function RelationList(props: {
           </For>
         </ul>
       </Show>
+      <Show when={props.candidates.length > 0}>
+        <RelationPicker label={props.addLabel} candidates={props.candidates} onAdd={props.onAdd} />
+      </Show>
+    </div>
+  );
+}
+
+/**
+ * 候補を選んでから「追加」で確定する。閉じた select は矢印キーだけで値が変わる
+ * ブラウザがあるので、選んだ時点では関連を作らない
+ */
+function RelationPicker(props: {
+  label: string;
+  candidates: { id: VariableId; label: string }[];
+  onAdd: (id: VariableId) => void;
+}) {
+  const [chosen, setChosen] = createSignal<VariableId | "">("");
+  const valid = () => props.candidates.some((candidate) => candidate.id === chosen());
+  return (
+    <div class="relation-picker">
+      <select
+        class="relation-add"
+        name={props.label}
+        aria-label={props.label}
+        onChange={(event) => setChosen(event.currentTarget.value as VariableId | "")}
+      >
+        <option value="" selected={!valid()}>
+          {props.label}…
+        </option>
+        <For each={props.candidates} keyed={(candidate) => candidate.id}>
+          {(candidate) => (
+            <option value={candidate().id} selected={chosen() === candidate().id}>
+              {candidate().label}
+            </option>
+          )}
+        </For>
+      </select>
+      <button
+        type="button"
+        class="button small"
+        disabled={!valid()}
+        onClick={() => {
+          const id = chosen();
+          if (!id) return;
+          setChosen("");
+          props.onAdd(id);
+        }}
+      >
+        追加
+      </button>
     </div>
   );
 }
