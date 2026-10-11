@@ -94,7 +94,8 @@ describe("createFileClient", () => {
     vi.stubGlobal("fetch", fetch);
     const { store } = createFileClient(session);
     const big = createSampleDiagram();
-    big.description = "x".repeat(70_000);
+    // 文字数では上限より少なくても、UTF-8 のバイト数では超える
+    big.description = "あ".repeat(25_000);
     await store.save(big, { keepalive: true });
     expect(fetch.mock.calls[0]![1].keepalive).toBe(false);
   });
@@ -123,6 +124,7 @@ describe("createFileClient", () => {
   });
 
   it("自分の保存ではない変更と、つながりの状態を知らせる", async () => {
+    vi.useFakeTimers();
     const sources: FakeEventSource[] = [];
     class FakeEventSource extends EventTarget {
       static readonly CLOSED = 2;
@@ -150,34 +152,46 @@ describe("createFileClient", () => {
     await load();
     await store.save(createSampleDiagram());
     const clientId = fetch.mock.calls[1]![1].headers["x-loopcraft-client"] as string;
-    const handlers = { change: vi.fn(), lost: vi.fn() };
+    const handlers = { change: vi.fn(), lost: vi.fn(), restored: vi.fn() };
     const stop = store.watch(handlers);
     const source = sources[0]!;
     expect(source.url).toBe("/api/events?token=tok");
     const emit = (type: string, data?: string) =>
       source.dispatchEvent(new MessageEvent(type, { data }));
-    emit("change", JSON.stringify({ revision: "r2" }));
+
+    emit("revision", JSON.stringify({ revision: "r2" }));
     emit("change", JSON.stringify({ revision: "r9", writer: clientId }));
     emit("change", "{");
     emit("change", JSON.stringify({ nope: true }));
     expect(handlers.change).not.toHaveBeenCalled();
     emit("change", JSON.stringify({ revision: "r3", writer: "other-tab" }));
-    expect(handlers.change).toHaveBeenCalledOnce();
+    emit("revision", JSON.stringify({ revision: "r4" }));
+    expect(handlers.change).toHaveBeenCalledTimes(2);
 
     emit("watch-error", JSON.stringify({ reason: "ENOENT" }));
     emit("watch-error", "{");
     expect(handlers.lost).toHaveBeenNthCalledWith(1, "unwatched", "ENOENT");
     expect(handlers.lost).toHaveBeenNthCalledWith(2, "unwatched", "");
 
+    // 一時的な切断は、しばらく戻らなければ切れたとみなし、戻れば知らせる
     emit("error");
     emit("open");
-    expect(handlers.change).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(10_000);
+    expect(handlers.lost).toHaveBeenCalledTimes(2);
+    expect(handlers.restored).not.toHaveBeenCalled();
+    emit("error");
+    emit("error");
+    vi.advanceTimersByTime(10_000);
+    expect(handlers.lost).toHaveBeenLastCalledWith("disconnected");
     emit("open");
-    expect(handlers.change).toHaveBeenCalledTimes(2);
+    expect(handlers.restored).toHaveBeenCalledOnce();
+
     source.readyState = FakeEventSource.CLOSED;
     emit("error");
-    expect(handlers.lost).toHaveBeenLastCalledWith("disconnected");
+    emit("error");
+    expect(handlers.lost).toHaveBeenCalledTimes(4);
     stop();
     expect(source.closed).toBe(true);
+    vi.useRealTimers();
   });
 });

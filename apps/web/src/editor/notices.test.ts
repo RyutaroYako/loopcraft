@@ -16,7 +16,7 @@ afterEach(() => {
 const browserStore = { kind: "browser", label: "ブラウザ" } as DocumentStore;
 const fileStore = { kind: "file", label: "a.json" } as DocumentStore;
 
-function setup(store: DocumentStore, startup: Startup) {
+function setup(store: DocumentStore, startup: Startup, readonly = false) {
   const { editor, dispose: d } = setupEditor();
   dispose = d;
   const autosave = {
@@ -29,7 +29,14 @@ function setup(store: DocumentStore, startup: Startup) {
   };
   const exportFile = vi.spyOn(editor, "exportFile").mockImplementation(() => {});
   const reloadPage = vi.fn();
-  const notices = createNotices({ editor, store, startup, autosave: () => autosave, reloadPage });
+  const notices = createNotices({
+    editor,
+    store,
+    startup,
+    readonly,
+    autosave: () => autosave,
+    reloadPage,
+  });
   const shown = () => {
     flush();
     return editor.notice();
@@ -66,10 +73,24 @@ describe("createNotices", () => {
     const file = setup(fileStore, fileStartup({ status: "missing" }));
     file.notices.explain({ kind: "suspended", reason: "disconnected" });
     expect(file.shown()?.title).toBe("loopcraft serve とのつながりが切れました");
-    file.run("ページを再読み込み");
-    expect(file.reloadPage).toHaveBeenCalledOnce();
+    expect(file.shown()?.details?.[1]).toContain("新しい URL");
+    expect(file.shown()?.actions?.map((action) => action.label)).toEqual(["JSON を書き出す"]);
     file.run("JSON を書き出す");
     expect(file.exportFile).toHaveBeenCalledOnce();
+  });
+
+  it("読み取り専用なら上書きを勧めない", () => {
+    const viewer = setup(
+      fileStore,
+      fileStartup({ status: "invalid", revision: "r", errors: [] }),
+      true,
+    );
+    viewer.notices.explain({ kind: "suspended", reason: "unreadable" });
+    expect(viewer.shown()?.actions).toEqual([]);
+    viewer.notices.explain({ kind: "suspended", reason: "external" });
+    expect(viewer.shown()?.actions?.map((action) => action.label)).toEqual([
+      "ファイルの内容を読み込む",
+    ]);
   });
 
   it("見張れなくなったことと、壊れたセッションを知らせる", () => {
@@ -77,7 +98,7 @@ describe("createNotices", () => {
     file.notices.unwatched("ENOENT");
     expect(file.shown()?.details?.[0]).toBe("ENOENT");
     file.notices.unwatched(undefined);
-    expect(file.shown()?.details).toHaveLength(1);
+    expect(file.shown()?.details).toHaveLength(2);
     dispose();
 
     const broken = setup(browserStore, {

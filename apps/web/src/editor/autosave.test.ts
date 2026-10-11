@@ -28,6 +28,7 @@ function fakeStore(kind: "browser" | "file" = "file") {
     store,
     change: () => handlers?.change(),
     lose: (reason: "disconnected" | "unwatched", detail?: string) => handlers?.lost(reason, detail),
+    restore: () => handlers?.restored(),
     watching: () => handlers !== undefined,
   };
 }
@@ -226,6 +227,7 @@ describe("setupAutosave", () => {
     flush();
     expect(onUnwatched).toHaveBeenCalledWith("ENOENT");
     expect(autosave.status()).toEqual({ kind: "ok" });
+    expect(autosave.unwatched()).toBe("ENOENT");
     lose("disconnected");
     flush();
     expect(autosave.status()).toEqual({ kind: "suspended", reason: "disconnected" });
@@ -261,6 +263,76 @@ describe("setupAutosave", () => {
       problems: ["ファイルが削除されました"],
     });
     expect(onProblem).toHaveBeenCalledOnce();
+  });
+
+  it("つながりが戻ったら、溜まっていた変更を保存し直す", async () => {
+    const { store, lose, restore } = fakeStore();
+    const { editor, autosave } = setup(store);
+    restore();
+    lose("disconnected");
+    editor.commit(edit.setTitle(editor.current(), "1"));
+    await settle();
+    expect(store.save).not.toHaveBeenCalled();
+    restore();
+    await settle();
+    expect(autosave.status()).toEqual({ kind: "ok" });
+    expect(store.save).toHaveBeenCalledOnce();
+    lose("disconnected");
+    restore();
+    await settle();
+    expect(store.save).toHaveBeenCalledOnce();
+  });
+
+  it("取り込めずに止めていても、守る変更が無ければ直したファイルを取り込む", async () => {
+    const { store, change } = fakeStore();
+    store.reload.mockResolvedValueOnce({ ok: false, problems: ["壊れています"] });
+    const { editor, autosave } = setup(store);
+    change();
+    await settle();
+    expect(autosave.status()).toMatchObject({ kind: "suspended", reason: "external" });
+    const fixed = { ...createSampleDiagram(), title: "直した" };
+    store.reload.mockResolvedValueOnce({ ok: true, diagram: fixed });
+    change();
+    await settle();
+    expect(editor.current()).toBe(fixed);
+    expect(autosave.status()).toEqual({ kind: "ok" });
+  });
+
+  it("中身が変わっていなければ取り込まず、履歴も増やさない", async () => {
+    const { store, change } = fakeStore();
+    const { editor, onReload } = setup(store);
+    store.reload.mockResolvedValueOnce({ ok: true, diagram: structuredClone(editor.current()) });
+    const before = editor.current();
+    change();
+    await settle();
+    expect(editor.current()).toBe(before);
+    expect(editor.historySize().undo).toBe(0);
+    expect(onReload).not.toHaveBeenCalled();
+  });
+
+  it("読み直している間に編集されたら、取り込まずに競合として止める", async () => {
+    const { store, change } = fakeStore();
+    let finish: (result: ReloadResult) => void = () => {};
+    store.reload.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+    const { editor, autosave } = setup(store);
+    change();
+    flush();
+    editor.commit(edit.setTitle(editor.current(), "読み直し中の編集"));
+    flush();
+    finish({ ok: true, diagram: { ...createSampleDiagram(), title: "外部" } });
+    await settle();
+    expect(editor.current().title).toBe("読み直し中の編集");
+    expect(autosave.status()).toEqual({ kind: "suspended", reason: "external" });
+  });
+
+  it("ブラウザへの保存は閉じるときに確かめない", async () => {
+    const { store } = fakeStore("browser");
+    const { editor } = setup(store);
+    editor.commit(edit.setTitle(editor.current(), "1"));
+    flush();
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it("未保存の変更があるまま閉じようとしたら確かめる", async () => {

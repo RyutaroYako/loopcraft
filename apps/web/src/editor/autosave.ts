@@ -1,5 +1,6 @@
 import { createContext, createEffect, createSignal, onSettled, type Accessor } from "solid-js";
 import type { Editor } from "./editor.ts";
+import { stringifyDiagram } from "@loopcraft/core/io";
 import type { DocumentStore, ReloadResult } from "./store.ts";
 
 const SAVE_DELAY_MS = 300;
@@ -44,6 +45,8 @@ export function setupAutosave(
   // シグナルは書き込み直後に読んでも古い値を返すので、判定用に最新の状態を別に持つ
   let current: AutosaveStatus = options.initialStatus ?? { kind: "ok" };
   const [status, setStatus] = createSignal<AutosaveStatus>(current);
+  /** 外部での変更を見張れなくなった理由。見張れていれば undefined */
+  const [unwatched, setUnwatched] = createSignal<string | undefined>(undefined);
 
   const update = (next: AutosaveStatus) => {
     const worsened = next.kind !== "ok" && keyOf(current) !== keyOf(next);
@@ -88,6 +91,12 @@ export function setupAutosave(
       update({ kind: "suspended", reason: "external", problems: result.problems });
       return result;
     }
+    // 同じ内容なら取り込まない。取り消し履歴を増やしたり、やり直しを消したりしないため
+    if (stringifyDiagram(result.diagram) === stringifyDiagram(editor.current())) {
+      dirty = false;
+      update({ kind: "ok" });
+      return result;
+    }
     ignoreNextChange = true;
     editor.applyExternal(result.diagram);
     dirty = false;
@@ -97,7 +106,10 @@ export function setupAutosave(
   };
 
   const onExternalChange = async () => {
-    if (current.kind === "suspended") return;
+    // 取り込めずに止めていても、この画面に守る変更が無ければ追い続ける（直したファイルを取り込む）
+    const following =
+      current.kind !== "suspended" || (current.reason !== "disconnected" && !unsaved());
+    if (!following) return;
     if (unsaved()) {
       update({ kind: "suspended", reason: "external" });
       return;
@@ -133,16 +145,26 @@ export function setupAutosave(
       if (document.visibilityState === "hidden") flush();
     };
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      // 閉じる間際の保存は届かないことがあるので、未保存の変更があれば確かめる
       if (!unsaved()) return;
       flush();
-      event.preventDefault();
+      // ブラウザへの保存はその場で終わるが、ファイルへの保存は閉じる間際だと届かないことがあるので確かめる
+      if (store.kind === "file") event.preventDefault();
     };
     const stopWatching = store.watch({
       change: () => void onExternalChange(),
       lost: (reason, detail) => {
-        if (reason === "disconnected") update({ kind: "suspended", reason: "disconnected" });
-        else options.onUnwatched?.(detail);
+        if (reason === "disconnected") {
+          update({ kind: "suspended", reason: "disconnected" });
+          return;
+        }
+        setUnwatched(detail ?? "");
+        options.onUnwatched?.(detail);
+      },
+      restored: () => {
+        // 同じサーバーにつなぎ直せたので、溜まっていた変更を保存し直す
+        if (current.kind !== "suspended" || current.reason !== "disconnected") return;
+        update({ kind: "ok" });
+        if (dirty) void save();
       },
     });
     window.addEventListener("pagehide", flush);
@@ -159,6 +181,7 @@ export function setupAutosave(
 
   return {
     status,
+    unwatched,
     /** 失敗した保存をやり直す。外部で書き換えられていたら、上書きせずに知らせる */
     retry: () => {
       dirty = true;
@@ -181,6 +204,8 @@ function keyOf(status: AutosaveStatus) {
 /** ツールバーに自動保存の状態を出し、押すと詳しい案内と操作を表示する */
 export const AutosaveContext = createContext<{
   status: Accessor<AutosaveStatus>;
+  unwatched: Accessor<string | undefined>;
   store: DocumentStore;
   explain: (status: AutosaveStatus) => void;
+  explainUnwatched: (detail: string | undefined) => void;
 }>();

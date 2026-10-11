@@ -351,6 +351,16 @@ button.save-status .save-dot {
   animation: save-pulse 1.6s var(--ease-out) infinite;
 }
 
+button.save-status.warning {
+  border-color: rgb(161 98 7 / 0.3);
+  background: #fdf8ec;
+  color: #8a5a0b;
+}
+
+button.save-status.warning .save-dot {
+  background: #b7791f;
+}
+
 @keyframes save-pulse {
   50% {
     opacity: 0.35;

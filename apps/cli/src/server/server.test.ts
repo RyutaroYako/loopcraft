@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { request } from "node:http";
 import { dirname, join } from "node:path";
 import { stringifyDiagram } from "@loopcraft/core/io";
@@ -197,7 +197,7 @@ describe("startServer", () => {
       method: "PUT",
       body: JSON.stringify({ diagram: createSampleDiagram(), baseRevision: null }),
     });
-    expect(rejected.status).toBe(403);
+    expect(rejected.status).toBe(405);
   });
 
   it("保存をほかの画面へ書き手つきで知らせ、同時の保存は 1 つずつ確かめる", async () => {
@@ -228,13 +228,47 @@ describe("startServer", () => {
     events.close();
   });
 
-  it("ディレクトリが無くなったら、見張れなくなったことを知らせる", async () => {
+  it("ディレクトリが無くなったら、見張れなくなったことを後からつないだ画面にも知らせる", async () => {
     const { server, file, stderr } = await start();
     const events = await openEvents(server);
     await events.next(": connected");
     await rm(dirname(file), { recursive: true, force: true });
     expect(await events.next("event: watch-error")).toContain("無くなりました");
     expect(stderr.at(-1)).toMatch(/^⚠ ほかの場所での変更を見張れなくなりました/);
+    events.close();
+    const later = await openEvents(server);
+    expect(await later.next("event: watch-error")).toContain("無くなりました");
+    later.close();
+  });
+
+  it("つないだ時点の版を知らせる", async () => {
+    const { server, file } = await start();
+    const events = await openEvents(server);
+    expect(await events.next("event: revision")).toContain(
+      `"revision":"${revisionOf(await readFile(file, "utf8"))}"`,
+    );
+    events.close();
+  });
+
+  it("シンボリックリンクなら、リンク先の変更を見張る", async () => {
+    const workspace = await createWorkspace();
+    const elsewhere = await createWorkspace();
+    const target = await writeSample(elsewhere.cwd, "real.json");
+    const link = join(workspace.cwd, "link.json");
+    await symlink(target, link);
+    running = await startServer({
+      file: link,
+      webDir: await createWebDir(),
+      port: 0,
+      editable: true,
+      readonly: false,
+      log: workspace.logger,
+      token: TOKEN,
+    });
+    const events = await openEvents(running);
+    await events.next("event: revision");
+    await writeFile(target, stringifyDiagram({ ...createSampleDiagram(), title: "リンク先" }));
+    expect(await events.next("event: change")).toContain('"writer":null');
     events.close();
   });
 

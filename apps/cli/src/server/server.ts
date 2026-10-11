@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, watch, type FSWatcher } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { basename, dirname, extname, join, normalize, sep } from "node:path";
@@ -77,6 +77,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   let port = options.port;
   /** 版を確かめてから書き込むまでの間に、別の保存が割り込まないよう 1 つずつ処理する */
   let saveQueue: Promise<void> = Promise.resolve();
+  /** 見張りが止まった理由。止まっていなければ undefined */
+  let unwatchedReason: string | undefined;
 
   const server = createServer((request, response) => {
     handle(request, response).catch((error: unknown) => {
@@ -147,7 +149,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     writer: string | null,
   ) {
     if (options.readonly) {
-      sendJson(response, 403, { error: "読み取り専用で開いているため保存できません" });
+      // トークンの不一致（403）と区別できるよう、別の状態で返す
+      sendJson(response, 405, { error: "読み取り専用で開いているため保存できません" });
       return;
     }
     let body: unknown;
@@ -186,6 +189,14 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       connection: "keep-alive",
     });
     response.write(": connected\n\n");
+    // つないだ時点の版を知らせる。切れている間の変更や、見張りが止まっていることを、
+    // 後から開いた画面やつなぎ直した画面にも伝えるため
+    response.write(`event: revision\ndata: ${JSON.stringify({ revision: knownRevision })}\n\n`);
+    if (unwatchedReason !== undefined) {
+      response.write(
+        `event: watch-error\ndata: ${JSON.stringify({ reason: unwatchedReason })}\n\n`,
+      );
+    }
     listeners.add(response);
     response.on("close", () => listeners.delete(response));
   }
@@ -214,7 +225,11 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     // トークンを埋め込んだ画面は、起動時に表示した URL（トークン付き）でしか開けない。
     // 同じマシンのほかの利用者がトークンを読み取って、ファイルを書き換えられないようにするため
     if (isIndex && !sameToken(url.searchParams.get("token"), token)) {
-      sendText(response, 403, "loopcraft serve が表示した URL（token 付き）を開いてください");
+      sendText(
+        response,
+        403,
+        "この URL では開けません。loopcraft serve を起動し直した場合は、ターミナルに表示された新しい URL を開いてください",
+      );
       return;
     }
     let content: Buffer;
@@ -246,22 +261,25 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   // エディタ以外（git pull やほかのエディタ）がファイルを書き換えたら、開いている画面に知らせる。
   // 置き換え保存ではファイル自体が作り直されるので、ファイルではなくディレクトリを見る。
   // 待ち受けに失敗したときに監視が残らないよう、待ち受けを始めてから作る
-  const directory = dirname(options.file);
+  // シンボリックリンクなら、実際に書き換わるリンク先を見る
+  const watched = await realpath(options.file).catch(() => options.file);
+  const directory = dirname(watched);
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let watching = true;
   const stopWatching = (reason: string) => {
     if (!watching) return;
+    unwatchedReason = reason;
     watching = false;
     watcher.close();
     log.warn(
-      `ほかの場所での変更を見張れなくなりました（${reason}）。画面は再読み込みするまで自動では更新されません`,
+      `ほかの場所での変更を見張れなくなりました（${reason}）。serve を起動し直すまで、画面には反映されません`,
     );
     broadcast("watch-error", { reason });
   };
   let watcher: FSWatcher;
   try {
     watcher = watch(directory, (_event, name) => {
-      if (name !== basename(options.file)) {
+      if (name !== basename(watched)) {
         if (!existsSync(directory)) stopWatching(`${directory} が無くなりました`);
         return;
       }

@@ -28,7 +28,7 @@ function App(props: { startup: Startup }) {
   const startup = untrack(() => props.startup);
   const { initial, store, editable, readonly, initialStatus } = resolveStartup(startup);
   const editor = createEditor(initial, { editable });
-  const notices = createNotices({ editor, store, startup, autosave: () => autosave });
+  const notices = createNotices({ editor, store, startup, readonly, autosave: () => autosave });
   const autosave = setupAutosave(editor, store, {
     initialStatus,
     onProblem: (status) => notices.explain(status),
@@ -98,7 +98,15 @@ function App(props: { startup: Startup }) {
 
   return (
     <EditorContext value={editor}>
-      <AutosaveContext value={{ status: autosave.status, store, explain: notices.explain }}>
+      <AutosaveContext
+        value={{
+          status: autosave.status,
+          unwatched: autosave.unwatched,
+          store,
+          explain: notices.explain,
+          explainUnwatched: (detail) => notices.unwatched(detail),
+        }}
+      >
         <div
           class={["app", { dropping: dropping(), viewing: !editor.editable() }]}
           onDragOver={(event) => {

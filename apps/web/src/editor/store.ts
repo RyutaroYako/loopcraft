@@ -22,6 +22,8 @@ export interface WatchHandlers {
    * unwatched: 外部での変更を見張れなくなった（保存はできる）
    */
   lost(reason: "disconnected" | "unwatched", detail?: string): void;
+  /** 切れていたつながりが戻った */
+  restored(): void;
 }
 
 /** 図の保存先。ブラウザの localStorage と、`loopcraft serve` で開いたファイルの 2 種類がある */

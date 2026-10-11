@@ -15,7 +15,7 @@ describe("createBrowserStore", () => {
     });
     expect(await store.save(createSampleDiagram())).toMatchObject({ ok: false, reason: "failed" });
     const change = vi.fn();
-    const stop = store.watch({ change, lost: vi.fn() });
+    const stop = store.watch({ change, lost: vi.fn(), restored: vi.fn() });
     window.dispatchEvent(new StorageEvent("storage", { key: "loopcraft:document" }));
     stop();
     expect(change).toHaveBeenCalledOnce();

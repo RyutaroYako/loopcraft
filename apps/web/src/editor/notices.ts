@@ -17,9 +17,13 @@ export function createNotices(context: {
   editor: Editor;
   store: DocumentStore;
   startup: Startup;
+  /** 読み取り専用なら、上書きを勧めない（サーバーが拒むので） */
+  readonly?: boolean;
   autosave: () => Autosave;
   reloadPage?: () => void;
 }) {
+  const overwrite = (label: string): Action[] =>
+    context.readonly ? [] : [{ label, run: run((a) => a.resume()) }];
   const { editor, store, startup } = context;
   const fileName = store.label;
   const reloadPage = context.reloadPage ?? (() => location.reload());
@@ -77,9 +81,9 @@ export function createNotices(context: {
         title: "loopcraft serve とのつながりが切れました",
         details: [
           "止めたか、起動し直した可能性があります。この画面からは保存できません",
-          "未保存の変更は「JSON を書き出す」で残せます。起動し直したら、このページを再読み込みしてください",
+          "未保存の変更は「JSON を書き出す」で残せます。起動し直したら、ターミナルに表示された新しい URL を開いてください",
         ],
-        actions: [exportAction, { label: "ページを再読み込み", run: reloadPage }],
+        actions: [exportAction],
       };
     }
     if (status.reason === "external") {
@@ -104,7 +108,7 @@ export function createNotices(context: {
             ],
             actions: [
               { label: "ファイルの内容を読み込む", run: reloadFromFile },
-              { label: "この画面の内容で上書き", run: run((a) => a.resume()) },
+              ...overwrite("この画面の内容で上書き"),
             ],
           };
     }
@@ -114,11 +118,13 @@ export function createNotices(context: {
         tone: "error",
         title: `${fileName} を開けませんでした`,
         details: [
-          "ファイルはそのまま残しています。直してから再読み込みするか、この画面の内容で上書きしてください",
+          context.readonly
+            ? "ファイルはそのまま残しています。直すと自動で読み込みます"
+            : "ファイルはそのまま残しています。直すと自動で読み込みます。この画面の内容で上書きすることもできます",
           ...(loaded.status === "invalid" ? loaded.errors : []),
           ...(loaded.status === "error" ? [String(loaded.error)] : []),
         ],
-        actions: [{ label: "この画面の内容で上書き", run: run((a) => a.resume()) }],
+        actions: overwrite("この画面の内容で上書き"),
       };
     }
     return {
@@ -188,7 +194,8 @@ export function createNotices(context: {
         title: "ほかの場所での変更を見張れなくなりました",
         details: [
           ...(detail ? [detail] : []),
-          "保存は続けます。ほかの場所で変更すると、保存するときに競合として知らせます",
+          "loopcraft serve を起動し直すまで、ほかの場所での変更はこの画面に反映されません",
+          "編集した内容の保存は続け、ほかの場所での変更とぶつかったときは保存のときに知らせます",
         ],
       });
     },

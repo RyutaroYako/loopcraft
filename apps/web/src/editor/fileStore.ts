@@ -17,7 +17,9 @@ export type LoadResult =
   | { status: "error"; error: unknown };
 
 /** ブラウザは keepalive の本文を 64KiB までに制限しているので、それより大きければ使わない */
-const KEEPALIVE_LIMIT = 60_000;
+const KEEPALIVE_LIMIT_BYTES = 60_000;
+/** つなぎ直せないまま、これだけ経ったらつながりが切れたとみなす */
+const RECONNECT_GRACE_MS = 5000;
 
 /** `loopcraft serve` の API とやりとりして、開いたファイルを読み書きする */
 export function createFileClient(session: Session, base = "") {
@@ -49,7 +51,7 @@ export function createFileClient(session: Session, base = "") {
           method: "PUT",
           headers: { ...headers, [CLIENT_HEADER]: clientId, "content-type": "application/json" },
           body,
-          keepalive: options.keepalive && body.length < KEEPALIVE_LIMIT,
+          keepalive: options.keepalive && new Blob([body]).size < KEEPALIVE_LIMIT_BYTES,
         });
         // サーバーを起動し直すとトークンが変わり、このページからは保存できなくなる
         if (response.status === 403) return { ok: false, reason: "disconnected" };
@@ -66,12 +68,23 @@ export function createFileClient(session: Session, base = "") {
       const source = new EventSource(
         `${base}/api/events?token=${encodeURIComponent(session.token)}`,
       );
-      let interrupted = false;
-      source.addEventListener("change", (event) => {
+      let lost = false;
+      let grace: ReturnType<typeof setTimeout> | undefined;
+      const disconnect = () => {
+        clearTimeout(grace);
+        grace = undefined;
+        if (lost) return;
+        lost = true;
+        handlers.lost("disconnected");
+      };
+      const onRevision = (event: MessageEvent) => {
         const result = v.safeParse(ChangeEventSchema, parseJson(event.data));
         if (!result.success || result.output.writer === clientId) return;
         if (result.output.revision !== revision) handlers.change();
-      });
+      };
+      source.addEventListener("change", onRevision);
+      // つないだ（つなぎ直した）ときに届く、その時点の版。切れていた間の変更を取りこぼさない
+      source.addEventListener("revision", onRevision);
       source.addEventListener("watch-error", (event) => {
         const data = parseJson(event.data);
         const reason =
@@ -79,17 +92,23 @@ export function createFileClient(session: Session, base = "") {
         handlers.lost("unwatched", reason);
       });
       source.addEventListener("error", () => {
-        // 一時的に切れたときはブラウザが自動でつなぎ直す。つなぎ直せないとき（トークンが
-        // 変わったなど）は CLOSED になり、もう知らせは届かない
-        if (source.readyState === EventSource.CLOSED) handlers.lost("disconnected");
-        else interrupted = true;
+        // 一時的に切れたときはブラウザが自動でつなぎ直す。サーバーを止めると、つなぎ直しを
+        // 繰り返すだけで知らせが無いので、しばらく戻らなければ切れたとみなす。トークンが
+        // 変わったときは CLOSED になり、もう戻らない
+        if (source.readyState === EventSource.CLOSED) disconnect();
+        else grace ??= setTimeout(disconnect, RECONNECT_GRACE_MS);
       });
       source.addEventListener("open", () => {
-        // 切れていた間の変更を取りこぼさないよう、つなぎ直したら確かめ直す
-        if (interrupted) handlers.change();
-        interrupted = false;
+        clearTimeout(grace);
+        grace = undefined;
+        if (!lost) return;
+        lost = false;
+        handlers.restored();
       });
-      return () => source.close();
+      return () => {
+        clearTimeout(grace);
+        source.close();
+      };
     },
     async reload(): Promise<ReloadResult> {
       const result = await load();
