@@ -45,6 +45,12 @@ export const LinkSchema = v.pipe(
     to: v.pipe(VariableIdSchema, v.description("結果側の出来事の ID")),
     polarity: PolaritySchema,
     delay: v.optional(v.pipe(v.boolean(), v.description("影響が現れるまでに遅れがあるか"))),
+    curvature: v.optional(
+      v.pipe(
+        v.number(),
+        v.description("曲がり具合。端点間の距離に対する膨らみの比率で、正なら進行方向の左に膨らむ"),
+      ),
+    ),
     description: v.optional(v.string()),
   }),
   v.title("Link"),

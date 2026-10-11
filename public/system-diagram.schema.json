@@ -116,6 +116,10 @@
           "type": "boolean",
           "description": "影響が現れるまでに遅れがあるか"
         },
+        "curvature": {
+          "type": "number",
+          "description": "曲がり具合。端点間の距離に対する膨らみの比率で、正なら進行方向の左に膨らむ"
+        },
         "description": {
           "type": "string"
         }
