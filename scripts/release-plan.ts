@@ -55,7 +55,7 @@ const registry =
       });
 if (!registry) {
   console.log(
-    `::notice::${PACKAGE} はまだ npm にありません。最初の版は手元から公開し、npm の trusted publisher を登録してください（README の「初回の公開」）`,
+    `::notice::${PACKAGE} はまだ npm にありません。trusted publisher はパッケージが npm にあるときだけ登録できるので、最初の版は手元から公開してください`,
   );
 }
 
