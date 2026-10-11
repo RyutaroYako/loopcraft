@@ -11,7 +11,12 @@ export default defineConfig({
     options: { typeAware: true, typeCheck: true },
   },
   test: {
-    projects: ["apps/*", "packages/*"],
+    projects: [
+      "packages/*",
+      "apps/cli",
+      "apps/web/vite.config.ts",
+      "apps/web/vite.browser.config.ts",
+    ],
     coverage: {
       provider: "v8",
       include: ["packages/core/src/**/*.ts", "apps/cli/src/**/*.ts", "apps/web/src/**/*.{ts,tsx}"],

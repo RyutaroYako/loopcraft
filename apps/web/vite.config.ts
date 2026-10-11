@@ -6,5 +6,6 @@ export default defineConfig({
   test: {
     name: "web",
     environment: "jsdom",
+    exclude: ["**/node_modules/**", "**/*.browser.test.tsx"],
   },
 });

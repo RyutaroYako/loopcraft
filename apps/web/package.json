@@ -20,7 +20,9 @@
   "devDependencies": {
     "@solidjs/vite-plugin": "3.0.0-next.49",
     "@types/node": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
     "jsdom": "^30.1.2",
+    "playwright": "^1.64.0",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   }

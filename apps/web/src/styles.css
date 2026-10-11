@@ -810,6 +810,12 @@ button.save-status .save-dot {
   padding: 28px 32px 28px 0;
   background: radial-gradient(closest-side, var(--canvas) 70%, transparent);
   animation: rise 0.6s var(--ease-out) both;
+  /* 案内の上でもダブルクリックで出来事を足せるよう、操作はボタンだけが受け取る */
+  pointer-events: none;
+}
+
+.empty-actions .button {
+  pointer-events: auto;
 }
 
 .empty-state h2 {
