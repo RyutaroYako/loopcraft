@@ -1,3 +1,5 @@
+// 型の不一致など、スキーマ自体が出す検証メッセージを日本語にする
+import "@valibot/i18n/ja/schema";
 import * as v from "valibot";
 import { DIAGRAM_FORMAT_VERSION, DiagramSchema, type Diagram } from "./schema.ts";
 
@@ -26,7 +28,7 @@ export function parseDiagramJson(text: string): ParseDiagramResult {
       errors: [{ path: undefined, message: `JSON として読み込めません: ${String(error)}` }],
     };
   }
-  const result = v.safeParse(DiagramSchema, input);
+  const result = v.safeParse(DiagramSchema, input, { lang: "ja" });
   if (result.success) return { ok: true, diagram: result.output };
   return {
     ok: false,

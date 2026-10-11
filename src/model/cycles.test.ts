@@ -16,9 +16,13 @@ function graph(edges: [string, string, "+" | "-"][]): DiagramShape {
   });
 }
 
+function linksOf(edges: [string, string, "+" | "-"][]) {
+  return graph(edges).links;
+}
+
 describe("findLoops", () => {
   it("サンプルの 2 つのループを種類つきで見つける", () => {
-    const { loops, truncated } = findLoops(createSample());
+    const { loops, truncated } = findLoops(createSample().links);
     expect(truncated).toBe(false);
     expect(loops.map((loop) => [loop.key, loop.kind])).toEqual(
       [
@@ -30,7 +34,7 @@ describe("findLoops", () => {
 
   it("出来事の並びは関連の出発点と対応する", () => {
     const { loops } = findLoops(
-      graph([
+      linksOf([
         ["a", "b", "+"],
         ["b", "c", "+"],
         ["c", "a", "-"],
@@ -46,7 +50,7 @@ describe("findLoops", () => {
   it("閉路が無ければ空", () => {
     expect(
       findLoops(
-        graph([
+        linksOf([
           ["a", "b", "+"],
           ["b", "c", "+"],
         ]),
@@ -54,9 +58,9 @@ describe("findLoops", () => {
     ).toEqual([]);
   });
 
-  it("往復の関連も 2 本のループとして扱う", () => {
+  it("往復する 2 本の関連も 1 つのループとして扱う", () => {
     const { loops } = findLoops(
-      graph([
+      linksOf([
         ["a", "b", "-"],
         ["b", "a", "-"],
       ]),
@@ -69,7 +73,7 @@ describe("findLoops", () => {
     const edges = names.flatMap((from) =>
       names.filter((to) => to !== from).map((to) => [from, to, "+"] as [string, string, "+"]),
     );
-    const { loops } = findLoops(graph(edges));
+    const { loops } = findLoops(graph(edges).links);
     // K4 の有向単純閉路: 長さ2が6, 長さ3が8, 長さ4が6
     expect(loops).toHaveLength(20);
     expect(new Set(loops.map((loop) => loop.key)).size).toBe(20);
@@ -83,7 +87,7 @@ describe("findLoops", () => {
     const edges = names.flatMap((from) =>
       names.filter((to) => to !== from).map((to) => [from, to, "+"] as [string, string, "+"]),
     );
-    const result = findLoops(graph(edges), 5);
+    const result = findLoops(graph(edges).links, 5);
     expect(result.truncated).toBe(true);
     expect(result.loops).toHaveLength(5);
   });

@@ -1,5 +1,5 @@
 import { classifyLoop, cycleKey, type LoopKind } from "./loop.ts";
-import type { DiagramShape, LinkId, VariableId } from "./schema.ts";
+import type { Link, LinkId, VariableId } from "./schema.ts";
 
 export interface DetectedLoop {
   /** cycleKey(links)。保存済みの Loop との対応付けに使う */
@@ -26,21 +26,19 @@ interface Edge {
 class LimitReached extends Error {}
 
 /**
- * 図に含まれる単純閉路（同じ出来事を 2 度通らないループ）をすべて列挙する。
+ * 関連が作る単純閉路（同じ出来事を 2 度通らないループ）をすべて列挙する。
+ * 出来事の位置には依存しないので、関連の配列だけを受け取る。
  * Johnson のアルゴリズムを使うので、閉路数に比例した時間で終わる。
  */
-export function findLoops(
-  diagram: Pick<DiagramShape, "variables" | "links">,
-  limit = DEFAULT_CYCLE_LIMIT,
-): CycleSearchResult {
-  const ids = diagram.variables.map((variable) => variable.id);
+export function findLoops(links: readonly Link[], limit = DEFAULT_CYCLE_LIMIT): CycleSearchResult {
+  const ids = [...new Set(links.flatMap((link) => [link.from, link.to]))];
   const indexOf = new Map(ids.map((id, index) => [id, index]));
-  const polarityOf = new Map(diagram.links.map((link) => [link.id, link.polarity]));
+  const polarityOf = new Map(links.map((link) => [link.id, link.polarity]));
   const adjacency: Edge[][] = ids.map(() => []);
-  for (const link of diagram.links) {
-    const from = indexOf.get(link.from);
-    const to = indexOf.get(link.to);
-    if (from === undefined || to === undefined || from === to) continue;
+  for (const link of links) {
+    const from = indexOf.get(link.from)!;
+    const to = indexOf.get(link.to)!;
+    if (from === to) continue;
     adjacency[from]!.push({ to, link: link.id });
   }
 

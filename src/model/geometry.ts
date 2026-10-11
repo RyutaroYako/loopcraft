@@ -105,8 +105,8 @@ export function linkGeometry(
     middle,
     tangent,
     label: {
-      x: labelAnchor.x + normal.x * 14 * side,
-      y: labelAnchor.y + normal.y * 14 * side,
+      x: labelAnchor.x + normal.x * 17 * side,
+      y: labelAnchor.y + normal.y * 17 * side,
     },
   };
 }
