@@ -250,7 +250,9 @@ kbd {
 
 .toolbar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
   align-items: center;
   gap: 12px;
   padding: 0 12px 0 16px;
@@ -353,6 +355,46 @@ button.save-status .save-dot {
   50% {
     opacity: 0.35;
   }
+}
+
+.mode-switch {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.mode-switch button {
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  transition:
+    background-color 0.2s var(--ease-out),
+    color 0.2s var(--ease-out);
+}
+
+.mode-switch button.active {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(24 24 27 / 0.06);
+}
+
+.mode-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  white-space: nowrap;
 }
 
 .toolbar-group {
@@ -480,6 +522,21 @@ button.save-status .save-dot {
 
 .node.editing {
   opacity: 0;
+}
+
+.viewing .node,
+.viewing .polarity,
+.viewing .loop-marker {
+  cursor: pointer;
+}
+
+.viewing .node-handle {
+  display: none;
+}
+
+.empty-note {
+  max-width: 40ch;
+  color: var(--ink-2);
 }
 
 .node.dimmed,

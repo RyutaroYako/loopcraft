@@ -95,7 +95,7 @@ function keepFocusInCanvas() {
   });
 }
 
-export function createEditor(initial: Diagram) {
+export function createEditor(initial: Diagram, options: { editable?: boolean } = {}) {
   // 直前の編集をすぐ次の編集に使えるよう、最新の図はシグナルとは別に持つ
   // （シグナルの読み取りは次のマイクロタスクまで更新されない）
   let present = initial;
@@ -107,8 +107,12 @@ export function createEditor(initial: Diagram) {
   let coalesce: { key: string; at: number } | undefined;
   let activeGesture: { base: Diagram } | undefined;
 
+  /** 閲覧モードでは false。編集の操作はすべて何もしない */
+  let isEditable = options.editable ?? true;
+  const [editable, setEditableSignal] = createSignal(isEditable);
+
   const [selection, setSelection] = createSignal<Selection | null>(null);
-  const [editingVariable, setEditingVariable] = createSignal<VariableId | null>(null);
+  const [editingVariable, setEditingVariableSignal] = createSignal<VariableId | null>(null);
   const [hoveredLoop, setHoveredLoop] = createSignal<string | null>(null);
   /** 見出していないループを一覧で選んだときの強調表示 */
   const [focusedLoop, setFocusedLoop] = createSignal<string | null>(null);
@@ -203,7 +207,7 @@ export function createEditor(initial: Diagram) {
   /** 履歴に残る編集。coalesceKey が直前と同じなら 1 回の編集にまとめる */
   function commit(next: Diagram, coalesceKey?: string) {
     finishGesture();
-    if (next === present) return;
+    if (!isEditable || next === present) return;
     const now = Date.now();
     const merge =
       coalesceKey !== undefined && coalesce?.key === coalesceKey && now - coalesce.at < COALESCE_MS;
@@ -221,6 +225,7 @@ export function createEditor(initial: Diagram) {
    */
   function beginGesture(): Gesture {
     finishGesture();
+    if (!isEditable) return { preview() {}, end() {}, cancel() {} };
     const state = { base: present };
     activeGesture = state;
     return {
@@ -256,6 +261,7 @@ export function createEditor(initial: Diagram) {
 
   function undo() {
     finishGesture();
+    if (!isEditable) return;
     const previous = undoStack.pop();
     if (!previous) return;
     redoStack.push(present);
@@ -268,6 +274,7 @@ export function createEditor(initial: Diagram) {
 
   function redo() {
     finishGesture();
+    if (!isEditable) return;
     const next = redoStack.pop();
     if (!next) return;
     pushUndo(present);
@@ -309,6 +316,7 @@ export function createEditor(initial: Diagram) {
   }
 
   function addVariableAt(position: Point) {
+    if (!isEditable) return undefined;
     const result = edit.addVariable(present, { label: "", position });
     commit(result.diagram);
     select({ kind: "variable", id: result.id });
@@ -317,6 +325,7 @@ export function createEditor(initial: Diagram) {
   }
 
   function connect(from: VariableId, to: VariableId) {
+    if (!isEditable) return;
     const result = edit.addLink(present, { from, to });
     if (result.ok) {
       commit(result.diagram);
@@ -331,6 +340,7 @@ export function createEditor(initial: Diagram) {
 
   /** 関連を引いた先に新しい出来事を作り、すぐ名前を入力できるようにする */
   function connectToNewVariable(from: VariableId, position: Point) {
+    if (!isEditable) return;
     const added = edit.addVariable(present, { label: "", position });
     const linked = edit.addLink(added.diagram, { from, to: added.id });
     if (!linked.ok) return;
@@ -340,6 +350,7 @@ export function createEditor(initial: Diagram) {
   }
 
   function deleteSelection() {
+    if (!isEditable) return;
     const selected = selection();
     if (!selected) return;
     if (selected.kind === "variable") commit(edit.removeVariable(present, selected.id));
@@ -350,20 +361,53 @@ export function createEditor(initial: Diagram) {
   }
 
   function featureLoop(links: LinkId[]) {
+    if (!isEditable) return;
     const result = edit.featureLoop(present, links);
     commit(result.diagram);
     select({ kind: "loop", id: result.id });
   }
 
   function unfeatureLoop(id: LoopId) {
+    if (!isEditable) return;
     const loop = present.loops.find((item) => item.id === id);
     commit(edit.removeLoop(present, id));
     if (selection()?.id === id) setSelection(null);
     if (loop) setFocusedLoop(cycleKey(loop.links));
   }
 
+  /**
+   * 保存先が外部で書き換えられたときに、その内容を取り込む。閲覧モードでも行い、
+   * 表示位置や選択はできるだけそのままにする。取り消し履歴には 1 回の変更として残す
+   */
+  function applyExternal(next: Diagram) {
+    finishGesture();
+    if (next === present) return;
+    pushUndo(present);
+    redoStack.length = 0;
+    coalesce = undefined;
+    show(next);
+    updateHistorySize();
+    dropStaleSelection(next);
+    if (editingVariable() && !next.variables.some((item) => item.id === editingVariable())) {
+      setEditingVariableSignal(null);
+    }
+  }
+
+  function setEditable(value: boolean) {
+    finishGesture();
+    isEditable = value;
+    setEditableSignal(value);
+    if (!value) setEditingVariableSignal(null);
+  }
+
+  function setEditingVariable(id: VariableId | null) {
+    if (id !== null && !isEditable) return;
+    setEditingVariableSignal(id);
+  }
+
   /** 図を丸ごと差し替える。元に戻せる */
   function replaceDiagram(next: Diagram) {
+    if (!isEditable) return;
     commit(next);
     setSelection(null);
     setFocusedLoop(null);
@@ -372,6 +416,7 @@ export function createEditor(initial: Diagram) {
   }
 
   async function importFile(file: File) {
+    if (!isEditable) return;
     let text: string;
     try {
       text = await file.text();
@@ -483,6 +528,7 @@ export function createEditor(initial: Diagram) {
     loopEntryByLoopId,
     highlightedLoop,
     historySize,
+    editable,
     selection,
     editingVariable,
     hoveredLoop,
@@ -491,6 +537,8 @@ export function createEditor(initial: Diagram) {
     notice,
 
     commit,
+    applyExternal,
+    setEditable,
     beginGesture,
     undo,
     redo,

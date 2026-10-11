@@ -1,4 +1,5 @@
 import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
+import { AutosaveContext } from "../editor/autosave.ts";
 import { EditorContext, type Editor, type LoopEntry } from "../editor/editor.ts";
 import { downloadText } from "../editor/file.ts";
 import { listBackups, readBackup, removeBackup } from "../editor/storage.ts";
@@ -70,6 +71,7 @@ function Field(props: {
   hint?: string;
   onInput: (value: string) => void;
 }) {
+  const editor = useContext(EditorContext);
   return (
     <label class="field">
       <span class="field-label">{props.label}</span>
@@ -80,6 +82,7 @@ function Field(props: {
             name={props.name}
             value={props.value}
             placeholder={props.placeholder}
+            readonly={!editor.editable()}
             onInput={(event) => {
               if (!event.isComposing) props.onInput(event.currentTarget.value);
             }}
@@ -91,6 +94,7 @@ function Field(props: {
           name={props.name}
           value={props.value}
           placeholder={props.placeholder}
+          readonly={!editor.editable()}
           rows="3"
           onInput={(event) => {
             if (!event.isComposing) props.onInput(event.currentTarget.value);
@@ -107,6 +111,7 @@ function Field(props: {
 
 function DiagramInspector() {
   const editor = useContext(EditorContext);
+  const autosave = useContext(AutosaveContext);
   const stats = () => {
     const diagram = editor.diagram();
     return [
@@ -139,7 +144,9 @@ function DiagramInspector() {
           editor.commit(edit.setDescription(editor.current(), value), "diagram-description")
         }
       />
-      <BackupList />
+      <Show when={autosave.store.kind === "browser"}>
+        <BackupList />
+      </Show>
     </div>
   );
 }
@@ -283,7 +290,9 @@ function VariableInspector(props: { id: VariableId }) {
           onAdd={(other) => editor.connect(props.id, other)}
         />
       </div>
-      <DeleteButton label="出来事を削除" />
+      <Show when={editor.editable()}>
+        <DeleteButton label="出来事を削除" />
+      </Show>
     </div>
   );
 }
@@ -323,7 +332,7 @@ function RelationList(props: {
           </For>
         </ul>
       </Show>
-      <Show when={props.candidates.length > 0}>
+      <Show when={editor.editable() && props.candidates.length > 0}>
         <RelationPicker label={props.addLabel} candidates={props.candidates} onAdd={props.onAdd} />
       </Show>
     </div>
@@ -415,6 +424,7 @@ function LinkInspector(props: { id: LinkId }) {
             type="button"
             class={{ active: link()?.polarity === "+" }}
             aria-pressed={pressedState(link()?.polarity === "+")}
+            disabled={!editor.editable()}
             onClick={() => update({ polarity: "+" })}
           >
             <PolarityGlyph polarity="+" />
@@ -424,6 +434,7 @@ function LinkInspector(props: { id: LinkId }) {
             type="button"
             class={{ active: link()?.polarity === "-" }}
             aria-pressed={pressedState(link()?.polarity === "-")}
+            disabled={!editor.editable()}
             onClick={() => update({ polarity: "-" })}
           >
             <PolarityGlyph polarity="-" />
@@ -441,6 +452,7 @@ function LinkInspector(props: { id: LinkId }) {
           name="delay"
           type="checkbox"
           checked={link()?.delay ?? false}
+          disabled={!editor.editable()}
           onChange={(event) => update({ delay: event.currentTarget.checked || undefined })}
         />
         <span class="toggle-track" aria-hidden="true" />
@@ -459,17 +471,19 @@ function LinkInspector(props: { id: LinkId }) {
           update({ description: description || undefined }, `description:${props.id}`)
         }
       />
-      <div class="inline-actions">
-        <button
-          type="button"
-          class="button ghost small"
-          disabled={link()?.curvature === undefined}
-          onClick={() => update({ curvature: undefined })}
-        >
-          曲がり具合を戻す
-        </button>
-      </div>
-      <DeleteButton label="関連を削除" />
+      <Show when={editor.editable()}>
+        <div class="inline-actions">
+          <button
+            type="button"
+            class="button ghost small"
+            disabled={link()?.curvature === undefined}
+            onClick={() => update({ curvature: undefined })}
+          >
+            曲がり具合を戻す
+          </button>
+        </div>
+        <DeleteButton label="関連を削除" />
+      </Show>
     </div>
   );
 }
@@ -510,17 +524,19 @@ function LoopInspector(props: { id: LoopId }) {
         <LoopPath links={entry()?.links ?? []} variables={entry()?.variables ?? []} />
         <span class="field-hint">{kindExplanation(negatives())}</span>
       </div>
-      <div class="inline-actions">
-        <button
-          type="button"
-          class="button ghost small"
-          disabled={loop()?.marker === undefined}
-          onClick={() => update({ marker: undefined })}
-        >
-          記号の位置を戻す
-        </button>
-      </div>
-      <DeleteButton label="見出しを外す" />
+      <Show when={editor.editable()}>
+        <div class="inline-actions">
+          <button
+            type="button"
+            class="button ghost small"
+            disabled={loop()?.marker === undefined}
+            onClick={() => update({ marker: undefined })}
+          >
+            記号の位置を戻す
+          </button>
+        </div>
+        <DeleteButton label="見出しを外す" />
+      </Show>
     </div>
   );
 }
@@ -696,6 +712,7 @@ function LoopItem(props: { entry: LoopEntry; index: number }) {
         aria-pressed={pressedState(!!props.entry.featured)}
         title={props.entry.featured ? "見出しを外す" : "このループを見出す"}
         aria-label={props.entry.featured ? "見出しを外す" : "このループを見出す"}
+        disabled={!editor.editable()}
         onClick={() => {
           const featured = props.entry.featured;
           if (featured) editor.unfeatureLoop(featured.loop.id);

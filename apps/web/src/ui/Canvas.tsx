@@ -357,7 +357,7 @@ export function Canvas() {
               )}
             </For>
           </g>
-          <Show when={selectedLinkHandle() !== undefined}>
+          <Show when={editor.editable() && selectedLinkHandle() !== undefined}>
             <circle
               class="curve-handle"
               cx={selectedLinkHandle()?.point.x}
@@ -407,13 +407,23 @@ export function Canvas() {
       </div>
 
       <Show when={!isEmpty()}>
-        <p class="canvas-hint">
-          <span>ダブルクリックで出来事を追加</span>
-          <span>右端の点をドラッグで関連</span>
-          <span>
-            <kbd>Delete</kbd> で削除
-          </span>
-        </p>
+        <Show
+          when={editor.editable()}
+          fallback={
+            <p class="canvas-hint">
+              <span>閲覧モード</span>
+              <span>ドラッグで移動、Ctrl+ホイールで拡大縮小</span>
+            </p>
+          }
+        >
+          <p class="canvas-hint">
+            <span>ダブルクリックで出来事を追加</span>
+            <span>右端の点をドラッグで関連</span>
+            <span>
+              <kbd>Delete</kbd> で削除
+            </span>
+          </p>
+        </Show>
       </Show>
     </div>
   );

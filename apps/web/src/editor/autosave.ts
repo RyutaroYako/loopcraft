@@ -1,6 +1,6 @@
 import { createContext, createEffect, createSignal, onSettled, type Accessor } from "solid-js";
 import type { Editor } from "./editor.ts";
-import { storeDiagram, watchOtherTabs } from "./storage.ts";
+import type { DocumentStore } from "./store.ts";
 
 const SAVE_DELAY_MS = 300;
 
@@ -8,25 +8,34 @@ export type AutosaveStatus =
   | { kind: "ok" }
   | { kind: "failing"; error: unknown }
   /**
-   * other-tab: 別のタブが同じ図を保存したので、上書きしないよう止めている
-   * unreadable: 読み込めなかった前回の図を退避できなかったので、上書きしないよう止めている
+   * external: 別のタブや別のプログラムが保存先を書き換えたので、上書きしないよう止めている
+   * unreadable: 開けなかった前回の図を残すため、上書きしないよう止めている
    */
-  | { kind: "suspended"; reason: "other-tab" | "unreadable" };
+  | { kind: "suspended"; reason: "external" | "unreadable" };
 
 /**
- * 図の変更を localStorage へ自動保存する。コンポーネント本体から呼ぶ。
- * - 開いただけでは保存しない（読み込めなかった前回の図を空の図で上書きしないため）
- * - 別のタブが保存したら、このタブからの保存を止めて上書きを防ぐ
+ * 図の変更を保存先へ自動保存する。コンポーネント本体から呼ぶ。
+ * - 開いただけでは保存しない（開けなかった前回の図を空の図で上書きしないため）
+ * - 保存先が外部で書き換えられたら、未保存の変更が無ければ取り込み、あれば保存を止める
  * - タブを閉じる・隠すときは待たずに保存する
  * - initialStatus で、使えない・止めている状態から始められる
  * 状態は status で常に読めるようにし、悪くなったときだけ onProblem で知らせる。
  */
 export function setupAutosave(
   editor: Editor,
-  options: { initialStatus?: AutosaveStatus; onProblem?: (status: AutosaveStatus) => void } = {},
+  store: DocumentStore,
+  options: {
+    initialStatus?: AutosaveStatus;
+    onProblem?: (status: AutosaveStatus) => void;
+    /** 外部での変更を取り込んだとき */
+    onReload?: () => void;
+  } = {},
 ) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let dirty = false;
+  let saving: Promise<void> | undefined;
+  /** 取り込んだ内容をそのまま保存し直さないよう、次の 1 回の変更を無視する */
+  let ignoreNextChange = false;
   // シグナルは書き込み直後に読んでも古い値を返すので、判定用に最新の状態を別に持つ
   let current: AutosaveStatus = options.initialStatus ?? { kind: "ok" };
   const [status, setStatus] = createSignal<AutosaveStatus>(current);
@@ -38,46 +47,74 @@ export function setupAutosave(
     if (worsened) options.onProblem?.(next);
   };
 
-  const save = () => {
+  const save = async (force = false, keepalive = false): Promise<void> => {
     clearTimeout(timer);
     timer = undefined;
-    if (!dirty || current.kind === "suspended") return;
-    const result = storeDiagram(editor.current());
-    if (result.ok) {
-      dirty = false;
-      update({ kind: "ok" });
-    } else {
-      update({ kind: "failing", error: result.error });
+    if (saving) {
+      // 保存中の変更は、その保存が終わってから改めて保存する
+      await saving;
+      return save(force, keepalive);
     }
+    if (!dirty || (current.kind === "suspended" && !force)) return;
+    dirty = false;
+    saving = (async () => {
+      const result = await store.save(editor.current(), { force, keepalive });
+      if (result.ok) {
+        update({ kind: "ok" });
+      } else {
+        dirty = true;
+        update(
+          result.reason === "conflict"
+            ? { kind: "suspended", reason: "external" }
+            : { kind: "failing", error: result.error },
+        );
+      }
+    })();
+    await saving;
+    saving = undefined;
   };
 
-  /** 止めていた自動保存を再開し、溜まっていた変更をすぐに保存する */
-  const resume = () => {
-    if (current.kind === "suspended") update({ kind: "ok" });
-    dirty = true;
-    save();
+  /** 保存先の最新の内容を、取り消し履歴に残る 1 回の変更として取り込む */
+  const reload = async () => {
+    const latest = await store.reload();
+    if (!latest) return false;
+    ignoreNextChange = true;
+    editor.applyExternal(latest);
+    dirty = false;
+    update({ kind: "ok" });
+    options.onReload?.();
+    return true;
+  };
+
+  const onExternalChange = async () => {
+    if (current.kind === "suspended") return;
+    const unsaved = dirty || saving !== undefined || timer !== undefined;
+    if (!unsaved && (await reload())) return;
+    update({ kind: "suspended", reason: "external" });
   };
 
   createEffect(
     () => editor.diagram(),
     () => {
+      if (ignoreNextChange) {
+        ignoreNextChange = false;
+        return;
+      }
       dirty = true;
       clearTimeout(timer);
-      timer = setTimeout(save, SAVE_DELAY_MS);
+      timer = setTimeout(() => void save(), SAVE_DELAY_MS);
     },
     { defer: true },
   );
 
   onSettled(() => {
     const flush = () => {
-      if (timer !== undefined) save();
+      if (timer !== undefined) void save(false, true);
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") flush();
     };
-    const stopWatching = watchOtherTabs(() => {
-      if (current.kind !== "suspended") update({ kind: "suspended", reason: "other-tab" });
-    });
+    const stopWatching = store.watch(() => void onExternalChange());
     window.addEventListener("pagehide", flush);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
@@ -88,11 +125,21 @@ export function setupAutosave(
     };
   });
 
-  return { status, resume };
+  return {
+    status,
+    /** 止めていた自動保存を再開し、この画面の内容で保存し直す */
+    resume: () => {
+      dirty = true;
+      return save(true);
+    },
+    /** 保存先の内容を読み直して、この画面の変更を捨てる。読めなかったら false */
+    reload,
+  };
 }
 
 /** ツールバーに自動保存の状態を出し、押すと詳しい案内と操作を表示する */
 export const AutosaveContext = createContext<{
   status: Accessor<AutosaveStatus>;
+  store: DocumentStore;
   explain: (status: AutosaveStatus) => void;
 }>();
