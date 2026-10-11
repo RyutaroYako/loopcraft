@@ -1,4 +1,8 @@
+import { cp } from "node:fs/promises";
 import { defineConfig } from "vite-plus";
+
+const webDist = new URL("../web/dist/", import.meta.url);
+const bundledWeb = new URL("./dist/web/", import.meta.url);
 
 export default defineConfig({
   pack: {
@@ -8,7 +12,12 @@ export default defineConfig({
     platform: "node",
     banner: { js: "#!/usr/bin/env node" },
     clean: true,
-    copy: [{ from: "../web/dist/**/*", to: "dist/web", flatten: false }],
+    hooks: {
+      // serve で配るため、ビルド済みのエディタをパッケージに同梱する
+      "build:done": async () => {
+        await cp(webDist, bundledWeb, { recursive: true });
+      },
+    },
   },
   run: {
     tasks: {

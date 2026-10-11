@@ -140,7 +140,11 @@ function DiagramInspector() {
         value={editor.diagram().description ?? ""}
         placeholder="例: 人を増やすほど成長するが、育成の負担が成長を押し戻す"
         multiline
-        hint="出来事・矢印・ループを選ぶと、ここで編集できます"
+        hint={
+          editor.editable()
+            ? "出来事・矢印・ループを選ぶと、ここで編集できます"
+            : "出来事・矢印・ループを選ぶと、ここで詳しく見られます"
+        }
         onInput={(value) =>
           editor.commit(edit.setDescription(editor.current(), value), "diagram-description")
         }

@@ -15,6 +15,9 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: voidzero-dev/setup-vp@v1.21.2
@@ -23,5 +26,21 @@ jobs:
           cache: true
       # Vite Task のキャッシュは実行間で引き継がない。まだ実験的な機能で、どのタスクも数秒で終わり復元の手間に見合わないため
       - run: vp check
-      - run: vp test
-      - run: vp build
+      - run: vp exec --filter @loopcraft/web playwright install --with-deps chromium
+      - name: Test with coverage
+        id: test
+        run: vp test run --coverage
+      - name: Coverage report
+        if: always() && steps.test.outcome != 'skipped' && github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
+      - run: vp run -r build
+      - name: Smoke test the packed CLI
+        run: |
+          cd apps/cli
+          pnpm pack --pack-destination "$RUNNER_TEMP"
+          mkdir "$RUNNER_TEMP/app" && cd "$RUNNER_TEMP/app"
+          npm init -y > /dev/null
+          npm install "$RUNNER_TEMP"/loopcraft-*.tgz
+          npx loopcraft init --sample
+          npx loopcraft validate diagram.json
+          npx loopcraft loops diagram.json --format md

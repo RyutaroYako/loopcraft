@@ -170,6 +170,20 @@ export function createProgram(dependencies: ProgramDependencies) {
 
   program.command("schema").description("図の JSON Schema を出力する").action(actions.schema);
 
+  program.addHelpText(
+    "after",
+    [
+      "",
+      "例:",
+      "  loopcraft serve diagram.json        ブラウザで開く（閲覧モード）",
+      "  loopcraft serve diagram.json --edit 編集モードで開く",
+      "  loopcraft validate *.json           まとめて検証する",
+      "  loopcraft loops diagram.json --format md",
+      "",
+      "引数を付けずに実行すると、コマンドやファイルを選んで進められます。",
+    ].join("\n"),
+  );
+
   // 知らないコマンドは commander の英語のエラーではなく、日本語で伝える。
   // 設定はサブコマンドを作るときに引き継がれるので、すべて作った後でルートにだけ付ける
   program.allowExcessArguments();
