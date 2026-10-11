@@ -1,19 +1,11 @@
 import { createContext, createMemo, createSignal } from "solid-js";
-import { findLoops, type DetectedLoop } from "@loopcraft/core/cycles";
+import { findLoops } from "@loopcraft/core/cycles";
+import { listLoopEntries } from "@loopcraft/core/loops";
 import * as edit from "@loopcraft/core/edit";
 import { boundsOf, nodeSize, type Size } from "@loopcraft/core/geometry";
 import { createEmptyDiagram, parseDiagramJson } from "@loopcraft/core/io";
-import { classifyLoop, cycleKey, type LoopKind } from "@loopcraft/core/loop";
-import type {
-  Diagram,
-  Link,
-  LinkId,
-  Loop,
-  LoopId,
-  Point,
-  Variable,
-  VariableId,
-} from "@loopcraft/core/schema";
+import { cycleKey } from "@loopcraft/core/loop";
+import type { Diagram, LinkId, LoopId, Point, Variable, VariableId } from "@loopcraft/core/schema";
 import { downloadDiagram } from "./file.ts";
 import { clearMeasureCache, measureLabel } from "./measure.ts";
 
@@ -50,16 +42,6 @@ export interface NodeBox {
   size: Size;
 }
 
-/** ループ一覧の 1 行。検出されたループと、それを見出した Loop の対応 */
-export interface LoopEntry {
-  key: string;
-  links: LinkId[];
-  variables: VariableId[];
-  kind: LoopKind;
-  /** 見出したループなら、その Loop と R1 / B2 のような番号 */
-  featured?: { loop: Loop; badge: string };
-}
-
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 3;
 const HISTORY_LIMIT = 200;
@@ -74,13 +56,6 @@ export function computeBoxes(variables: readonly Variable[]): Map<VariableId, No
       { center: variable.position, size: nodeSize(measureLabel(variable.label || "名称未設定")) },
     ]),
   );
-}
-
-export function variablesOfLoop(links: readonly LinkId[], linkById: ReadonlyMap<LinkId, Link>) {
-  return links.flatMap((id) => {
-    const link = linkById.get(id);
-    return link ? [link.from] : [];
-  });
 }
 
 /**
@@ -141,35 +116,8 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   });
   const detection = createMemo(() => findLoops(links()));
 
-  const featuredLoops = createMemo(() => {
-    const counters: Record<LoopKind, number> = { reinforcing: 0, balancing: 0 };
-    const byLink = linkById();
-    return loops().map((loop) => {
-      const kind = classifyLoop(loop.links.map((id) => byLink.get(id)?.polarity ?? "+"));
-      counters[kind]++;
-      const badge = `${kind === "reinforcing" ? "R" : "B"}${counters[kind]}`;
-      return { loop, kind, badge, key: cycleKey(loop.links) };
-    });
-  });
-
   /** 見出したループを先に、残りの検出されたループを後に並べる */
-  const loopEntries = createMemo((): LoopEntry[] => {
-    const byLink = linkById();
-    const featured = featuredLoops();
-    const featuredKeys = new Set(featured.map((item) => item.key));
-    return [
-      ...featured.map(({ loop, kind, badge, key }) => ({
-        key,
-        links: loop.links,
-        variables: variablesOfLoop(loop.links, byLink),
-        kind,
-        featured: { loop, badge },
-      })),
-      ...detection()
-        .loops.filter((loop: DetectedLoop) => !featuredKeys.has(loop.key))
-        .map(({ key, links, variables, kind }) => ({ key, links, variables, kind })),
-    ];
-  });
+  const loopEntries = createMemo(() => listLoopEntries(loops(), links(), detection().loops));
 
   const loopEntryByLoopId = createMemo(
     () =>
@@ -185,9 +133,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     const selected = selection();
     const key =
       hoveredLoop() ??
-      (selected?.kind === "loop"
-        ? featuredLoops().find((item) => item.loop.id === selected.id)?.key
-        : undefined) ??
+      (selected?.kind === "loop" ? loopEntryByLoopId().get(selected.id)?.key : undefined) ??
       focusedLoop();
     if (!key) return undefined;
     const entry = loopEntries().find((item) => item.key === key);

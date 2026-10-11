@@ -1,6 +1,7 @@
 import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
-import { EditorContext, type Editor, type LoopEntry } from "../editor/editor.ts";
+import { EditorContext, type Editor } from "../editor/editor.ts";
+import type { LoopEntry } from "@loopcraft/core/loops";
 import { downloadText } from "../editor/file.ts";
 import { listBackups, readBackup, removeBackup } from "../editor/storage.ts";
 import * as edit from "@loopcraft/core/edit";
