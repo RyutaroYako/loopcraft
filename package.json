@@ -1,0 +1,33 @@
+{
+  "name": "system-diagram-editor",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview",
+    "gen:schema": "node scripts/generate-json-schema.ts"
+  },
+  "dependencies": {
+    "@solidjs/web": "2.0.0-rc.14",
+    "solid-js": "2.0.0-rc.14",
+    "valibot": "^1.5.0"
+  },
+  "devDependencies": {
+    "@solidjs/vite-plugin": "3.0.0-next.49",
+    "@types/node": "^24.13.3",
+    "@valibot/to-json-schema": "^1.8.0",
+    "jsdom": "^30.1.2",
+    "typescript": "^7.0.2",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.11.2",
+      "onFail": "download"
+    }
+  }
+}

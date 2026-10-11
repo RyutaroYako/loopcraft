@@ -1,0 +1,168 @@
+{
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "variables": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Variable"
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Link"
+      }
+    },
+    "loops": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Loop"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "title",
+    "variables",
+    "links",
+    "loops"
+  ],
+  "title": "SystemDiagram",
+  "description": "システム思考のシステム図（因果ループ図）",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Point": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Point",
+      "description": "キャンバス上の座標"
+    },
+    "Variable": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "description": "表示名（例: 社員数）"
+        },
+        "description": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/Point"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "position"
+      ],
+      "title": "Variable",
+      "description": "出来事（システムを構成する変数）"
+    },
+    "Link": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "from": {
+          "type": "string",
+          "minLength": 1,
+          "description": "原因側の出来事の ID"
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1,
+          "description": "結果側の出来事の ID"
+        },
+        "polarity": {
+          "enum": [
+            "+",
+            "-"
+          ],
+          "type": "string",
+          "title": "Polarity",
+          "description": "+: 原因が増えると結果も増える（正の相関）/ -: 原因が増えると結果は減る（負の相関）"
+        },
+        "delay": {
+          "type": "boolean",
+          "description": "影響が現れるまでに遅れがあるか"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to",
+        "polarity"
+      ],
+      "title": "Link",
+      "description": "出来事同士の因果関係（有向辺）"
+    },
+    "Loop": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "ループの名前（例: 成長の好循環）"
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 2,
+          "description": "ループを構成する関連の ID を辿る順に並べたもの。最後の関連の to が最初の関連の from に戻る"
+        },
+        "description": {
+          "type": "string"
+        },
+        "marker": {
+          "$ref": "#/$defs/Point"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "links"
+      ],
+      "title": "Loop",
+      "description": "システム図の主張として見出したループ。自己強化/バランスの別は構成する関連の極性から導出するため保持しない"
+    }
+  }
+}
