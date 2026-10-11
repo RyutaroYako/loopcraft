@@ -1,7 +1,7 @@
 import type { JSX } from "@solidjs/web";
 
 /** 線幅 1.5 で揃えた 20px グリッドのアイコン */
-function Icon(props: { children: JSX.Element; label?: string }) {
+function Icon(props: { children: JSX.Element }) {
   return (
     <svg
       class="icon"
@@ -11,9 +11,7 @@ function Icon(props: { children: JSX.Element; label?: string }) {
       stroke-width="1.5"
       stroke-linecap="round"
       stroke-linejoin="round"
-      aria-hidden={props.label ? undefined : "true"}
-      role={props.label ? "img" : undefined}
-      aria-label={props.label}
+      aria-hidden="true"
     >
       {props.children}
     </svg>
