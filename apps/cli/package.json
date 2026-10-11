@@ -27,7 +27,8 @@
   ],
   "type": "module",
   "scripts": {
-    "prepack": "vp run build"
+    "prepack": "vp run build",
+    "release": "vp pm version -- --message 'chore(release): v%s'"
   },
   "dependencies": {
     "@clack/prompts": "1.8.1",
