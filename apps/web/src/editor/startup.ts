@@ -8,13 +8,17 @@ import { loadStoredDiagram, type StoredDiagram } from "./storage.ts";
 import { createBrowserStore, type DocumentStore } from "./store.ts";
 
 export type Startup =
-  | { kind: "browser"; stored: StoredDiagram }
+  /** sessionInvalid: serve の情報が埋め込まれていたのに読めず、ブラウザに保存している */
+  | { kind: "browser"; stored: StoredDiagram; sessionInvalid?: boolean }
   | { kind: "file"; session: Session; loaded: LoadResult; store: DocumentStore };
 
 /** 描画の前に、どこから図を開くかを決めて読み込む */
 export async function prepareStartup(doc: Document = document): Promise<Startup> {
   const session = readSession(doc);
-  if (!session) return { kind: "browser", stored: loadStoredDiagram() };
+  if (session === undefined) return { kind: "browser", stored: loadStoredDiagram() };
+  if (session === "invalid") {
+    return { kind: "browser", stored: loadStoredDiagram(), sessionInvalid: true };
+  }
   const client = createFileClient(session);
   const loaded = await client.load();
   return { kind: "file", session, loaded, store: client.store };
@@ -54,12 +58,11 @@ export function resolveStartup(startup: Startup): ResolvedStartup {
     store,
     editable: session.editable && !session.readonly,
     readonly: session.readonly,
+    // 読めなかったファイルを、空の図で上書きしてしまわないよう止めておく
     initialStatus:
-      loaded.status === "invalid"
+      loaded.status === "invalid" || loaded.status === "error"
         ? { kind: "suspended", reason: "unreadable" }
-        : loaded.status === "error"
-          ? { kind: "failing", error: loaded.error }
-          : undefined,
+        : undefined,
   };
 }
 

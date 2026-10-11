@@ -1,6 +1,6 @@
 import { createContext, createEffect, createSignal, onSettled, type Accessor } from "solid-js";
 import type { Editor } from "./editor.ts";
-import type { DocumentStore } from "./store.ts";
+import type { DocumentStore, ReloadResult } from "./store.ts";
 
 const SAVE_DELAY_MS = 300;
 
@@ -8,16 +8,19 @@ export type AutosaveStatus =
   | { kind: "ok" }
   | { kind: "failing"; error: unknown }
   /**
-   * external: 別のタブや別のプログラムが保存先を書き換えたので、上書きしないよう止めている
-   * unreadable: 開けなかった前回の図を残すため、上書きしないよう止めている
+   * external: 別のタブや別のプログラムが保存先を書き換えたので、上書きしないよう止めている。
+   *   problems は取り込もうとして取り込めなかった理由
+   * unreadable: 開けなかった図を残すため、上書きしないよう止めている
+   * disconnected: loopcraft serve とのつながりが切れたので、保存できない
    */
-  | { kind: "suspended"; reason: "external" | "unreadable" };
+  | { kind: "suspended"; reason: "external"; problems?: string[] }
+  | { kind: "suspended"; reason: "unreadable" | "disconnected" };
 
 /**
  * 図の変更を保存先へ自動保存する。コンポーネント本体から呼ぶ。
  * - 開いただけでは保存しない（開けなかった前回の図を空の図で上書きしないため）
  * - 保存先が外部で書き換えられたら、未保存の変更が無ければ取り込み、あれば保存を止める
- * - タブを閉じる・隠すときは待たずに保存する
+ * - タブを隠すときは待たずに保存し、未保存の変更があるまま閉じようとしたら確かめる
  * - initialStatus で、使えない・止めている状態から始められる
  * 状態は status で常に読めるようにし、悪くなったときだけ onProblem で知らせる。
  */
@@ -29,6 +32,8 @@ export function setupAutosave(
     onProblem?: (status: AutosaveStatus) => void;
     /** 外部での変更を取り込んだとき */
     onReload?: () => void;
+    /** 外部での変更を見張れなくなったとき。保存は続ける */
+    onUnwatched?: (detail: string | undefined) => void;
   } = {},
 ) {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -41,11 +46,13 @@ export function setupAutosave(
   const [status, setStatus] = createSignal<AutosaveStatus>(current);
 
   const update = (next: AutosaveStatus) => {
-    const worsened = next.kind !== "ok" && current.kind !== next.kind;
+    const worsened = next.kind !== "ok" && keyOf(current) !== keyOf(next);
     current = next;
     setStatus(next);
     if (worsened) options.onProblem?.(next);
   };
+
+  const unsaved = () => dirty || saving !== undefined || timer !== undefined;
 
   const save = async (force = false, keepalive = false): Promise<void> => {
     clearTimeout(timer);
@@ -61,36 +68,47 @@ export function setupAutosave(
       const result = await store.save(editor.current(), { force, keepalive });
       if (result.ok) {
         update({ kind: "ok" });
-      } else {
-        dirty = true;
-        update(
-          result.reason === "conflict"
-            ? { kind: "suspended", reason: "external" }
-            : { kind: "failing", error: result.error },
-        );
+        return;
       }
+      dirty = true;
+      if (result.reason === "conflict") update({ kind: "suspended", reason: "external" });
+      else if (result.reason === "disconnected")
+        update({ kind: "suspended", reason: "disconnected" });
+      else update({ kind: "failing", error: result.error });
     })();
     await saving;
     saving = undefined;
   };
 
   /** 保存先の最新の内容を、取り消し履歴に残る 1 回の変更として取り込む */
-  const reload = async () => {
-    const latest = await store.reload();
-    if (!latest) return false;
+  const reload = async (): Promise<ReloadResult> => apply(await store.reload());
+
+  const apply = (result: ReloadResult): ReloadResult => {
+    if (!result.ok) {
+      update({ kind: "suspended", reason: "external", problems: result.problems });
+      return result;
+    }
     ignoreNextChange = true;
-    editor.applyExternal(latest);
+    editor.applyExternal(result.diagram);
     dirty = false;
     update({ kind: "ok" });
     options.onReload?.();
-    return true;
+    return result;
   };
 
   const onExternalChange = async () => {
     if (current.kind === "suspended") return;
-    const unsaved = dirty || saving !== undefined || timer !== undefined;
-    if (!unsaved && (await reload())) return;
-    update({ kind: "suspended", reason: "external" });
+    if (unsaved()) {
+      update({ kind: "suspended", reason: "external" });
+      return;
+    }
+    const result = await store.reload();
+    // 読み直している間に編集されていたら、その編集を捨てずに競合として知らせる
+    if (unsaved()) {
+      update({ kind: "suspended", reason: "external" });
+      return;
+    }
+    apply(result);
   };
 
   createEffect(
@@ -114,27 +132,50 @@ export function setupAutosave(
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") flush();
     };
-    const stopWatching = store.watch(() => void onExternalChange());
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      // 閉じる間際の保存は届かないことがあるので、未保存の変更があれば確かめる
+      if (!unsaved()) return;
+      flush();
+      event.preventDefault();
+    };
+    const stopWatching = store.watch({
+      change: () => void onExternalChange(),
+      lost: (reason, detail) => {
+        if (reason === "disconnected") update({ kind: "suspended", reason: "disconnected" });
+        else options.onUnwatched?.(detail);
+      },
+    });
     window.addEventListener("pagehide", flush);
+    window.addEventListener("beforeunload", onBeforeUnload);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       flush();
       stopWatching();
       window.removeEventListener("pagehide", flush);
+      window.removeEventListener("beforeunload", onBeforeUnload);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   });
 
   return {
     status,
-    /** 止めていた自動保存を再開し、この画面の内容で保存し直す */
+    /** 失敗した保存をやり直す。外部で書き換えられていたら、上書きせずに知らせる */
+    retry: () => {
+      dirty = true;
+      return save();
+    },
+    /** 止めていた自動保存を再開し、この画面の内容で上書きする */
     resume: () => {
       dirty = true;
       return save(true);
     },
-    /** 保存先の内容を読み直して、この画面の変更を捨てる。読めなかったら false */
+    /** 保存先の内容を読み直して、この画面の変更を捨てる */
     reload,
   };
+}
+
+function keyOf(status: AutosaveStatus) {
+  return status.kind === "suspended" ? `suspended:${status.reason}` : status.kind;
 }
 
 /** ツールバーに自動保存の状態を出し、押すと詳しい案内と操作を表示する */

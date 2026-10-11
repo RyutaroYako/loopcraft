@@ -5,10 +5,10 @@ import { createRoot, flush } from "solid-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { setupAutosave, type AutosaveStatus } from "./autosave.ts";
 import { createEditor } from "./editor.ts";
-import type { DocumentStore, SaveResult } from "./store.ts";
+import type { DocumentStore, ReloadResult, SaveResult, WatchHandlers } from "./store.ts";
 
 function fakeStore(kind: "browser" | "file" = "file") {
-  let onChange: (() => void) | undefined;
+  let handlers: WatchHandlers | undefined;
   const store = {
     kind,
     label: "a.json",
@@ -18,13 +18,18 @@ function fakeStore(kind: "browser" | "file" = "file") {
         _options?: { force?: boolean; keepalive?: boolean },
       ): Promise<SaveResult> => ({ ok: true }),
     ),
-    reload: vi.fn(async (): Promise<Diagram | undefined> => undefined),
-    watch: vi.fn((listener: () => void) => {
-      onChange = listener;
-      return () => (onChange = undefined);
+    reload: vi.fn(async (): Promise<ReloadResult> => ({ ok: false, problems: [] })),
+    watch: vi.fn((next: WatchHandlers) => {
+      handlers = next;
+      return () => (handlers = undefined);
     }),
   } satisfies DocumentStore;
-  return { store, change: () => onChange?.(), watching: () => onChange !== undefined };
+  return {
+    store,
+    change: () => handlers?.change(),
+    lose: (reason: "disconnected" | "unwatched", detail?: string) => handlers?.lost(reason, detail),
+    watching: () => handlers !== undefined,
+  };
 }
 
 let dispose = () => {};
@@ -37,14 +42,15 @@ afterEach(() => {
 function setup(store: DocumentStore, options: { initialStatus?: AutosaveStatus } = {}) {
   const onProblem = vi.fn();
   const onReload = vi.fn();
+  const onUnwatched = vi.fn();
   const result = createRoot((d) => {
     dispose = d;
     const editor = createEditor(createSampleDiagram());
-    const autosave = setupAutosave(editor, store, { ...options, onProblem, onReload });
+    const autosave = setupAutosave(editor, store, { ...options, onProblem, onReload, onUnwatched });
     return { editor, autosave };
   });
   flush();
-  return { ...result, onProblem, onReload };
+  return { ...result, onProblem, onReload, onUnwatched };
 }
 
 /** 保存の待ち時間を進め、保存の完了まで待つ */
@@ -118,7 +124,7 @@ describe("setupAutosave", () => {
   it("未保存の変更が無ければ、外部の変更を取り込んで保存し直さない", async () => {
     const { store, change } = fakeStore();
     const latest = { ...createSampleDiagram(), title: "外部" };
-    store.reload.mockResolvedValue(latest);
+    store.reload.mockResolvedValue({ ok: true, diagram: latest });
     const { editor, autosave, onReload } = setup(store);
     change();
     await settle();
@@ -145,8 +151,12 @@ describe("setupAutosave", () => {
     const second = setup(browser.store);
     browser.change();
     await settle();
-    expect(second.autosave.status()).toEqual({ kind: "suspended", reason: "external" });
-    expect(await second.autosave.reload()).toBe(false);
+    expect(second.autosave.status()).toEqual({
+      kind: "suspended",
+      reason: "external",
+      problems: [],
+    });
+    expect(await second.autosave.reload()).toEqual({ ok: false, problems: [] });
   });
 
   it("保存中の変更は、その保存が終わってから改めて保存する", async () => {
@@ -189,5 +199,82 @@ describe("setupAutosave", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(store.save).toHaveBeenCalledTimes(3);
     expect(watching()).toBe(false);
+  });
+
+  it("保存し直しは上書きせず、外部での変更があれば競合として止める", async () => {
+    const { store } = fakeStore();
+    store.save
+      .mockResolvedValueOnce({ ok: false, reason: "failed", error: "x" })
+      .mockResolvedValueOnce({ ok: false, reason: "conflict" });
+    const { editor, autosave } = setup(store);
+    editor.commit(edit.setTitle(editor.current(), "1"));
+    await settle();
+    expect(autosave.status().kind).toBe("failing");
+    await autosave.retry();
+    flush();
+    expect(store.save).toHaveBeenLastCalledWith(expect.anything(), {
+      force: false,
+      keepalive: false,
+    });
+    expect(autosave.status()).toEqual({ kind: "suspended", reason: "external" });
+  });
+
+  it("つながりが切れたら保存を止め、見張れなくなっただけなら知らせて続ける", async () => {
+    const { store, lose } = fakeStore();
+    const { editor, autosave, onProblem, onUnwatched } = setup(store);
+    lose("unwatched", "ENOENT");
+    flush();
+    expect(onUnwatched).toHaveBeenCalledWith("ENOENT");
+    expect(autosave.status()).toEqual({ kind: "ok" });
+    lose("disconnected");
+    flush();
+    expect(autosave.status()).toEqual({ kind: "suspended", reason: "disconnected" });
+    expect(onProblem).toHaveBeenCalledOnce();
+    editor.commit(edit.setTitle(editor.current(), "1"));
+    await settle();
+    expect(store.save).not.toHaveBeenCalled();
+  });
+
+  it("保存でつながりが切れていると分かったら止める", async () => {
+    const { store } = fakeStore();
+    store.save.mockResolvedValueOnce({ ok: false, reason: "disconnected" });
+    const { editor, autosave, onProblem } = setup(store, {
+      initialStatus: { kind: "suspended", reason: "unreadable" },
+    });
+    await autosave.resume();
+    flush();
+    expect(autosave.status()).toEqual({ kind: "suspended", reason: "disconnected" });
+    expect(onProblem).toHaveBeenCalledWith({ kind: "suspended", reason: "disconnected" });
+    editor.commit(edit.setTitle(editor.current(), "x"));
+    flush();
+  });
+
+  it("取り込めなかったときは、その理由を状態に残す", async () => {
+    const { store, change } = fakeStore();
+    store.reload.mockResolvedValue({ ok: false, problems: ["ファイルが削除されました"] });
+    const { autosave, onProblem } = setup(store);
+    change();
+    await settle();
+    expect(autosave.status()).toEqual({
+      kind: "suspended",
+      reason: "external",
+      problems: ["ファイルが削除されました"],
+    });
+    expect(onProblem).toHaveBeenCalledOnce();
+  });
+
+  it("未保存の変更があるまま閉じようとしたら確かめる", async () => {
+    const { store } = fakeStore();
+    const { editor } = setup(store);
+    const clean = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(clean);
+    expect(clean.defaultPrevented).toBe(false);
+    editor.commit(edit.setTitle(editor.current(), "1"));
+    flush();
+    const pending = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(pending);
+    expect(pending.defaultPrevented).toBe(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.save).toHaveBeenCalledWith(expect.anything(), { force: false, keepalive: true });
   });
 });

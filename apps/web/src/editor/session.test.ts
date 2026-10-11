@@ -18,10 +18,10 @@ describe("readSession", () => {
     expect(readSession(documentWith(JSON.stringify(session)))).toEqual(session);
   });
 
-  it("無い・壊れている・形が違うときは undefined", () => {
+  it("無ければ undefined、壊れている・形が違うときは invalid", () => {
     expect(readSession(documentWith(undefined))).toBeUndefined();
-    expect(readSession(documentWith("{"))).toBeUndefined();
-    expect(readSession(documentWith(JSON.stringify({ token: 1 })))).toBeUndefined();
     expect(readSession()).toBeUndefined();
+    expect(readSession(documentWith("{"))).toBe("invalid");
+    expect(readSession(documentWith(JSON.stringify({ token: 1 })))).toBe("invalid");
   });
 });

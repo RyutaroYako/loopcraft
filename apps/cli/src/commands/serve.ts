@@ -1,7 +1,7 @@
-import { stat } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import type { Context } from "../context.ts";
 import { UsageError } from "../errors.ts";
+import { isDirectory } from "../files.ts";
 import { startServer, type RunningServer } from "../server/server.ts";
 import { resolveWebDir } from "../web-dir.ts";
 
@@ -72,14 +72,6 @@ export async function serve(
     });
   }
   return server;
-}
-
-async function isDirectory(path: string) {
-  try {
-    return (await stat(path)).isDirectory();
-  } catch {
-    return false;
-  }
 }
 
 function isAddressInUse(error: unknown) {

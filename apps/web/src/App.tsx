@@ -33,6 +33,7 @@ function App(props: { startup: Startup }) {
     initialStatus,
     onProblem: (status) => notices.explain(status),
     onReload: () => notices.reloaded(),
+    onUnwatched: (detail) => notices.unwatched(detail),
   });
 
   const [dropping, setDropping] = createSignal(false);

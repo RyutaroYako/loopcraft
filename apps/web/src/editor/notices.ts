@@ -2,11 +2,12 @@ import type { AutosaveStatus } from "./autosave.ts";
 import type { Editor, Notice } from "./editor.ts";
 import { downloadText } from "./file.ts";
 import type { Startup } from "./startup.ts";
-import type { DocumentStore } from "./store.ts";
+import type { DocumentStore, ReloadResult } from "./store.ts";
 
 interface Autosave {
+  retry: () => Promise<void>;
   resume: () => Promise<void>;
-  reload: () => Promise<boolean>;
+  reload: () => Promise<ReloadResult>;
 }
 
 type Action = NonNullable<Notice["actions"]>[number];
@@ -17,14 +18,18 @@ export function createNotices(context: {
   store: DocumentStore;
   startup: Startup;
   autosave: () => Autosave;
+  reloadPage?: () => void;
 }) {
   const { editor, store, startup } = context;
   const fileName = store.label;
+  const reloadPage = context.reloadPage ?? (() => location.reload());
 
-  const resume: Action["run"] = () => {
-    editor.dismissNotice();
-    void context.autosave().resume();
-  };
+  const run =
+    (task: (autosave: Autosave) => Promise<unknown>): Action["run"] =>
+    () => {
+      editor.dismissNotice();
+      void task(context.autosave());
+    };
 
   const exportAction: Action = { label: "JSON を書き出す", run: () => editor.exportFile() };
 
@@ -40,6 +45,12 @@ export function createNotices(context: {
       ]
     : [];
 
+  /** 読み直して、読めなければその理由をもう一度知らせる */
+  const reloadFromFile = run(async (autosave) => {
+    const result = await autosave.reload();
+    if (!result.ok) explain({ kind: "suspended", reason: "external", problems: result.problems });
+  });
+
   function describe(status: AutosaveStatus): Notice | undefined {
     if (status.kind === "failing") {
       return store.kind === "browser"
@@ -52,14 +63,26 @@ export function createNotices(context: {
         : {
             tone: "error",
             title: `${fileName} に保存できません`,
-            details: [
-              "loopcraft serve が動いているか、ファイルに書き込めるかを確かめてください",
-              String(status.error),
+            details: [String(status.error)],
+            actions: [
+              { label: "保存し直す", run: run((autosave) => autosave.retry()) },
+              exportAction,
             ],
-            actions: [{ label: "保存し直す", run: resume }, exportAction],
           };
     }
-    if (status.kind === "suspended" && status.reason === "external") {
+    if (status.kind === "ok") return undefined;
+    if (status.reason === "disconnected") {
+      return {
+        tone: "error",
+        title: "loopcraft serve とのつながりが切れました",
+        details: [
+          "止めたか、起動し直した可能性があります。この画面からは保存できません",
+          "未保存の変更は「JSON を書き出す」で残せます。起動し直したら、このページを再読み込みしてください",
+        ],
+        actions: [exportAction, { label: "ページを再読み込み", run: reloadPage }],
+      };
+    }
+    if (status.reason === "external") {
       return store.kind === "browser"
         ? {
             tone: "error",
@@ -68,60 +91,71 @@ export function createNotices(context: {
               "上書きを防ぐため、このタブの自動保存を止めています",
               "別のタブの内容を使うときは、このタブを再読み込みしてください",
             ],
-            actions: [{ label: "このタブの内容で保存し直す", run: resume }],
+            actions: [{ label: "このタブの内容で保存し直す", run: run((a) => a.resume()) }],
           }
         : {
             tone: "error",
             title: `${fileName} がほかの場所で変更されました`,
-            details: ["上書きを防ぐため、自動保存を止めています"],
+            details: [
+              "上書きを防ぐため、自動保存を止めています",
+              ...(status.problems?.length
+                ? ["ファイルの内容を読み込めませんでした:", ...status.problems]
+                : []),
+            ],
             actions: [
-              {
-                label: "ファイルの内容を読み込む",
-                run: () => {
-                  editor.dismissNotice();
-                  void context.autosave().reload();
-                },
-              },
-              { label: "この画面の内容で上書き", run: resume },
+              { label: "ファイルの内容を読み込む", run: reloadFromFile },
+              { label: "この画面の内容で上書き", run: run((a) => a.resume()) },
             ],
           };
     }
-    if (status.kind === "suspended") {
-      if (startup.kind === "file") {
-        return {
-          tone: "error",
-          title: `${fileName} を開けませんでした`,
-          details: [
-            "ファイルはそのまま残しています。直してから再読み込みするか、この画面の内容で上書きしてください",
-            ...(startup.loaded.status === "invalid" ? startup.loaded.errors : []),
-          ],
-          actions: [{ label: "この画面の内容で上書き", run: resume }],
-        };
-      }
+    if (startup.kind === "file") {
+      const { loaded } = startup;
       return {
         tone: "error",
-        title: "自動保存を止めています",
+        title: `${fileName} を開けませんでした`,
         details: [
-          "前回開けなかった図を退避できなかったため、上書きしないよう止めています",
-          "開けなかったデータを書き出して手元に残せたら、自動保存を再開してください",
+          "ファイルはそのまま残しています。直してから再読み込みするか、この画面の内容で上書きしてください",
+          ...(loaded.status === "invalid" ? loaded.errors : []),
+          ...(loaded.status === "error" ? [String(loaded.error)] : []),
         ],
-        actions: [...downloadUnreadable, { label: "書き出したので自動保存を再開", run: resume }],
+        actions: [{ label: "この画面の内容で上書き", run: run((a) => a.resume()) }],
       };
     }
-    return undefined;
+    return {
+      tone: "error",
+      title: "自動保存を止めています",
+      details: [
+        "前回開けなかった図を退避できなかったため、上書きしないよう止めています",
+        "開けなかったデータを書き出して手元に残せたら、自動保存を再開してください",
+      ],
+      actions: [
+        ...downloadUnreadable,
+        { label: "書き出したので自動保存を再開", run: run((a) => a.resume()) },
+      ],
+    };
   }
 
-  const explain = (status: AutosaveStatus) => {
+  function explain(status: AutosaveStatus) {
     const notice = describe(status);
     if (notice) editor.notify(notice);
-  };
+  }
 
   return {
     explain,
 
     /** 開いた時点で知らせることがあれば知らせる */
     atStartup(initialStatus: AutosaveStatus | undefined) {
-      if (initialStatus) {
+      if (startup.kind === "browser" && startup.sessionInvalid) {
+        editor.notify({
+          tone: "error",
+          title: "loopcraft serve の情報を読めませんでした",
+          details: [
+            "この画面の変更はファイルではなく、ブラウザに保存されます",
+            "ページを再読み込みするか、loopcraft serve を起動し直してください",
+          ],
+          actions: [{ label: "ページを再読み込み", run: reloadPage }],
+        });
+      } else if (initialStatus) {
         explain(initialStatus);
       } else if (unreadable?.backupKey) {
         editor.notify({
@@ -145,6 +179,18 @@ export function createNotices(context: {
     /** 外部での変更を取り込んだとき */
     reloaded() {
       editor.notify({ tone: "info", title: `${fileName} の変更を読み込みました` });
+    },
+
+    /** 外部での変更を見張れなくなったとき。保存は続けられる */
+    unwatched(detail: string | undefined) {
+      editor.notify({
+        tone: "error",
+        title: "ほかの場所での変更を見張れなくなりました",
+        details: [
+          ...(detail ? [detail] : []),
+          "保存は続けます。ほかの場所で変更すると、保存するときに競合として知らせます",
+        ],
+      });
     },
   };
 }

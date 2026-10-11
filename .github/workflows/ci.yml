@@ -44,3 +44,8 @@ jobs:
           npx loopcraft init --sample
           npx loopcraft validate diagram.json
           npx loopcraft loops diagram.json --format md
+          npx loopcraft serve diagram.json --no-open --port 4799 > serve.log 2>&1 &
+          for _ in $(seq 1 40); do grep -q "token=" serve.log && break; sleep 0.25; done
+          url=$(grep -o 'http://127.0.0.1:4799/?token=[^ ]*' serve.log)
+          curl -fsS "$url" | grep -q 'name="loopcraft-session"'
+          kill %1

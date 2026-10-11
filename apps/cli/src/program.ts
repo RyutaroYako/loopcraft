@@ -65,7 +65,9 @@ export function createProgram(dependencies: ProgramDependencies) {
       const target =
         file ??
         (canPrompt()
-          ? await ask(prompts.chooseFile(context.cwd, { message: "開くファイル", allowNew: true }))
+          ? ((await ask(
+              prompts.chooseFile(context.cwd, { message: "開くファイル", allowNew: true }),
+            )) ?? missing("開くファイルを指定してください"))
           : missing("開くファイルを指定してください（例: loopcraft serve diagram.json）"));
       const server = await serve(
         target,
@@ -94,7 +96,9 @@ export function createProgram(dependencies: ProgramDependencies) {
       const target =
         file ??
         (canPrompt()
-          ? await ask(prompts.chooseFile(context.cwd, { message: "図のファイル", allowNew: false }))
+          ? ((await ask(
+              prompts.chooseFile(context.cwd, { message: "図のファイル", allowNew: false }),
+            )) ?? missing("図の JSON ファイルが見つかりません"))
           : missing("図のファイルを指定してください（例: loopcraft loops diagram.json）"));
       await loops(target, options, context);
     },

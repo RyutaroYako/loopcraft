@@ -121,6 +121,14 @@ describe("runCli", () => {
       ).toBeGreaterThan(0);
     });
 
+    it("図のファイルが選べなければ使い方の誤りにする", async () => {
+      const prompts = fakePrompts({ chooseFile: vi.fn(async () => null) });
+      const loops = await run(["loops"], { interactive: true, prompts });
+      expect(loops.exitCode).toBe(2);
+      expect(loops.stderr.at(-1)).toBe("✗ 図の JSON ファイルが見つかりません");
+      expect((await run(["serve"], { interactive: true, prompts })).exitCode).toBe(2);
+    });
+
     it("選べる JSON が無ければ使い方の誤りにする", async () => {
       const prompts = fakePrompts({ chooseFiles: vi.fn(async () => []) });
       const result = await run(["validate"], { interactive: true, prompts });

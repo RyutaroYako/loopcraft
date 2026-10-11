@@ -1,13 +1,19 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { request } from "node:http";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import { SESSION_META_NAME, TOKEN_HEADER } from "@loopcraft/core/session";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 import { revisionOf } from "../files.ts";
 import { createWebDir, createWorkspace, writeSample } from "../testing/fixtures.ts";
-import { injectSession, isAllowedHost, startServer, type RunningServer } from "./server.ts";
+import {
+  describeError,
+  injectSession,
+  isAllowedHost,
+  startServer,
+  type RunningServer,
+} from "./server.ts";
 
 const TOKEN = "test-token";
 let running: RunningServer | undefined;
@@ -68,8 +74,11 @@ const api = (server: RunningServer, path: string, init: Parameters<typeof send>[
 describe("startServer", () => {
   it("エディタにセッションを埋め込んで配る", async () => {
     const { server } = await start({ editable: false });
-    expect(server.url).toBe(`http://127.0.0.1:${server.port}/`);
-    const index = await send(server, "/");
+    expect(server.url).toBe(`http://127.0.0.1:${server.port}/?token=${TOKEN}`);
+    expect((await send(server, "/")).status).toBe(403);
+    expect((await send(server, "/index.html?token=wrong")).status).toBe(403);
+    expect((await send(server, "/assets/..%2Findex.html")).status).toBe(403);
+    const index = await send(server, `/?token=${TOKEN}`);
     expect(index.status).toBe(200);
     expect(index.headers["cache-control"]).toBe("no-store");
     expect(index.body).toContain(`<meta name="${SESSION_META_NAME}"`);
@@ -81,14 +90,17 @@ describe("startServer", () => {
     );
     expect((await send(server, "/missing.js")).status).toBe(404);
     expect((await send(server, "/..%2F..%2Fetc%2Fpasswd")).status).toBe(404);
+    expect((await send(server, "/%E0%A4%A")).status).toBe(400);
     expect((await send(server, "/", { method: "POST" })).status).toBe(405);
-    expect((await send(server, "/", { method: "HEAD" })).status).toBe(200);
+    expect((await send(server, `/?token=${TOKEN}`, { method: "HEAD" })).status).toBe(200);
   });
 
   it("知らないホスト名と、トークンの無い API を拒む", async () => {
     const { server } = await start();
-    expect((await send(server, "/", { host: "evil.example" })).status).toBe(403);
-    expect((await send(server, "/", { host: `localhost:${server.port}` })).status).toBe(200);
+    expect((await send(server, `/?token=${TOKEN}`, { host: "evil.example" })).status).toBe(403);
+    expect(
+      (await send(server, `/?token=${TOKEN}`, { host: `localhost:${server.port}` })).status,
+    ).toBe(200);
     expect((await send(server, "/api/document")).status).toBe(403);
     expect(
       (await api(server, "/api/document", { headers: { [TOKEN_HEADER]: "wrong" } })).status,
@@ -178,7 +190,7 @@ describe("startServer", () => {
 
   it("読み取り専用なら保存を拒む", async () => {
     const { server } = await start({ readonly: true });
-    const index = await send(server, "/");
+    const index = await send(server, `/?token=${TOKEN}`);
     expect(index.body).toContain("&quot;readonly&quot;:true");
     expect(index.body).toContain("&quot;editable&quot;:false");
     const rejected = await api(server, "/api/document", {
@@ -186,6 +198,44 @@ describe("startServer", () => {
       body: JSON.stringify({ diagram: createSampleDiagram(), baseRevision: null }),
     });
     expect(rejected.status).toBe(403);
+  });
+
+  it("保存をほかの画面へ書き手つきで知らせ、同時の保存は 1 つずつ確かめる", async () => {
+    const { server, file } = await start();
+    const events = await openEvents(server);
+    await events.next(": connected");
+    const base = revisionOf(await readFile(file, "utf8"));
+    const put = (title: string) =>
+      api(server, "/api/document", {
+        method: "PUT",
+        headers: { "x-loopcraft-client": `tab-${title}` },
+        body: JSON.stringify({ diagram: { ...createSampleDiagram(), title }, baseRevision: base }),
+      });
+    const [first, second] = await Promise.all([put("a"), put("b")]);
+    expect([first.status, second.status].toSorted((a, b) => a - b)).toEqual([200, 409]);
+    const change = await events.next("event: change");
+    expect(change).toMatch(/"writer":"tab-[ab]"/);
+    events.close();
+  });
+
+  it("読み込みが割り込んでも、ほかの場所での変更を知らせ損ねない", async () => {
+    const { server, file } = await start();
+    const events = await openEvents(server);
+    await events.next(": connected");
+    await writeFile(file, stringifyDiagram({ ...createSampleDiagram(), title: "外部" }));
+    await api(server, "/api/document");
+    expect(await events.next("event: change")).toContain('"writer":null');
+    events.close();
+  });
+
+  it("ディレクトリが無くなったら、見張れなくなったことを知らせる", async () => {
+    const { server, file, stderr } = await start();
+    const events = await openEvents(server);
+    await events.next(": connected");
+    await rm(dirname(file), { recursive: true, force: true });
+    expect(await events.next("event: watch-error")).toContain("無くなりました");
+    expect(stderr.at(-1)).toMatch(/^⚠ ほかの場所での変更を見張れなくなりました/);
+    events.close();
   });
 
   it("ほかの場所での変更だけを知らせる", async () => {
@@ -200,12 +250,59 @@ describe("startServer", () => {
     expect((await send(server, "/api/events")).status).toBe(403);
   });
 
-  it("ファイルを読めなければ 500 を返して伝える", async () => {
+  it("ファイルを読めなければ理由つきで 500 を返し、無いものとして上書きしない", async () => {
     const { server, file, stderr } = await start({ existing: false });
     await mkdir(file);
-    expect((await api(server, "/api/document")).status).toBe(500);
-    expect(stderr.at(-1)).toMatch(/^✗ リクエストを処理できませんでした/);
+    const loaded = await api(server, "/api/document");
+    expect(loaded.status).toBe(500);
+    expect(JSON.parse(loaded.body)).toMatchObject({ error: expect.stringMatching(/^EISDIR: /) });
+    expect(stderr.at(-1)).toMatch(/^✗ リクエストを処理できませんでした: EISDIR/);
+    const saved = await api(server, "/api/document", {
+      method: "PUT",
+      body: JSON.stringify({ diagram: createSampleDiagram(), baseRevision: null }),
+    });
+    expect(saved.status).toBe(500);
     expect(isAllowedHost(undefined, server.port)).toBe(false);
+  });
+
+  it("起動時に読めなければ伝える", async () => {
+    const workspace = await createWorkspace();
+    const file = join(workspace.cwd, "diagram.json");
+    await mkdir(file);
+    running = await startServer({
+      file,
+      webDir: await createWebDir(),
+      port: 0,
+      editable: true,
+      readonly: false,
+      log: workspace.logger,
+    });
+    expect(workspace.stderr[0]).toMatch(/^⚠ diagram.json を読めません: EISDIR/);
+    expect(running.url).toMatch(/\?token=.+/);
+  });
+
+  it("見張りを始められなければ、待ち受けを閉じて伝える", async () => {
+    const workspace = await createWorkspace();
+    await expect(
+      startServer({
+        file: join(workspace.cwd, "missing", "diagram.json"),
+        webDir: await createWebDir(),
+        port: 0,
+        editable: true,
+        readonly: false,
+        log: workspace.logger,
+      }),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+describe("describeError", () => {
+  it("コードがあれば先頭に付ける", () => {
+    expect(describeError(Object.assign(new Error("denied"), { code: "EACCES" }))).toBe(
+      "EACCES: denied",
+    );
+    expect(describeError(new Error("plain"))).toBe("plain");
+    expect(describeError("text")).toBe("text");
   });
 });
 

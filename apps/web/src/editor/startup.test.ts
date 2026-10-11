@@ -28,6 +28,15 @@ describe("prepareStartup", () => {
     expect(startup).toMatchObject({ kind: "browser", stored: { status: "ok" } });
   });
 
+  it("セッションが壊れていれば、ブラウザに保存することを知らせる印を付ける", async () => {
+    const doc = document.implementation.createHTMLDocument();
+    const meta = doc.createElement("meta");
+    meta.name = "loopcraft-session";
+    meta.content = "{";
+    doc.head.append(meta);
+    expect(await prepareStartup(doc)).toMatchObject({ kind: "browser", sessionInvalid: true });
+  });
+
   it("セッションがあればサーバーから読む", async () => {
     vi.stubGlobal(
       "fetch",
@@ -100,8 +109,8 @@ describe("resolveStartup", () => {
       reason: "unreadable",
     });
     expect(resolveStartup(file({ status: "error", error: "x" })).initialStatus).toEqual({
-      kind: "failing",
-      error: "x",
+      kind: "suspended",
+      reason: "unreadable",
     });
   });
 });

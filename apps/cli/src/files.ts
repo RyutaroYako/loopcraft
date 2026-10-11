@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, readdir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { parseDiagramJson, stringifyDiagram } from "@loopcraft/core/io";
 import type { Diagram } from "@loopcraft/core/schema";
@@ -35,13 +35,28 @@ export async function readDiagramFile(path: string): Promise<DiagramFile> {
   };
 }
 
-/** 書き込み中に止まってもファイルが壊れないよう、一時ファイルに書いてから置き換える */
+/**
+ * 書き込み中に止まってもファイルが壊れないよう、一時ファイルに書いてから置き換える。
+ * シンボリックリンクはリンク先を書き換え、元の権限を引き継ぐ
+ */
 export async function writeDiagramFile(path: string, diagram: Diagram): Promise<Revision> {
   const text = stringifyDiagram(diagram);
-  const temporary = join(dirname(path), `.${basename(path)}.${randomBytes(4).toString("hex")}.tmp`);
+  let target = path;
+  let mode: number | undefined;
+  try {
+    target = await realpath(path);
+    mode = (await stat(target)).mode & 0o7777;
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+  }
+  const temporary = join(
+    dirname(target),
+    `.${basename(target)}.${randomBytes(4).toString("hex")}.tmp`,
+  );
   try {
     await writeFile(temporary, text, "utf8");
-    await rename(temporary, path);
+    if (mode !== undefined) await chmod(temporary, mode);
+    await rename(temporary, target);
   } catch (error) {
     await rm(temporary, { force: true });
     throw error;
@@ -66,4 +81,14 @@ function isIgnored(name: string) {
 
 export function isNotFound(error: unknown) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+/** 無ければ false。権限などほかの理由で調べられなければ投げる */
+export async function isDirectory(path: string) {
+  try {
+    return (await stat(path)).isDirectory();
+  } catch (error) {
+    if (isNotFound(error)) return false;
+    throw error;
+  }
 }

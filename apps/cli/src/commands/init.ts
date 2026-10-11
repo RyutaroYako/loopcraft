@@ -1,10 +1,10 @@
 import { access } from "node:fs/promises";
-import { relative, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { createEmptyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { Context } from "../context.ts";
 import { UsageError } from "../errors.ts";
-import { isNotFound, writeDiagramFile } from "../files.ts";
+import { isDirectory, isNotFound, writeDiagramFile } from "../files.ts";
 
 export const DEFAULT_FILE = "diagram.json";
 
@@ -18,6 +18,10 @@ export interface InitOptions {
 export async function init(file: string, options: InitOptions, { log, cwd }: Context) {
   const path = resolve(cwd, file);
   const shown = relative(cwd, path) || file;
+  const directory = dirname(path);
+  if (!(await isDirectory(directory))) {
+    throw new UsageError(`${relative(cwd, directory) || directory} というディレクトリがありません`);
+  }
   if (!options.force && (await exists(path))) {
     throw new UsageError(`${shown} は既にあります。上書きするには --force を付けてください`);
   }

@@ -5,7 +5,7 @@ import { setupEditor } from "../testing/editor.ts";
 import type { AutosaveStatus } from "./autosave.ts";
 import { createNotices } from "./notices.ts";
 import type { Startup } from "./startup.ts";
-import type { DocumentStore } from "./store.ts";
+import type { DocumentStore, ReloadResult } from "./store.ts";
 
 let dispose = () => {};
 afterEach(() => {
@@ -19,9 +19,17 @@ const fileStore = { kind: "file", label: "a.json" } as DocumentStore;
 function setup(store: DocumentStore, startup: Startup) {
   const { editor, dispose: d } = setupEditor();
   dispose = d;
-  const autosave = { resume: vi.fn(async () => {}), reload: vi.fn(async () => true) };
+  const autosave = {
+    retry: vi.fn(async () => {}),
+    resume: vi.fn(async () => {}),
+    reload: vi.fn(async (): Promise<ReloadResult> => ({
+      ok: true,
+      diagram: createSampleDiagram(),
+    })),
+  };
   const exportFile = vi.spyOn(editor, "exportFile").mockImplementation(() => {});
-  const notices = createNotices({ editor, store, startup, autosave: () => autosave });
+  const reloadPage = vi.fn();
+  const notices = createNotices({ editor, store, startup, autosave: () => autosave, reloadPage });
   const shown = () => {
     flush();
     return editor.notice();
@@ -31,7 +39,7 @@ function setup(store: DocumentStore, startup: Startup) {
     if (!action) throw new Error(`no action ${label}`);
     action.run();
   };
-  return { editor, notices, autosave, shown, run, exportFile };
+  return { editor, notices, autosave, shown, run, exportFile, reloadPage };
 }
 
 const browserStartup: Startup = { kind: "browser", stored: { status: "empty" } };
@@ -43,6 +51,46 @@ const fileStartup = (loaded: Extract<Startup, { kind: "file" }>["loaded"]): Star
 });
 
 describe("createNotices", () => {
+  it("読み込めなかったら、その理由をもう一度知らせる", async () => {
+    const file = setup(fileStore, fileStartup({ status: "missing" }));
+    file.autosave.reload.mockResolvedValueOnce({
+      ok: false,
+      problems: ["ファイルが削除されました"],
+    });
+    file.notices.explain({ kind: "suspended", reason: "external" });
+    file.run("ファイルの内容を読み込む");
+    await vi.waitFor(() => expect(file.shown()?.details).toContain("ファイルが削除されました"));
+  });
+
+  it("つながりが切れたら、書き出しと再読み込みを勧める", () => {
+    const file = setup(fileStore, fileStartup({ status: "missing" }));
+    file.notices.explain({ kind: "suspended", reason: "disconnected" });
+    expect(file.shown()?.title).toBe("loopcraft serve とのつながりが切れました");
+    file.run("ページを再読み込み");
+    expect(file.reloadPage).toHaveBeenCalledOnce();
+    file.run("JSON を書き出す");
+    expect(file.exportFile).toHaveBeenCalledOnce();
+  });
+
+  it("見張れなくなったことと、壊れたセッションを知らせる", () => {
+    const file = setup(fileStore, fileStartup({ status: "missing" }));
+    file.notices.unwatched("ENOENT");
+    expect(file.shown()?.details?.[0]).toBe("ENOENT");
+    file.notices.unwatched(undefined);
+    expect(file.shown()?.details).toHaveLength(1);
+    dispose();
+
+    const broken = setup(browserStore, {
+      kind: "browser",
+      stored: { status: "empty" },
+      sessionInvalid: true,
+    });
+    broken.notices.atStartup(undefined);
+    expect(broken.shown()?.title).toBe("loopcraft serve の情報を読めませんでした");
+    broken.run("ページを再読み込み");
+    expect(broken.reloadPage).toHaveBeenCalledOnce();
+  });
+
   it("保存できないときは、保存先に応じて伝える", () => {
     const failing: AutosaveStatus = { kind: "failing", error: new Error("quota") };
     const browser = setup(browserStore, browserStartup);
@@ -56,7 +104,8 @@ describe("createNotices", () => {
     file.notices.explain(failing);
     expect(file.shown()?.title).toBe("a.json に保存できません");
     file.run("保存し直す");
-    expect(file.autosave.resume).toHaveBeenCalledOnce();
+    expect(file.autosave.retry).toHaveBeenCalledOnce();
+    expect(file.autosave.resume).not.toHaveBeenCalled();
   });
 
   it("外部での変更は、ブラウザなら保存し直し、ファイルなら読み込むか上書きを選べる", () => {
@@ -89,9 +138,9 @@ describe("createNotices", () => {
     expect(file.autosave.resume).toHaveBeenCalledOnce();
     dispose();
 
-    const error = setup(fileStore, fileStartup({ status: "error", error: "x" }));
+    const error = setup(fileStore, fileStartup({ status: "error", error: "HTTP 500" }));
     error.notices.explain({ kind: "suspended", reason: "unreadable" });
-    expect(error.shown()?.details).toHaveLength(1);
+    expect(error.shown()?.details?.at(-1)).toBe("HTTP 500");
   });
 
   it("ブラウザで退避できなかったデータは、書き出してから再開する", () => {

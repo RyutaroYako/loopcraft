@@ -64,7 +64,7 @@ describe("createFileClient", () => {
     expect(await load()).toMatchObject({ status: "error" });
   });
 
-  it("競合と失敗を見分ける", async () => {
+  it("競合・接続切れ・失敗を見分ける", async () => {
     vi.stubGlobal(
       "fetch",
       vi
@@ -72,6 +72,7 @@ describe("createFileClient", () => {
         .mockResolvedValueOnce(respond(409, { status: "conflict", revision: "x" }))
         .mockResolvedValueOnce(respond(500, "disk full"))
         .mockResolvedValueOnce(new Response(null, { status: 403 }))
+        .mockResolvedValueOnce(new Response(null, { status: 502 }))
         .mockRejectedValueOnce(new TypeError("offline")),
     );
     const { store } = createFileClient(session);
@@ -80,11 +81,22 @@ describe("createFileClient", () => {
     expect(failed.ok === false && failed.reason === "failed" && String(failed.error)).toContain(
       "HTTP 500: disk full",
     );
-    const forbidden = await store.save(createSampleDiagram());
-    expect(
-      forbidden.ok === false && forbidden.reason === "failed" && String(forbidden.error),
-    ).toContain("HTTP 403");
+    expect(await store.save(createSampleDiagram())).toEqual({ ok: false, reason: "disconnected" });
+    const gateway = await store.save(createSampleDiagram());
+    expect(gateway.ok === false && gateway.reason === "failed" && String(gateway.error)).toContain(
+      "HTTP 502",
+    );
     expect(await store.save(createSampleDiagram())).toMatchObject({ ok: false, reason: "failed" });
+  });
+
+  it("大きな図は keepalive を使わずに送る", async () => {
+    const fetch = vi.fn().mockResolvedValue(respond(200, { status: "saved", revision: "r" }));
+    vi.stubGlobal("fetch", fetch);
+    const { store } = createFileClient(session);
+    const big = createSampleDiagram();
+    big.description = "x".repeat(70_000);
+    await store.save(big, { keepalive: true });
+    expect(fetch.mock.calls[0]![1].keepalive).toBe(false);
   });
 
   it("読み直して最新の図を返す", async () => {
@@ -95,16 +107,26 @@ describe("createFileClient", () => {
         .mockResolvedValueOnce(
           respond(200, { status: "ok", diagram: createSampleDiagram(), revision: "r" }),
         )
-        .mockResolvedValueOnce(respond(200, { status: "invalid", revision: "r", errors: [] })),
+        .mockResolvedValueOnce(respond(200, { status: "invalid", revision: "r", errors: ["e"] }))
+        .mockResolvedValueOnce(respond(200, { status: "missing" }))
+        .mockResolvedValueOnce(respond(500, "boom")),
     );
     const { store } = createFileClient(session);
-    expect(await store.reload()).toMatchObject({ title: "組織の成長と人の負荷" });
-    expect(await store.reload()).toBeUndefined();
+    expect(await store.reload()).toMatchObject({
+      ok: true,
+      diagram: { title: "組織の成長と人の負荷" },
+    });
+    expect(await store.reload()).toEqual({ ok: false, problems: ["e"] });
+    expect(await store.reload()).toEqual({ ok: false, problems: ["ファイルが削除されました"] });
+    const failed = await store.reload();
+    expect(failed.ok === false && failed.problems[0]).toContain("HTTP 500: boom");
   });
 
-  it("自分の保存ではない変更だけを知らせる", async () => {
+  it("自分の保存ではない変更と、つながりの状態を知らせる", async () => {
     const sources: FakeEventSource[] = [];
     class FakeEventSource extends EventTarget {
+      static readonly CLOSED = 2;
+      readyState = 1;
       closed = false;
       readonly url: string;
       constructor(url: string) {
@@ -117,26 +139,44 @@ describe("createFileClient", () => {
       }
     }
     vi.stubGlobal("EventSource", FakeEventSource);
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValueOnce(
-          respond(200, { status: "ok", diagram: createSampleDiagram(), revision: "r1" }),
-        ),
-    );
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        respond(200, { status: "ok", diagram: createSampleDiagram(), revision: "r1" }),
+      )
+      .mockResolvedValueOnce(respond(200, { status: "saved", revision: "r2" }));
+    vi.stubGlobal("fetch", fetch);
     const { load, store } = createFileClient(session);
     await load();
-    const onChange = vi.fn();
-    const stop = store.watch(onChange);
+    await store.save(createSampleDiagram());
+    const clientId = fetch.mock.calls[1]![1].headers["x-loopcraft-client"] as string;
+    const handlers = { change: vi.fn(), lost: vi.fn() };
+    const stop = store.watch(handlers);
     const source = sources[0]!;
     expect(source.url).toBe("/api/events?token=tok");
-    const emit = (data: string) => source.dispatchEvent(new MessageEvent("change", { data }));
-    emit(JSON.stringify({ revision: "r1" }));
-    emit("{");
-    emit(JSON.stringify({ nope: true }));
-    emit(JSON.stringify({ revision: "r2" }));
-    expect(onChange).toHaveBeenCalledOnce();
+    const emit = (type: string, data?: string) =>
+      source.dispatchEvent(new MessageEvent(type, { data }));
+    emit("change", JSON.stringify({ revision: "r2" }));
+    emit("change", JSON.stringify({ revision: "r9", writer: clientId }));
+    emit("change", "{");
+    emit("change", JSON.stringify({ nope: true }));
+    expect(handlers.change).not.toHaveBeenCalled();
+    emit("change", JSON.stringify({ revision: "r3", writer: "other-tab" }));
+    expect(handlers.change).toHaveBeenCalledOnce();
+
+    emit("watch-error", JSON.stringify({ reason: "ENOENT" }));
+    emit("watch-error", "{");
+    expect(handlers.lost).toHaveBeenNthCalledWith(1, "unwatched", "ENOENT");
+    expect(handlers.lost).toHaveBeenNthCalledWith(2, "unwatched", "");
+
+    emit("error");
+    emit("open");
+    expect(handlers.change).toHaveBeenCalledTimes(2);
+    emit("open");
+    expect(handlers.change).toHaveBeenCalledTimes(2);
+    source.readyState = FakeEventSource.CLOSED;
+    emit("error");
+    expect(handlers.lost).toHaveBeenLastCalledWith("disconnected");
     stop();
     expect(source.closed).toBe(true);
   });

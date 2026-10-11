@@ -1,11 +1,12 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { watch, type FSWatcher } from "node:fs";
+import { existsSync, watch, type FSWatcher } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { basename, dirname, extname, join, normalize, sep } from "node:path";
 import {
   SESSION_META_NAME,
+  CLIENT_HEADER,
   SaveRequestSchema,
   TOKEN_HEADER,
   type DocumentResponse,
@@ -15,7 +16,7 @@ import {
 } from "@loopcraft/core/session";
 import * as v from "valibot";
 import "@valibot/i18n/ja/schema";
-import { readDiagramFile, revisionOf, writeDiagramFile } from "../files.ts";
+import { isNotFound, readDiagramFile, revisionOf, writeDiagramFile } from "../files.ts";
 import type { Logger } from "../log.ts";
 
 export interface ServerOptions {
@@ -65,14 +66,22 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   };
   const { log } = options;
   /** 最後に読んだ・書いたファイルの版。外部での変更と自分の書き込みを見分ける */
-  let knownRevision: Revision | null = await currentRevision(options.file);
+  let knownRevision: Revision | null = null;
+  try {
+    knownRevision = await currentRevision(options.file);
+  } catch (error) {
+    // 読めない理由は、画面が開いたときに /api/document の応答で伝える
+    log.warn(`${basename(options.file)} を読めません: ${describeError(error)}`);
+  }
   const listeners = new Set<ServerResponse>();
   let port = options.port;
+  /** 版を確かめてから書き込むまでの間に、別の保存が割り込まないよう 1 つずつ処理する */
+  let saveQueue: Promise<void> = Promise.resolve();
 
   const server = createServer((request, response) => {
     handle(request, response).catch((error: unknown) => {
-      log.error(`リクエストを処理できませんでした: ${String(error)}`);
-      if (!response.headersSent) sendJson(response, 500, { error: "internal error" });
+      log.error(`リクエストを処理できませんでした: ${describeError(error)}`);
+      if (!response.headersSent) sendJson(response, 500, { error: describeError(error) });
       else response.end();
     });
   });
@@ -92,7 +101,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       sendText(response, 405, "Method Not Allowed");
       return;
     }
-    await serveStatic(url.pathname, response);
+    await serveStatic(url, response);
   }
 
   async function handleApi(request: IncomingMessage, response: ServerResponse, url: URL) {
@@ -109,7 +118,10 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       return;
     }
     if (url.pathname === "/api/document" && request.method === "PUT") {
-      await saveDocument(request, response);
+      const writer = headerValue(request.headers[CLIENT_HEADER]) ?? null;
+      const saving = saveQueue.then(() => saveDocument(request, response, writer));
+      saveQueue = saving.catch(() => {});
+      await saving;
       return;
     }
     if (url.pathname === "/api/events" && request.method === "GET") {
@@ -120,15 +132,20 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   }
 
   async function documentResponse(): Promise<DocumentResponse> {
+    // 読んだだけでは knownRevision を進めない。見張りが外部の変更をほかの画面へ知らせる前に
+    // 読み込みが割り込むと、その変更を知らせ損ねるため
     const loaded = await readDiagramFile(options.file);
-    knownRevision = loaded.status === "missing" ? null : loaded.revision;
     if (loaded.status === "ok") {
       return { status: "ok", diagram: loaded.diagram, revision: loaded.revision };
     }
     return loaded;
   }
 
-  async function saveDocument(request: IncomingMessage, response: ServerResponse) {
+  async function saveDocument(
+    request: IncomingMessage,
+    response: ServerResponse,
+    writer: string | null,
+  ) {
     if (options.readonly) {
       sendJson(response, 403, { error: "読み取り専用で開いているため保存できません" });
       return;
@@ -158,6 +175,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     knownRevision = revision;
     log.success(`${session.file} に保存しました`);
     sendJson(response, 200, { status: "saved", revision } satisfies SaveResponse);
+    // 同じファイルを開いているほかの画面に知らせる。保存した画面は writer で自分の保存と分かる
+    broadcast("change", { revision, writer });
   }
 
   function openEvents(response: ServerResponse) {
@@ -171,17 +190,31 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     response.on("close", () => listeners.delete(response));
   }
 
-  function broadcast(revision: Revision | null) {
+  function broadcast(event: "change" | "watch-error", data: unknown) {
     for (const listener of listeners) {
-      listener.write(`event: change\ndata: ${JSON.stringify({ revision })}\n\n`);
+      listener.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     }
   }
 
-  async function serveStatic(pathname: string, response: ServerResponse) {
-    const relativePath = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+  async function serveStatic(url: URL, response: ServerResponse) {
+    const { pathname } = url;
+    let relativePath: string;
+    try {
+      relativePath = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+    } catch {
+      sendText(response, 400, "Bad Request");
+      return;
+    }
     const path = normalize(join(options.webDir, relativePath));
     if (path !== options.webDir && !path.startsWith(options.webDir + sep)) {
       sendText(response, 404, "Not Found");
+      return;
+    }
+    const isIndex = path === join(options.webDir, "index.html");
+    // トークンを埋め込んだ画面は、起動時に表示した URL（トークン付き）でしか開けない。
+    // 同じマシンのほかの利用者がトークンを読み取って、ファイルを書き換えられないようにするため
+    if (isIndex && !sameToken(url.searchParams.get("token"), token)) {
+      sendText(response, 403, "loopcraft serve が表示した URL（token 付き）を開いてください");
       return;
     }
     let content: Buffer;
@@ -192,7 +225,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       return;
     }
     const type = CONTENT_TYPES[extname(path)] ?? "application/octet-stream";
-    if (basename(path) === "index.html") {
+    if (isIndex) {
       response.writeHead(200, { "content-type": type, "cache-control": "no-store" });
       response.end(injectSession(content.toString("utf8"), session));
       return;
@@ -200,26 +233,6 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     response.writeHead(200, { "content-type": type });
     response.end(content);
   }
-
-  // エディタ以外（git pull やほかのエディタ）がファイルを書き換えたら、開いている画面に知らせる。
-  // 置き換え保存ではファイル自体が作り直されるので、ファイルではなくディレクトリを見る
-  let debounce: ReturnType<typeof setTimeout> | undefined;
-  const watcher: FSWatcher = watch(dirname(options.file), (_event, name) => {
-    if (name !== basename(options.file)) return;
-    clearTimeout(debounce);
-    debounce = setTimeout(() => {
-      void currentRevision(options.file).then((revision) => {
-        if (revision === knownRevision) return;
-        knownRevision = revision;
-        log.warn(`${session.file} がほかの場所で変更されました`);
-        broadcast(revision);
-      });
-    }, WATCH_DEBOUNCE_MS);
-  });
-
-  const heartbeat = setInterval(() => {
-    for (const listener of listeners) listener.write(": ping\n\n");
-  }, HEARTBEAT_MS);
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -230,12 +243,58 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   });
   port = (server.address() as AddressInfo).port;
 
+  // エディタ以外（git pull やほかのエディタ）がファイルを書き換えたら、開いている画面に知らせる。
+  // 置き換え保存ではファイル自体が作り直されるので、ファイルではなくディレクトリを見る。
+  // 待ち受けに失敗したときに監視が残らないよう、待ち受けを始めてから作る
+  const directory = dirname(options.file);
+  let debounce: ReturnType<typeof setTimeout> | undefined;
+  let watching = true;
+  const stopWatching = (reason: string) => {
+    if (!watching) return;
+    watching = false;
+    watcher.close();
+    log.warn(
+      `ほかの場所での変更を見張れなくなりました（${reason}）。画面は再読み込みするまで自動では更新されません`,
+    );
+    broadcast("watch-error", { reason });
+  };
+  let watcher: FSWatcher;
+  try {
+    watcher = watch(directory, (_event, name) => {
+      if (name !== basename(options.file)) {
+        if (!existsSync(directory)) stopWatching(`${directory} が無くなりました`);
+        return;
+      }
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        currentRevision(options.file).then(
+          (revision) => {
+            if (revision === knownRevision) return;
+            knownRevision = revision;
+            log.warn(`${session.file} がほかの場所で変更されました`);
+            broadcast("change", { revision, writer: null });
+          },
+          (error: unknown) => log.warn(`${session.file} を読めません: ${describeError(error)}`),
+        );
+      }, WATCH_DEBOUNCE_MS);
+    });
+  } catch (error) {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    throw error;
+  }
+  watcher.on("error", (error) => stopWatching(describeError(error)));
+
+  const heartbeat = setInterval(() => {
+    for (const listener of listeners) listener.write(": ping\n\n");
+  }, HEARTBEAT_MS);
+
   return {
-    url: `http://${host}:${port}/`,
+    url: `http://${host}:${port}/?token=${encodeURIComponent(token)}`,
     port,
     close: async () => {
       clearTimeout(debounce);
       clearInterval(heartbeat);
+      watching = false;
       watcher.close();
       for (const listener of listeners) listener.end();
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -243,12 +302,22 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   };
 }
 
+/** ファイルが無ければ null。読めない理由がほかにあれば、上書きしてしまわないよう投げる */
 async function currentRevision(file: string): Promise<Revision | null> {
   try {
     return revisionOf(await readFile(file, "utf8"));
-  } catch {
-    return null;
+  } catch (error) {
+    if (isNotFound(error)) return null;
+    throw error;
   }
+}
+
+export function describeError(error: unknown) {
+  if (error instanceof Error) {
+    const code = "code" in error && typeof error.code === "string" ? `${error.code}: ` : "";
+    return `${code}${error.message}`;
+  }
+  return String(error);
 }
 
 export function isAllowedHost(host: string | undefined, port: number) {

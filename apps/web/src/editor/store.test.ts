@@ -9,12 +9,15 @@ describe("createBrowserStore", () => {
     const store = createBrowserStore();
     expect(store.kind).toBe("browser");
     expect(await store.save(createSampleDiagram())).toEqual({ ok: true });
-    expect(await store.reload()).toBeUndefined();
+    expect(await store.reload()).toEqual({ ok: false, problems: [] });
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("quota");
     });
     expect(await store.save(createSampleDiagram())).toMatchObject({ ok: false, reason: "failed" });
-    const stop = store.watch(() => {});
+    const change = vi.fn();
+    const stop = store.watch({ change, lost: vi.fn() });
+    window.dispatchEvent(new StorageEvent("storage", { key: "loopcraft:document" }));
     stop();
+    expect(change).toHaveBeenCalledOnce();
   });
 });

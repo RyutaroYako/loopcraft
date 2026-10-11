@@ -58,12 +58,12 @@ describe("clackPrompts", () => {
     expect(await clackPrompts.chooseFile(cwd, { message: "m", allowNew: true })).toBeUndefined();
   });
 
-  it("JSON が無ければ、新規なら名前だけを聞き、そうでなければ何も聞かない", async () => {
+  it("JSON が無ければ、新規なら名前だけを聞き、そうでなければ null を返す", async () => {
     const cwd = await withFiles();
     prompts.text.mockResolvedValueOnce("first.json");
     expect(await clackPrompts.chooseFile(cwd, { message: "m", allowNew: true })).toBe("first.json");
     expect(prompts.select).not.toHaveBeenCalled();
-    expect(await clackPrompts.chooseFile(cwd, { message: "m", allowNew: false })).toBeUndefined();
+    expect(await clackPrompts.chooseFile(cwd, { message: "m", allowNew: false })).toBeNull();
   });
 
   it("検証するファイルをまとめて選ぶ", async () => {

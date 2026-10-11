@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
@@ -82,10 +82,25 @@ describe("init", () => {
     expect(diagram.variables).toEqual([]);
   });
 
+  it("ディレクトリが無ければ使い方の誤りとして伝える", async () => {
+    const { context } = await createWorkspace();
+    await expect(init("newdir/diagram.json", {}, context)).rejects.toThrow(
+      new UsageError("newdir というディレクトリがありません"),
+    );
+    await writeFile(join(context.cwd, "file"), "");
+    await expect(init("file/diagram.json", {}, context)).rejects.toBeInstanceOf(UsageError);
+  });
+
   it("存在を確かめられないときはエラーを投げる", async () => {
     const { context } = await createWorkspace();
-    await writeFile(join(context.cwd, "file"), "");
-    await expect(init("file/diagram.json", {}, context)).rejects.toThrow();
+    await mkdir(join(context.cwd, "locked"));
+    await writeFile(join(context.cwd, "locked", "diagram.json"), "");
+    await chmod(join(context.cwd, "locked"), 0o000);
+    try {
+      await expect(init("locked/diagram.json", {}, context)).rejects.toThrow();
+    } finally {
+      await chmod(join(context.cwd, "locked"), 0o755);
+    }
   });
 });
 

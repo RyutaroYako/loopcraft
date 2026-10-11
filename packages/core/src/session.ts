@@ -9,6 +9,8 @@ import { DiagramSchema } from "./schema.ts";
 
 export const SESSION_META_NAME = "loopcraft-session";
 export const TOKEN_HEADER = "x-loopcraft-token";
+/** 保存した画面を見分ける。同じセッションを開いた別のタブには、ほかの画面の保存として知らせる */
+export const CLIENT_HEADER = "x-loopcraft-client";
 
 export const SessionSchema = v.object({
   token: v.pipe(v.string(), v.nonEmpty()),
@@ -53,4 +55,8 @@ export const SaveResponseSchema = v.variant("status", [
 
 export type SaveResponse = v.InferOutput<typeof SaveResponseSchema>;
 
-export const ChangeEventSchema = v.object({ revision: v.nullable(v.string()) });
+/** writer は保存した画面の ID。エディタ以外が書き換えたときは null */
+export const ChangeEventSchema = v.object({
+  revision: v.nullable(v.string()),
+  writer: v.optional(v.nullable(v.string())),
+});

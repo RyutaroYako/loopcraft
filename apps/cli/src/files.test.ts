@@ -1,8 +1,9 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, readdir, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import { describe, expect, it } from "vite-plus/test";
 import {
+  isDirectory,
   isNotFound,
   listJsonFiles,
   readDiagramFile,
@@ -50,6 +51,39 @@ describe("files", () => {
     const revision = await writeDiagramFile(path, createSampleDiagram());
     expect(revision).toBe(revisionOf(await readFile(path, "utf8")));
     expect(await readdir(cwd)).toEqual(["out.json"]);
+  });
+
+  it("シンボリックリンクはリンク先を書き換え、権限を引き継ぐ", async () => {
+    const { cwd } = await createWorkspace();
+    const real = join(cwd, "real.json");
+    await writeFile(real, "{}");
+    await chmod(real, 0o640);
+    await symlink(real, join(cwd, "link.json"));
+    await writeDiagramFile(join(cwd, "link.json"), createSampleDiagram());
+    expect((await lstat(join(cwd, "link.json"))).isSymbolicLink()).toBe(true);
+    expect(JSON.parse(await readFile(real, "utf8"))).toMatchObject({
+      title: "組織の成長と人の負荷",
+    });
+    expect((await stat(real)).mode & 0o777).toBe(0o640);
+  });
+
+  it("ディレクトリかどうかを調べ、無ければ false", async () => {
+    const { cwd } = await createWorkspace();
+    expect(await isDirectory(cwd)).toBe(true);
+    expect(await isDirectory(join(cwd, "none"))).toBe(false);
+    await writeFile(join(cwd, "file"), "");
+    expect(await isDirectory(join(cwd, "file"))).toBe(false);
+    await expect(isDirectory(join(cwd, "file", "child"))).rejects.toMatchObject({
+      code: "ENOTDIR",
+    });
+  });
+
+  it("リンク先を調べられないときは書かずに投げる", async () => {
+    const { cwd } = await createWorkspace();
+    await writeFile(join(cwd, "file"), "");
+    await expect(
+      writeDiagramFile(join(cwd, "file", "x.json"), createSampleDiagram()),
+    ).rejects.toThrow();
   });
 
   it("書けなかったら一時ファイルを残さない", async () => {

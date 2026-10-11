@@ -4,7 +4,9 @@ import type { DocumentStore } from "../editor/store.ts";
 
 function labelOf(status: AutosaveStatus, store: DocumentStore) {
   if (status.kind === "failing") return "自動保存できません";
-  if (status.kind === "suspended") return "自動保存を停止中";
+  if (status.kind === "suspended") {
+    return status.reason === "disconnected" ? "接続が切れました" : "自動保存を停止中";
+  }
   return store.kind === "file" ? store.label : "自動保存済み";
 }
 

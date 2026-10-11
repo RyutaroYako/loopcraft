@@ -15,10 +15,11 @@ export const COMMANDS: { value: CommandName; label: string; hint: string }[] = [
 /** 対話で引数を補う。キャンセルされたら undefined を返す */
 export interface Prompts {
   chooseCommand(): Promise<CommandName | undefined>;
+  /** 選べるファイルが無く、新しく作ることもできないときは null */
   chooseFile(
     cwd: string,
     options: { message: string; allowNew: boolean },
-  ): Promise<string | undefined>;
+  ): Promise<string | null | undefined>;
   chooseFiles(cwd: string): Promise<string[] | undefined>;
   askInit(): Promise<{ file: string; sample: boolean } | undefined>;
   cancelled(): void;
@@ -35,7 +36,7 @@ export const clackPrompts: Prompts = {
 
   async chooseFile(cwd, { message, allowNew }) {
     const files = await listJsonFiles(cwd);
-    if (files.length === 0 && !allowNew) return undefined;
+    if (files.length === 0 && !allowNew) return null;
     const choice =
       files.length === 0
         ? NEW_FILE

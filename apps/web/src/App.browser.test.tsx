@@ -38,7 +38,7 @@ function fileStartup(diagram: Diagram, editable: boolean): Startup {
     label: "growth.json",
     save: async () => ({ ok: true }),
     watch: () => () => {},
-    reload: async () => undefined,
+    reload: async () => ({ ok: false, problems: [] }),
   };
   return {
     kind: "file",
