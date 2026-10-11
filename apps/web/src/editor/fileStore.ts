@@ -27,8 +27,10 @@ const REQUEST_TIMEOUT_MS = 15_000;
 
 /** `loopcraft serve` の API とやりとりして、開いたファイルを読み書きする */
 export function createFileClient(session: Session, base = "") {
-  /** 最後に読んだ・保存したファイルの版。外部での変更と自分の保存を見分ける */
-  let revision: Revision | null = null;
+  /** 最後に読んだ・保存したファイルの版。外部での変更と自分の保存を見分ける（開けなかった内容も含む） */
+  let seen: Revision | null = null;
+  /** 保存の前提にする版。開けなかった内容では進めず、上書きを選ばないかぎり保存が競合として止まる */
+  let baseRevision: Revision | null = null;
   /** この画面の ID。同じファイルを開いたほかのタブと、自分の保存を見分ける */
   const clientId = crypto.randomUUID();
   /** 応答を待っている保存の数 */
@@ -43,9 +45,8 @@ export function createFileClient(session: Session, base = "") {
       });
       if (!response.ok) throw new Error(await errorOf(response));
       const body = v.parse(DocumentResponseSchema, await response.json());
-      // 開けなかった内容の版は覚えない。上書きを選ばないかぎり、保存がサーバーで競合として止まるように
-      if (body.status === "ok") revision = body.revision;
-      else if (body.status === "missing") revision = null;
+      seen = body.status === "missing" ? null : body.revision;
+      if (body.status !== "invalid") baseRevision = seen;
       return body;
     } catch (error) {
       return { status: "error", error };
@@ -56,7 +57,7 @@ export function createFileClient(session: Session, base = "") {
     kind: "file",
     label: session.file,
     async save(diagram, options = {}): Promise<SaveResult> {
-      const body = JSON.stringify({ diagram, baseRevision: revision, force: options.force });
+      const body = JSON.stringify({ diagram, baseRevision, force: options.force });
       inFlight++;
       try {
         const response = await fetch(`${base}/api/document`, {
@@ -71,7 +72,7 @@ export function createFileClient(session: Session, base = "") {
         if (!response.ok && response.status !== 409) throw new Error(await errorOf(response));
         const result = v.parse(SaveResponseSchema, await response.json());
         if (result.status === "conflict") return { ok: false, reason: "conflict" };
-        revision = result.revision;
+        seen = baseRevision = result.revision;
         return { ok: true };
       } catch (error) {
         return { ok: false, reason: "failed", error };
@@ -118,10 +119,10 @@ export function createFileClient(session: Session, base = "") {
         if (!result.success) return;
         if (result.output.writer === clientId) {
           // 待ちきれずに諦めた保存を、サーバーが後から書き込んだときも、その版を覚えておく
-          if (inFlight === 0) revision = result.output.revision;
+          if (inFlight === 0) seen = baseRevision = result.output.revision;
           return;
         }
-        if (result.output.revision !== revision) handlers.change();
+        if (result.output.revision !== seen) handlers.change();
       };
       source.addEventListener("change", onRevision);
       // つないだ（つなぎ直した）ときに届く、その時点の版。切れていた間の変更を取りこぼさない

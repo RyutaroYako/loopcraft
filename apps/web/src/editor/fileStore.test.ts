@@ -78,6 +78,39 @@ describe("createFileClient", () => {
       baseRevision: "r2",
     });
     expect(handlers.change).not.toHaveBeenCalled();
+    sources[0]!.dispatchEvent(
+      new MessageEvent("revision", { data: JSON.stringify({ revision: "r3" }) }),
+    );
+    expect(handlers.change).not.toHaveBeenCalled();
+  });
+
+  it("開けなかったファイルの版が届いても、変わったとはみなさない", async () => {
+    const sources: EventTarget[] = [];
+    vi.stubGlobal(
+      "EventSource",
+      class extends EventTarget {
+        readyState = 1;
+        constructor() {
+          super();
+          sources.push(this);
+        }
+        close() {}
+      },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(respond(200, { status: "invalid", revision: "bad", errors: [] })),
+    );
+    const { load, store } = createFileClient(session);
+    await load();
+    const handlers = { change: vi.fn(), lost: vi.fn(), restored: vi.fn() };
+    store.watch(handlers);
+    sources[0]!.dispatchEvent(
+      new MessageEvent("revision", { data: JSON.stringify({ revision: "bad" }) }),
+    );
+    expect(handlers.change).not.toHaveBeenCalled();
   });
 
   it("ファイルが無ければ、作る前提で保存する", async () => {

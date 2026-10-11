@@ -160,6 +160,23 @@ describe("startServer", () => {
     expect(forced.status).toBe(200);
   });
 
+  it("前提が古くても、今の内容を書いた同じ画面の保存は受け付ける", async () => {
+    const { server, file } = await start();
+    const base = revisionOf(await readFile(file, "utf8"));
+    const put = (writer: string, title: string) =>
+      api(server, "/api/document", {
+        method: "PUT",
+        headers: { "x-loopcraft-client": writer },
+        body: JSON.stringify({ diagram: { ...createSampleDiagram(), title }, baseRevision: base }),
+      });
+    expect((await put("tab-a", "1")).status).toBe(200);
+    expect((await put("tab-a", "2")).status).toBe(200);
+    expect((await put("tab-b", "3")).status).toBe(409);
+    await writeFile(file, stringifyDiagram({ ...createSampleDiagram(), title: "外部" }));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect((await put("tab-a", "4")).status).toBe(409);
+  });
+
   it("ファイルが無ければ最初の保存で作る", async () => {
     const { server, file } = await start({ existing: false });
     const saved = await api(server, "/api/document", {

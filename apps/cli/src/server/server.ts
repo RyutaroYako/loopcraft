@@ -79,6 +79,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   let saveQueue: Promise<void> = Promise.resolve();
   /** 見張りが止まった理由。止まっていなければ undefined */
   let unwatchedReason: string | undefined;
+  /** knownRevision の内容を書いた画面。エディタ以外が書き換えたら null */
+  let lastWriter: string | null = null;
 
   const server = createServer((request, response) => {
     handle(request, response).catch((error: unknown) => {
@@ -170,12 +172,16 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     }
     const { diagram, baseRevision, force } = parsed.output;
     const onDisk = await currentRevision(options.file);
-    if (!force && onDisk !== baseRevision) {
+    // 前提の版が古くても、今の内容を書いたのが同じ画面で、その後ほかから書き換えられていなければ、
+    // 上書きしても誰の変更も失われない（応答を待ちきれずに送り直した保存など）
+    const ownLatest = writer !== null && onDisk === knownRevision && lastWriter === writer;
+    if (!force && onDisk !== baseRevision && !ownLatest) {
       sendJson(response, 409, { status: "conflict", revision: onDisk } satisfies SaveResponse);
       return;
     }
     const revision = await writeDiagramFile(options.file, diagram);
     knownRevision = revision;
+    lastWriter = writer;
     log.success(`${session.file} に保存しました`);
     sendJson(response, 200, { status: "saved", revision } satisfies SaveResponse);
     // 同じファイルを開いているほかの画面に知らせる。保存した画面は writer で自分の保存と分かる
@@ -290,6 +296,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
           (revision) => {
             if (revision === knownRevision) return;
             knownRevision = revision;
+            lastWriter = null;
             log.warn(`${session.file} がほかの場所で変更されました`);
             broadcast("change", { revision, writer: null });
           },
