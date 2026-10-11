@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: voidzero-dev/setup-vp@v1.21.2
+        with:
+          node-version: "24"
+          cache: true
+      # Vite Task のキャッシュは実行間で引き継がない。まだ実験的な機能で、どのタスクも数秒で終わり復元の手間に見合わないため
+      - run: vp check
+      - run: vp test
+      - run: vp build
