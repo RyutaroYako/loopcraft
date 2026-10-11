@@ -1,5 +1,5 @@
-import { parseDiagramJson, stringifyDiagram } from "../model/io.ts";
-import type { Diagram } from "../model/schema.ts";
+import { parseDiagramJson, stringifyDiagram } from "@loopcraft/core/io";
+import type { Diagram } from "@loopcraft/core/schema";
 
 const STORAGE_KEY = "loopcraft:document";
 

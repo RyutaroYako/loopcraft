@@ -1,8 +1,8 @@
 import { For, Show, createMemo, createSignal, onSettled, useContext } from "solid-js";
 import { EditorContext, type Gesture } from "../editor/editor.ts";
-import * as edit from "../model/edit.ts";
-import { curvatureFromHandle } from "../model/geometry.ts";
-import type { LinkId, LoopId, Point, VariableId } from "../model/schema.ts";
+import * as edit from "@loopcraft/core/edit";
+import { curvatureFromHandle } from "@loopcraft/core/geometry";
+import type { LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
 import {
   geometryOf,
   InlineLabelEditor,

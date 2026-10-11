@@ -1,7 +1,7 @@
 import { useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
 import { pickJsonFile } from "../editor/file.ts";
-import { createSampleDiagram } from "../editor/sample.ts";
+import { createSampleDiagram } from "@loopcraft/core/sample";
 import { OpenIcon, PlusIcon, SparkIcon } from "./icons.tsx";
 
 export function EmptyState() {

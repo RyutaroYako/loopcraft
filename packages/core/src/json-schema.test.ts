@@ -1,5 +1,5 @@
 import { expect, it } from "vite-plus/test";
-import committed from "../../public/system-diagram.schema.json";
+import committed from "../loopcraft.schema.json" with { type: "json" };
 import { createDiagramJsonSchema } from "./json-schema.ts";
 
 it("public の JSON Schema が valibot のスキーマと一致している", () => {

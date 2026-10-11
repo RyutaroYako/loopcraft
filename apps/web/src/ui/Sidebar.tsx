@@ -2,9 +2,9 @@ import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "
 import { EditorContext, type Editor, type LoopEntry } from "../editor/editor.ts";
 import { downloadText } from "../editor/file.ts";
 import { listBackups, readBackup, removeBackup } from "../editor/storage.ts";
-import * as edit from "../model/edit.ts";
-import type { LoopKind } from "../model/loop.ts";
-import type { Link, LinkId, LoopId, VariableId } from "../model/schema.ts";
+import * as edit from "@loopcraft/core/edit";
+import type { LoopKind } from "@loopcraft/core/loop";
+import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
 import { ArrowRightIcon, PinIcon, TrashIcon } from "./icons.tsx";
 
 export function Sidebar() {

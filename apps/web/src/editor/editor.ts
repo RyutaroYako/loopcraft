@@ -1,9 +1,9 @@
 import { createContext, createMemo, createSignal } from "solid-js";
-import { findLoops, type DetectedLoop } from "../model/cycles.ts";
-import * as edit from "../model/edit.ts";
-import { boundsOf, nodeSize, type Size } from "../model/geometry.ts";
-import { createEmptyDiagram, parseDiagramJson } from "../model/io.ts";
-import { classifyLoop, cycleKey, type LoopKind } from "../model/loop.ts";
+import { findLoops, type DetectedLoop } from "@loopcraft/core/cycles";
+import * as edit from "@loopcraft/core/edit";
+import { boundsOf, nodeSize, type Size } from "@loopcraft/core/geometry";
+import { createEmptyDiagram, parseDiagramJson } from "@loopcraft/core/io";
+import { classifyLoop, cycleKey, type LoopKind } from "@loopcraft/core/loop";
 import type {
   Diagram,
   Link,
@@ -13,7 +13,7 @@ import type {
   Point,
   Variable,
   VariableId,
-} from "../model/schema.ts";
+} from "@loopcraft/core/schema";
 import { downloadDiagram } from "./file.ts";
 import { clearMeasureCache, measureLabel } from "./measure.ts";
 

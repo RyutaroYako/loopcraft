@@ -1,5 +1,5 @@
-import { stringifyDiagram } from "../model/io.ts";
-import type { Diagram } from "../model/schema.ts";
+import { stringifyDiagram } from "@loopcraft/core/io";
+import type { Diagram } from "@loopcraft/core/schema";
 
 export function downloadDiagram(diagram: Diagram) {
   downloadText(stringifyDiagram(diagram), `${fileNameOf(diagram.title)}.json`);

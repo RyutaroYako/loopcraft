@@ -2,7 +2,7 @@ import { useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
 import { AutosaveIndicator } from "./AutosaveIndicator.tsx";
 import { pickJsonFile } from "../editor/file.ts";
-import * as edit from "../model/edit.ts";
+import * as edit from "@loopcraft/core/edit";
 import { FileIcon, LogoMark, OpenIcon, RedoIcon, SaveIcon, UndoIcon } from "./icons.tsx";
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);

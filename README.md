@@ -20,7 +20,7 @@
 
 ## データ形式
 
-保存する JSON の形式は [`public/system-diagram.schema.json`](public/system-diagram.schema.json) の JSON Schema で定義しています。このスキーマは `src/model/schema.ts`（valibot）から生成したものです。
+保存する JSON の形式は [`packages/core/loopcraft.schema.json`](packages/core/loopcraft.schema.json) の JSON Schema で定義しています。このスキーマは `packages/core/src/schema.ts`（valibot）から生成したものです。
 
 ## 開発
 

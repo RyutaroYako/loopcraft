@@ -3,7 +3,7 @@ import { AutosaveContext, setupAutosave, type AutosaveStatus } from "./editor/au
 import { createEditor, EditorContext } from "./editor/editor.ts";
 import { downloadText } from "./editor/file.ts";
 import { loadStoredDiagram } from "./editor/storage.ts";
-import { createEmptyDiagram } from "./model/io.ts";
+import { createEmptyDiagram } from "@loopcraft/core/io";
 import { Canvas } from "./ui/Canvas.tsx";
 import { NoticeView } from "./ui/NoticeView.tsx";
 import { Sidebar } from "./ui/Sidebar.tsx";

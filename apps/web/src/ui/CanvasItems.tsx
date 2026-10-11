@@ -1,8 +1,8 @@
 import { Show, createMemo, useContext } from "solid-js";
 import { EditorContext, type Editor, type Gesture, type NodeBox } from "../editor/editor.ts";
-import * as edit from "../model/edit.ts";
-import { centroid, DEFAULT_CURVATURE, isClockwise, linkGeometry } from "../model/geometry.ts";
-import type { Link, LinkId, LoopId, Point, VariableId } from "../model/schema.ts";
+import * as edit from "@loopcraft/core/edit";
+import { centroid, DEFAULT_CURVATURE, isClockwise, linkGeometry } from "@loopcraft/core/geometry";
+import type { Link, LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
 
 /*
  * キャンバス上の各要素。どれも ID だけを受け取り、描画のたびに最新の図から引き直す。
