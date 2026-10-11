@@ -71,14 +71,18 @@ jobs:
             echo "::notice::loopcraft@$VERSION は公開済みです"
             exit 0
           fi
-          if npm publish loopcraft-*.tgz --tag "$DIST_TAG" 2>&1 | tee "$RUNNER_TEMP/publish.log"; then
+          log="$RUNNER_TEMP/publish.log"
+          status=0
+          npm publish loopcraft-*.tgz --tag "$DIST_TAG" > "$log" 2>&1 || status=$?
+          cat "$log"
+          if [ "$status" -eq 0 ]; then
             exit 0
           fi
           if published; then
             echo "::notice::npm publish は失敗しましたが、loopcraft@$VERSION は公開されています"
             exit 0
           fi
-          if grep -qE "ENEEDAUTH|E401|E403|E404|OIDC" "$RUNNER_TEMP/publish.log"; then
+          if grep -qE "ENEEDAUTH|E401|E403|E404|OIDC" "$log"; then
             echo "::error::npm に認証されませんでした。npm の trusted publisher（ワークフロー release.yml、environment npm）を確かめてください"
           else
             echo "::error::npm への公開に失敗しました。ログを確かめて、このジョブを再実行してください"
