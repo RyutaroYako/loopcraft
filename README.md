@@ -34,3 +34,7 @@ vp test            # テスト
 vp build           # 本番ビルド
 vp run gen:schema  # JSON Schema の再生成
 ```
+
+## ライセンス
+
+[MIT](LICENSE)
