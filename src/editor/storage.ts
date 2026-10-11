@@ -1,7 +1,7 @@
 import { parseDiagramJson, stringifyDiagram } from "../model/io.ts";
 import type { Diagram } from "../model/schema.ts";
 
-const STORAGE_KEY = "system-diagram-editor:document";
+const STORAGE_KEY = "loopcraft:document";
 
 export type StoredDiagram =
   | { status: "empty" }

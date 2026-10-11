@@ -20,7 +20,7 @@ export function Toolbar() {
     <header class="toolbar">
       <div class="brand">
         <LogoMark />
-        <span class="brand-name">Loopwright</span>
+        <span class="brand-name">Loopcraft</span>
       </div>
       <label class="title-field">
         <span class="visually-hidden">図のタイトル</span>
