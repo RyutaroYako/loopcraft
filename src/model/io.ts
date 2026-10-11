@@ -25,7 +25,10 @@ export function parseDiagramJson(text: string): ParseDiagramResult {
   } catch (error) {
     return {
       ok: false,
-      errors: [{ path: undefined, message: `JSON として読み込めません: ${String(error)}` }],
+      errors: [
+        { path: undefined, message: "JSON ファイルではないか、内容が壊れています" },
+        { path: undefined, message: String(error) },
+      ],
     };
   }
   const result = v.safeParse(DiagramSchema, input, { lang: "ja" });

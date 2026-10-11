@@ -1,4 +1,4 @@
-import { createContext, createEffect, createMemo, createSignal } from "solid-js";
+import { createContext, createMemo, createSignal } from "solid-js";
 import { findLoops, type DetectedLoop } from "../model/cycles.ts";
 import * as edit from "../model/edit.ts";
 import { boundsOf, nodeSize, type Size } from "../model/geometry.ts";
@@ -16,7 +16,6 @@ import type {
 } from "../model/schema.ts";
 import { downloadDiagram } from "./file.ts";
 import { clearMeasureCache, measureLabel } from "./measure.ts";
-import { storeDiagram } from "./storage.ts";
 
 export type Selection =
   | { kind: "variable"; id: VariableId }
@@ -34,6 +33,7 @@ export interface Notice {
   tone: "error" | "info";
   title: string;
   details?: string[];
+  action?: { label: string; run: () => void };
 }
 
 export interface NodeBox {
@@ -168,14 +168,6 @@ export function createEditor(initial: Diagram) {
     if (!entry) return undefined;
     return { key, links: new Set(entry.links), variables: new Set(entry.variables) };
   });
-
-  createEffect(
-    () => diagram(),
-    (value) => {
-      const timer = setTimeout(() => storeDiagram(value), 300);
-      return () => clearTimeout(timer);
-    },
-  );
 
   function updateHistorySize() {
     setHistorySize({ undo: undoStack.length, redo: redoStack.length });
@@ -326,7 +318,21 @@ export function createEditor(initial: Diagram) {
   }
 
   async function importFile(file: File) {
-    const result = parseDiagramJson(await file.text());
+    let text: string;
+    try {
+      text = await file.text();
+    } catch (error) {
+      notify({
+        tone: "error",
+        title: `${file.name} を読み込めませんでした`,
+        details: [
+          "ファイルを開けませんでした。フォルダや、移動・削除されたファイルは読み込めません",
+          String(error),
+        ],
+      });
+      return;
+    }
+    const result = parseDiagramJson(text);
     if (!result.ok) {
       notify({
         tone: "error",

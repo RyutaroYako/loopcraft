@@ -787,6 +787,10 @@ kbd {
   overflow-wrap: anywhere;
 }
 
+.notice-actions {
+  padding-top: 4px;
+}
+
 .notice-more {
   font-size: 12px;
   color: var(--muted);

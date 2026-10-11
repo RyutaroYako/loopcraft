@@ -2,13 +2,19 @@ import { stringifyDiagram } from "../model/io.ts";
 import type { Diagram } from "../model/schema.ts";
 
 export function downloadDiagram(diagram: Diagram) {
-  const blob = new Blob([stringifyDiagram(diagram)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+  downloadText(stringifyDiagram(diagram), `${fileNameOf(diagram.title)}.json`);
+}
+
+export function downloadText(text: string, fileName: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${fileNameOf(diagram.title)}.json`;
+  anchor.download = fileName;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  // すぐに解放するとダウンロードが始まる前に失敗するブラウザがあるので、少し待つ
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 function fileNameOf(title: string) {

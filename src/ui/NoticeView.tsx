@@ -18,6 +18,15 @@ export function NoticeView() {
                 <p class="notice-more">ほか {(notice.details?.length ?? 0) - 8} 件</p>
               </Show>
             </Show>
+            <Show when={notice.action} keyed>
+              {(action) => (
+                <div class="notice-actions">
+                  <button type="button" class="button small" onClick={() => action.run()}>
+                    {action.label}
+                  </button>
+                </div>
+              )}
+            </Show>
           </div>
           <button
             type="button"

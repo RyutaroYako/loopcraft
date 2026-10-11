@@ -1,6 +1,8 @@
 import { createSignal, onSettled } from "solid-js";
-import { createEditor, EditorContext } from "./editor/editor.ts";
-import { loadStoredDiagram } from "./editor/storage.ts";
+import { setupAutosave } from "./editor/autosave.ts";
+import { createEditor, EditorContext, type Editor } from "./editor/editor.ts";
+import { downloadText } from "./editor/file.ts";
+import { loadStoredDiagram, type StoredDiagram } from "./editor/storage.ts";
 import { createEmptyDiagram } from "./model/io.ts";
 import { Canvas } from "./ui/Canvas.tsx";
 import { NoticeView } from "./ui/NoticeView.tsx";
@@ -14,8 +16,38 @@ function isTextInput(target: EventTarget | null) {
   );
 }
 
+/** 前回の図を開けなかったことを知らせる。開けたときや初回は何もしない */
+function reportRestore(editor: Editor, stored: StoredDiagram) {
+  if (stored.status === "unavailable") {
+    editor.notify({
+      tone: "error",
+      title: "このブラウザでは自動保存が使えません",
+      details: ["「JSON を書き出す」でファイルに保存してください", String(stored.error)],
+    });
+  }
+  if (stored.status === "invalid") {
+    const { raw } = stored;
+    editor.notify({
+      tone: "error",
+      title: "前回の図を開けませんでした",
+      details: [
+        stored.backupKey
+          ? `元のデータはブラウザ内の ${stored.backupKey} に退避しました`
+          : "元のデータを退避できませんでした。下のボタンから書き出してください",
+        ...stored.errors,
+      ],
+      action: {
+        label: "開けなかったデータを書き出す",
+        run: () => downloadText(raw, "system-diagram-unreadable.json"),
+      },
+    });
+  }
+}
+
 function App() {
-  const editor = createEditor(loadStoredDiagram() ?? createEmptyDiagram());
+  const stored = loadStoredDiagram();
+  const editor = createEditor(stored.status === "ok" ? stored.diagram : createEmptyDiagram());
+  setupAutosave(editor);
   const [dropping, setDropping] = createSignal(false);
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -54,9 +86,26 @@ function App() {
 
   const hasFiles = (event: DragEvent) => event.dataTransfer?.types.includes("Files") ?? false;
 
+  // どこかで取りこぼした例外も、黙って失敗させずに画面へ出す
+  const onUnhandled = (event: PromiseRejectionEvent | ErrorEvent) => {
+    const reason = "reason" in event ? event.reason : event.error;
+    editor.notify({
+      tone: "error",
+      title: "予期しないエラーが起きました",
+      details: [String(reason)],
+    });
+  };
+
   onSettled(() => {
+    reportRestore(editor, stored);
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("unhandledrejection", onUnhandled);
+    window.addEventListener("error", onUnhandled);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("unhandledrejection", onUnhandled);
+      window.removeEventListener("error", onUnhandled);
+    };
   });
 
   return (
