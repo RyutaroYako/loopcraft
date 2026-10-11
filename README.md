@@ -57,47 +57,6 @@ vp run gen:schema          # JSON Schema の再生成
 
 ブラウザのテストには Chromium を使います。初回は `vp exec --filter @loopcraft/web playwright install chromium` を実行してください。
 
-## リリース
-
-最新の `main` で版を上げてタグを付け、push すると、GitHub Actions がテストと確認をしたうえで npm への公開と GitHub Release の作成を行います。npm への認証は OIDC（trusted publishing）で、トークンは使いません。
-
-```bash
-vpr release patch                   # 0.1.0 → 0.1.1。minor / major / 1.2.3 のような指定もできる
-git push --atomic --follow-tags     # main とタグをまとめて送る。どちらかが拒まれたら両方送らない
-```
-
-- `vpr release` は、`main` が `origin/main` と一致しているときだけ動きます。版の更新は `main` へ直接 push するので、`main` を守るルールでは管理者が通れるようにしてください
-- `vpr release preminor --preid beta` のようなプレリリース（`v0.2.0-beta.0`）は、npm の `next` タグと GitHub のプレリリースとして公開します
-- 途中で失敗したら、ワークフローを再実行できます。公開済みの版は npm への公開を飛ばし、GitHub Release だけを作ります
-- リリースは 1 つずつ順に動きます。前のリリースが終わる前に続けてタグを push すると、待っていた実行が取り消されることがあるので、その実行を再実行してください。ただし、新しい版を先に出していたら、古い版は npm の latest を戻さないよう公開しません。そのタグは消すか（`git push --delete origin vX.Y.Z`）、必要なら GitHub Release を手で作ってください
-
-### 初回の公開
-
-npm の trusted publisher は、パッケージが npm にあるときだけ登録できるので、最初の版だけ手元から公開します。
-
-1. 手元から公開する（2FA のワンタイムパスワードを聞かれます）
-
-   ```bash
-   cd apps/cli && vp pm publish
-   ```
-
-2. npmjs.com の `loopcraft` の Settings → Trusted publishing で GitHub Actions を登録する（大文字小文字まで一致させる）
-
-   | 項目              | 値            |
-   | ----------------- | ------------- |
-   | Organization/user | `RyutaroYako` |
-   | Repository        | `loopcraft`   |
-   | Workflow filename | `release.yml` |
-   | Environment       | `npm`         |
-
-3. 公開した版のタグを push する。npm への公開は飛ばして、GitHub Release を作ります
-
-   ```bash
-   git tag -a v0.1.0 -m "chore(release): v0.1.0" && git push origin v0.1.0
-   ```
-
-登録した設定は、2 日以内に公開を一度成功させないと使えなくなります。登録したら、早めに次の版を `vpr release` で出してください。動いたら、npm の Publishing access を「Require two-factor authentication and disallow tokens」にします。
-
 ## ライセンス
 
 [MIT](LICENSE)
