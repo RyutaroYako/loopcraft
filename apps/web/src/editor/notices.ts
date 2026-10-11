@@ -141,9 +141,14 @@ export function createNotices(context: {
     };
   }
 
+  /** explain で出した通知。状態が戻ったら、それだけを閉じる */
+  let explained: Notice | undefined;
+
   function explain(status: AutosaveStatus) {
     const notice = describe(status);
-    if (notice) editor.notify(notice);
+    if (!notice) return;
+    explained = notice;
+    editor.notify(notice);
   }
 
   return {
@@ -180,6 +185,12 @@ export function createNotices(context: {
           details: ["編集を始めると、最初の保存で作成します"],
         });
       }
+    },
+
+    /** 問題のある状態から戻ったとき。そのとき出していた案内は古くなるので閉じる */
+    recovered() {
+      if (explained) editor.dismissNotice(explained);
+      explained = undefined;
     },
 
     /** 外部での変更を取り込んだとき */

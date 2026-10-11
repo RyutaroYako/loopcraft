@@ -18,8 +18,12 @@ export type LoadResult =
 
 /** ブラウザは keepalive の本文を 64KiB までに制限しているので、それより大きければ使わない */
 const KEEPALIVE_LIMIT_BYTES = 60_000;
-/** つなぎ直せないまま、これだけ経ったらつながりが切れたとみなす */
-const RECONNECT_GRACE_MS = 5000;
+/** つなぎ直せないまま、これだけ経ったらつながりが切れたとみなす。再接続の間隔（1 秒）より十分長くする */
+const RECONNECT_GRACE_MS = 10_000;
+/** サーバーは 25 秒ごとに ping を送る。これだけ何も届かなければ、応答しなくなったとみなす */
+const SILENCE_LIMIT_MS = 60_000;
+/** 応答しないサーバーへの保存を待ち続けないよう、これだけ経ったら失敗にする */
+const REQUEST_TIMEOUT_MS = 15_000;
 
 /** `loopcraft serve` の API とやりとりして、開いたファイルを読み書きする */
 export function createFileClient(session: Session, base = "") {
@@ -31,7 +35,10 @@ export function createFileClient(session: Session, base = "") {
 
   async function load(): Promise<LoadResult> {
     try {
-      const response = await fetch(`${base}/api/document`, { headers });
+      const response = await fetch(`${base}/api/document`, {
+        headers,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
       if (!response.ok) throw new Error(await errorOf(response));
       const body = v.parse(DocumentResponseSchema, await response.json());
       revision = body.status === "missing" ? null : body.revision;
@@ -52,6 +59,7 @@ export function createFileClient(session: Session, base = "") {
           headers: { ...headers, [CLIENT_HEADER]: clientId, "content-type": "application/json" },
           body,
           keepalive: options.keepalive && new Blob([body]).size < KEEPALIVE_LIMIT_BYTES,
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
         // サーバーを起動し直すとトークンが変わり、このページからは保存できなくなる
         if (response.status === 403) return { ok: false, reason: "disconnected" };
@@ -70,6 +78,21 @@ export function createFileClient(session: Session, base = "") {
       );
       let lost = false;
       let grace: ReturnType<typeof setTimeout> | undefined;
+      let lastHeard = Date.now();
+      /** 何か届いたら生きている。切れたとみなしていたなら、戻ったことを知らせる */
+      const heard = () => {
+        lastHeard = Date.now();
+        clearTimeout(grace);
+        grace = undefined;
+        if (!lost) return;
+        lost = false;
+        handlers.restored();
+      };
+      // 止まったわけではないのに応答しないサーバー（Ctrl+Z で一時停止したなど）は、
+      // つなぎ直しの知らせも来ないので、届くはずの ping が途絶えたことで見分ける
+      const watchdog = setInterval(() => {
+        if (Date.now() - lastHeard > SILENCE_LIMIT_MS) disconnect();
+      }, SILENCE_LIMIT_MS / 4);
       const disconnect = () => {
         clearTimeout(grace);
         grace = undefined;
@@ -78,6 +101,7 @@ export function createFileClient(session: Session, base = "") {
         handlers.lost("disconnected");
       };
       const onRevision = (event: MessageEvent) => {
+        heard();
         const result = v.safeParse(ChangeEventSchema, parseJson(event.data));
         if (!result.success || result.output.writer === clientId) return;
         if (result.output.revision !== revision) handlers.change();
@@ -85,7 +109,9 @@ export function createFileClient(session: Session, base = "") {
       source.addEventListener("change", onRevision);
       // つないだ（つなぎ直した）ときに届く、その時点の版。切れていた間の変更を取りこぼさない
       source.addEventListener("revision", onRevision);
+      source.addEventListener("ping", heard);
       source.addEventListener("watch-error", (event) => {
+        heard();
         const data = parseJson(event.data);
         const reason =
           typeof data === "object" && data !== null && "reason" in data ? String(data.reason) : "";
@@ -98,15 +124,10 @@ export function createFileClient(session: Session, base = "") {
         if (source.readyState === EventSource.CLOSED) disconnect();
         else grace ??= setTimeout(disconnect, RECONNECT_GRACE_MS);
       });
-      source.addEventListener("open", () => {
-        clearTimeout(grace);
-        grace = undefined;
-        if (!lost) return;
-        lost = false;
-        handlers.restored();
-      });
+      source.addEventListener("open", heard);
       return () => {
         clearTimeout(grace);
+        clearInterval(watchdog);
         source.close();
       };
     },

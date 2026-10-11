@@ -35,6 +35,8 @@ export function setupAutosave(
     onReload?: () => void;
     /** 外部での変更を見張れなくなったとき。保存は続ける */
     onUnwatched?: (detail: string | undefined) => void;
+    /** 問題のある状態から戻ったとき */
+    onRecovered?: () => void;
   } = {},
 ) {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -50,9 +52,11 @@ export function setupAutosave(
 
   const update = (next: AutosaveStatus) => {
     const worsened = next.kind !== "ok" && keyOf(current) !== keyOf(next);
+    const recovered = next.kind === "ok" && current.kind !== "ok";
     current = next;
     setStatus(next);
     if (worsened) options.onProblem?.(next);
+    if (recovered) options.onRecovered?.();
   };
 
   const unsaved = () => dirty || saving !== undefined || timer !== undefined;

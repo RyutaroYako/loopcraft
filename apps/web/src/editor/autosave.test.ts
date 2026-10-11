@@ -44,14 +44,21 @@ function setup(store: DocumentStore, options: { initialStatus?: AutosaveStatus }
   const onProblem = vi.fn();
   const onReload = vi.fn();
   const onUnwatched = vi.fn();
+  const onRecovered = vi.fn();
   const result = createRoot((d) => {
     dispose = d;
     const editor = createEditor(createSampleDiagram());
-    const autosave = setupAutosave(editor, store, { ...options, onProblem, onReload, onUnwatched });
+    const autosave = setupAutosave(editor, store, {
+      ...options,
+      onProblem,
+      onReload,
+      onUnwatched,
+      onRecovered,
+    });
     return { editor, autosave };
   });
   flush();
-  return { ...result, onProblem, onReload, onUnwatched };
+  return { ...result, onProblem, onReload, onUnwatched, onRecovered };
 }
 
 /** 保存の待ち時間を進め、保存の完了まで待つ */
@@ -267,7 +274,7 @@ describe("setupAutosave", () => {
 
   it("つながりが戻ったら、溜まっていた変更を保存し直す", async () => {
     const { store, lose, restore } = fakeStore();
-    const { editor, autosave } = setup(store);
+    const { editor, autosave, onRecovered } = setup(store);
     restore();
     lose("disconnected");
     editor.commit(edit.setTitle(editor.current(), "1"));
@@ -276,6 +283,7 @@ describe("setupAutosave", () => {
     restore();
     await settle();
     expect(autosave.status()).toEqual({ kind: "ok" });
+    expect(onRecovered).toHaveBeenCalledOnce();
     expect(store.save).toHaveBeenCalledOnce();
     lose("disconnected");
     restore();

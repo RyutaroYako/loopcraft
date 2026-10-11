@@ -250,7 +250,9 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     if (next.tone === "info") noticeTimer = setTimeout(() => dismissNotice(), NOTICE_MS);
   }
 
-  function dismissNotice() {
+  /** notice を渡したときは、それがまだ表示されている場合だけ閉じる */
+  function dismissNotice(only?: Notice) {
+    if (only !== undefined && currentNotice !== only) return;
     clearTimeout(noticeTimer);
     currentNotice = null;
     setNotice(null);

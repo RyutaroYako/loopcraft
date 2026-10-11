@@ -24,7 +24,8 @@ describe("createFileClient", () => {
     expect(store.kind).toBe("file");
     expect(store.label).toBe("a.json");
     expect(await load()).toMatchObject({ status: "ok", revision: "r1" });
-    expect(fetch.mock.calls[0]![1]).toEqual({ headers: { "x-loopcraft-token": "tok" } });
+    expect(fetch.mock.calls[0]![1]).toMatchObject({ headers: { "x-loopcraft-token": "tok" } });
+    expect(fetch.mock.calls[0]![1].signal).toBeInstanceOf(AbortSignal);
     expect(await store.save(createSampleDiagram(), { keepalive: true })).toEqual({ ok: true });
     expect(JSON.parse(fetch.mock.calls[1]![1].body as string)).toMatchObject({
       baseRevision: "r1",
@@ -186,10 +187,17 @@ describe("createFileClient", () => {
     emit("open");
     expect(handlers.restored).toHaveBeenCalledOnce();
 
+    // つながったまま応答しなくなったら、ping が途絶えたことで切れたとみなし、届けば戻す
+    vi.advanceTimersByTime(80_000);
+    expect(handlers.lost).toHaveBeenCalledTimes(4);
+    expect(handlers.lost).toHaveBeenLastCalledWith("disconnected");
+    emit("ping");
+    expect(handlers.restored).toHaveBeenCalledTimes(2);
+
     source.readyState = FakeEventSource.CLOSED;
     emit("error");
     emit("error");
-    expect(handlers.lost).toHaveBeenCalledTimes(4);
+    expect(handlers.lost).toHaveBeenCalledTimes(5);
     stop();
     expect(source.closed).toBe(true);
     vi.useRealTimers();

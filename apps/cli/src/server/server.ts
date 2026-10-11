@@ -188,7 +188,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       "cache-control": "no-cache",
       connection: "keep-alive",
     });
-    response.write(": connected\n\n");
+    // 一時的に切れたときにすぐつなぎ直すよう、再接続の間隔を短くする（ブラウザの既定は 3〜5 秒）
+    response.write("retry: 1000\n: connected\n\n");
     // つないだ時点の版を知らせる。切れている間の変更や、見張りが止まっていることを、
     // 後から開いた画面やつなぎ直した画面にも伝えるため
     response.write(`event: revision\ndata: ${JSON.stringify({ revision: knownRevision })}\n\n`);
@@ -201,7 +202,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     response.on("close", () => listeners.delete(response));
   }
 
-  function broadcast(event: "change" | "watch-error", data: unknown) {
+  function broadcast(event: "change" | "watch-error" | "ping", data: unknown) {
     for (const listener of listeners) {
       listener.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     }
@@ -302,9 +303,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   }
   watcher.on("error", (error) => stopWatching(describeError(error)));
 
-  const heartbeat = setInterval(() => {
-    for (const listener of listeners) listener.write(": ping\n\n");
-  }, HEARTBEAT_MS);
+  // コメント行は EventSource のイベントにならないので、画面が生存を確かめられるよう名前付きで送る
+  const heartbeat = setInterval(() => broadcast("ping", {}), HEARTBEAT_MS);
 
   return {
     url: `http://${host}:${port}/?token=${encodeURIComponent(token)}`,

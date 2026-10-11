@@ -79,6 +79,20 @@ describe("createNotices", () => {
     expect(file.exportFile).toHaveBeenCalledOnce();
   });
 
+  it("状態が戻ったら、そのとき出していた案内だけを閉じる", () => {
+    const file = setup(fileStore, fileStartup({ status: "missing" }));
+    file.notices.recovered();
+    file.notices.explain({ kind: "suspended", reason: "disconnected" });
+    expect(file.shown()?.title).toBe("loopcraft serve とのつながりが切れました");
+    file.notices.recovered();
+    expect(file.shown()).toBeNull();
+
+    file.notices.explain({ kind: "suspended", reason: "disconnected" });
+    file.editor.notify({ tone: "error", title: "別の問題" });
+    file.notices.recovered();
+    expect(file.shown()?.title).toBe("別の問題");
+  });
+
   it("読み取り専用なら上書きを勧めない", () => {
     const viewer = setup(
       fileStore,
