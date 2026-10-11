@@ -38,6 +38,48 @@ describe("createFileClient", () => {
     });
   });
 
+  it("開けなかった内容の版は覚えず、自分の書き込みが後から届いたらその版を覚える", async () => {
+    const sources: EventTarget[] = [];
+    vi.stubGlobal(
+      "EventSource",
+      class extends EventTarget {
+        readyState = 1;
+        constructor() {
+          super();
+          sources.push(this);
+        }
+        close() {}
+      },
+    );
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        respond(200, { status: "ok", diagram: createSampleDiagram(), revision: "r1" }),
+      )
+      .mockResolvedValueOnce(respond(200, { status: "invalid", revision: "bad", errors: [] }))
+      .mockRejectedValueOnce(new DOMException("timeout", "TimeoutError"))
+      .mockResolvedValueOnce(respond(200, { status: "saved", revision: "r3" }));
+    vi.stubGlobal("fetch", fetch);
+    const { load, store } = createFileClient(session);
+    await load();
+    await load();
+    expect(await store.save(createSampleDiagram())).toMatchObject({ ok: false, reason: "failed" });
+    expect(JSON.parse(fetch.mock.calls[2]![1].body as string)).toMatchObject({
+      baseRevision: "r1",
+    });
+    const clientId = fetch.mock.calls[2]![1].headers["x-loopcraft-client"] as string;
+    const handlers = { change: vi.fn(), lost: vi.fn(), restored: vi.fn() };
+    store.watch(handlers);
+    sources[0]!.dispatchEvent(
+      new MessageEvent("change", { data: JSON.stringify({ revision: "r2", writer: clientId }) }),
+    );
+    await store.save(createSampleDiagram());
+    expect(JSON.parse(fetch.mock.calls[3]![1].body as string)).toMatchObject({
+      baseRevision: "r2",
+    });
+    expect(handlers.change).not.toHaveBeenCalled();
+  });
+
   it("ファイルが無ければ、作る前提で保存する", async () => {
     const fetch = vi
       .fn()
@@ -186,6 +228,11 @@ describe("createFileClient", () => {
     expect(handlers.lost).toHaveBeenLastCalledWith("disconnected");
     emit("open");
     expect(handlers.restored).toHaveBeenCalledOnce();
+
+    // スリープから戻った直後は、タイマーの遅れを見て待ち直す
+    vi.setSystemTime(Date.now() + 120_000);
+    vi.advanceTimersByTime(15_000);
+    expect(handlers.lost).toHaveBeenCalledTimes(3);
 
     // つながったまま応答しなくなったら、ping が途絶えたことで切れたとみなし、届けば戻す
     vi.advanceTimersByTime(80_000);

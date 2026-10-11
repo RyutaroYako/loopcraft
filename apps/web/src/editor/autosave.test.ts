@@ -291,6 +291,22 @@ describe("setupAutosave", () => {
     expect(store.save).toHaveBeenCalledOnce();
   });
 
+  it("つながりが戻っても、切れる前に止めていた理由は残し、上書きしない", async () => {
+    const { store, lose, restore } = fakeStore();
+    const { editor, autosave, onProblem } = setup(store, {
+      initialStatus: { kind: "suspended", reason: "unreadable" },
+    });
+    editor.commit(edit.setTitle(editor.current(), "1"));
+    await settle();
+    lose("disconnected");
+    lose("disconnected");
+    restore();
+    await settle();
+    expect(autosave.status()).toEqual({ kind: "suspended", reason: "unreadable" });
+    expect(onProblem).toHaveBeenLastCalledWith({ kind: "suspended", reason: "unreadable" });
+    expect(store.save).not.toHaveBeenCalled();
+  });
+
   it("取り込めずに止めていても、守る変更が無ければ直したファイルを取り込む", async () => {
     const { store, change } = fakeStore();
     store.reload.mockResolvedValueOnce({ ok: false, problems: ["壊れています"] });

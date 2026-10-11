@@ -31,6 +31,8 @@ export function createFileClient(session: Session, base = "") {
   let revision: Revision | null = null;
   /** この画面の ID。同じファイルを開いたほかのタブと、自分の保存を見分ける */
   const clientId = crypto.randomUUID();
+  /** 応答を待っている保存の数 */
+  let inFlight = 0;
   const headers = { [TOKEN_HEADER]: session.token };
 
   async function load(): Promise<LoadResult> {
@@ -41,7 +43,9 @@ export function createFileClient(session: Session, base = "") {
       });
       if (!response.ok) throw new Error(await errorOf(response));
       const body = v.parse(DocumentResponseSchema, await response.json());
-      revision = body.status === "missing" ? null : body.revision;
+      // 開けなかった内容の版は覚えない。上書きを選ばないかぎり、保存がサーバーで競合として止まるように
+      if (body.status === "ok") revision = body.revision;
+      else if (body.status === "missing") revision = null;
       return body;
     } catch (error) {
       return { status: "error", error };
@@ -53,6 +57,7 @@ export function createFileClient(session: Session, base = "") {
     label: session.file,
     async save(diagram, options = {}): Promise<SaveResult> {
       const body = JSON.stringify({ diagram, baseRevision: revision, force: options.force });
+      inFlight++;
       try {
         const response = await fetch(`${base}/api/document`, {
           method: "PUT",
@@ -70,6 +75,8 @@ export function createFileClient(session: Session, base = "") {
         return { ok: true };
       } catch (error) {
         return { ok: false, reason: "failed", error };
+      } finally {
+        inFlight--;
       }
     },
     watch(handlers) {
@@ -90,8 +97,13 @@ export function createFileClient(session: Session, base = "") {
       };
       // 止まったわけではないのに応答しないサーバー（Ctrl+Z で一時停止したなど）は、
       // つなぎ直しの知らせも来ないので、届くはずの ping が途絶えたことで見分ける
+      let lastTick = Date.now();
       const watchdog = setInterval(() => {
-        if (Date.now() - lastHeard > SILENCE_LIMIT_MS) disconnect();
+        const now = Date.now();
+        // スリープやタブの凍結から戻った直後は、ping も遅れて届くので待ち直す
+        if (now - lastTick > SILENCE_LIMIT_MS / 2) lastHeard = now;
+        lastTick = now;
+        if (now - lastHeard > SILENCE_LIMIT_MS) disconnect();
       }, SILENCE_LIMIT_MS / 4);
       const disconnect = () => {
         clearTimeout(grace);
@@ -103,7 +115,12 @@ export function createFileClient(session: Session, base = "") {
       const onRevision = (event: MessageEvent) => {
         heard();
         const result = v.safeParse(ChangeEventSchema, parseJson(event.data));
-        if (!result.success || result.output.writer === clientId) return;
+        if (!result.success) return;
+        if (result.output.writer === clientId) {
+          // 待ちきれずに諦めた保存を、サーバーが後から書き込んだときも、その版を覚えておく
+          if (inFlight === 0) revision = result.output.revision;
+          return;
+        }
         if (result.output.revision !== revision) handlers.change();
       };
       source.addEventListener("change", onRevision);

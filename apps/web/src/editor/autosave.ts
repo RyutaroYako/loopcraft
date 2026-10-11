@@ -47,6 +47,16 @@ export function setupAutosave(
   // シグナルは書き込み直後に読んでも古い値を返すので、判定用に最新の状態を別に持つ
   let current: AutosaveStatus = options.initialStatus ?? { kind: "ok" };
   const [status, setStatus] = createSignal<AutosaveStatus>(current);
+  /**
+   * つながりが切れる前の状態。切れても戻っても、それまでの「上書きしない」判断は変えない
+   * （戻ったからといって、開けなかったファイルや外部の変更を上書きしないため）
+   */
+  let beforeDisconnect: AutosaveStatus | undefined;
+  const disconnect = () => {
+    if (current.kind === "suspended" && current.reason === "disconnected") return;
+    beforeDisconnect = current;
+    update({ kind: "suspended", reason: "disconnected" });
+  };
   /** 外部での変更を見張れなくなった理由。見張れていれば undefined */
   const [unwatched, setUnwatched] = createSignal<string | undefined>(undefined);
 
@@ -79,8 +89,7 @@ export function setupAutosave(
       }
       dirty = true;
       if (result.reason === "conflict") update({ kind: "suspended", reason: "external" });
-      else if (result.reason === "disconnected")
-        update({ kind: "suspended", reason: "disconnected" });
+      else if (result.reason === "disconnected") disconnect();
       else update({ kind: "failing", error: result.error });
     })();
     await saving;
@@ -158,15 +167,22 @@ export function setupAutosave(
       change: () => void onExternalChange(),
       lost: (reason, detail) => {
         if (reason === "disconnected") {
-          update({ kind: "suspended", reason: "disconnected" });
+          disconnect();
           return;
         }
         setUnwatched(detail ?? "");
         options.onUnwatched?.(detail);
       },
       restored: () => {
-        // 同じサーバーにつなぎ直せたので、溜まっていた変更を保存し直す
         if (current.kind !== "suspended" || current.reason !== "disconnected") return;
+        const previous = beforeDisconnect ?? { kind: "ok" };
+        beforeDisconnect = undefined;
+        if (previous.kind === "suspended") {
+          // 切れる前に止めていた理由はそのまま残し、改めて知らせる
+          update(previous);
+          return;
+        }
+        // 同じサーバーにつなぎ直せたので、溜まっていた変更を保存し直す
         update({ kind: "ok" });
         if (dirty) void save();
       },
