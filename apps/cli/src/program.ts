@@ -170,6 +170,9 @@ export function createProgram(dependencies: ProgramDependencies) {
 
   program.command("schema").description("図の JSON Schema を出力する").action(actions.schema);
 
+  // 知らないコマンドは commander の英語のエラーではなく、日本語で伝える。
+  // 設定はサブコマンドを作るときに引き継がれるので、すべて作った後でルートにだけ付ける
+  program.allowExcessArguments();
   program.action(async () => {
     if (program.args.length > 0) {
       showHeader();

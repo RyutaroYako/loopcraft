@@ -5,5 +5,6 @@ export default defineConfig({
   plugins: lazyPlugins(() => [solid()]),
   test: {
     name: "web",
+    environment: "jsdom",
   },
 });

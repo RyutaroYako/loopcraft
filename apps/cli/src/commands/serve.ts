@@ -20,6 +20,7 @@ export interface ServeOptions {
 export interface ServeDependencies {
   openBrowser?: (url: string) => Promise<unknown>;
   webDir?: string;
+  defaultPort?: number;
 }
 
 /** ファイルをブラウザのエディタで開く。ファイルが無ければ空の図で開き、最初の保存で作る */
@@ -52,7 +53,10 @@ export async function serve(
   };
   let server: RunningServer;
   try {
-    server = await startServer({ ...common, port: options.port ?? DEFAULT_PORT });
+    server = await startServer({
+      ...common,
+      port: options.port ?? dependencies.defaultPort ?? DEFAULT_PORT,
+    });
   } catch (error) {
     if (options.port !== undefined || !isAddressInUse(error)) throw error;
     server = await startServer({ ...common, port: 0 });

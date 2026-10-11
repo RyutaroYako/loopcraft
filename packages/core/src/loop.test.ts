@@ -24,3 +24,9 @@ describe("cycleKey", () => {
     expect(cycleKey(ids("a", "c", "b"))).not.toBe(cycleKey(ids("a", "b", "c")));
   });
 });
+
+describe("cycleKey（空）", () => {
+  it("関連が無ければ空文字", () => {
+    expect(cycleKey([])).toBe("");
+  });
+});

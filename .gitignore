@@ -30,3 +30,4 @@ dist-ssr
 
 # Claude Code session files
 .claude/scheduled_tasks.lock
+coverage

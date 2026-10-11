@@ -58,7 +58,7 @@ export function createFileClient(session: Session, base = "") {
         `${base}/api/events?token=${encodeURIComponent(session.token)}`,
       );
       source.addEventListener("change", (event) => {
-        const result = v.safeParse(ChangeEventSchema, JSON.parse(event.data as string));
+        const result = v.safeParse(ChangeEventSchema, parseJson(event.data));
         if (result.success && result.output.revision !== revision) onChange();
       });
       return () => source.close();
@@ -70,6 +70,14 @@ export function createFileClient(session: Session, base = "") {
   };
 
   return { load, store };
+}
+
+function parseJson(data: unknown) {
+  try {
+    return typeof data === "string" ? (JSON.parse(data) as unknown) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function errorOf(response: Response) {

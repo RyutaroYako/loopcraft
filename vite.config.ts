@@ -12,5 +12,17 @@ export default defineConfig({
   },
   test: {
     projects: ["apps/*", "packages/*"],
+    coverage: {
+      provider: "v8",
+      include: ["packages/core/src/**/*.ts", "apps/cli/src/**/*.ts", "apps/web/src/**/*.{ts,tsx}"],
+      exclude: ["**/*.test.{ts,tsx}", "**/testing/**", "apps/cli/src/cli.ts"],
+      reporter: ["text", "json", "json-summary"],
+      // 画面の描画（apps/web/src の editor 以外）はブラウザのテストで守り、しきい値の対象にはしない
+      thresholds: {
+        "packages/core/src/**": { lines: 90, functions: 90, branches: 90, statements: 90 },
+        "apps/cli/src/**": { lines: 90, functions: 90, branches: 90, statements: 90 },
+        "apps/web/src/editor/**": { lines: 90, functions: 90, branches: 90, statements: 90 },
+      },
+    },
   },
 });

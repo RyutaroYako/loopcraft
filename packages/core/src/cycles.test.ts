@@ -92,3 +92,20 @@ describe("findLoops", () => {
     expect(result.loops).toHaveLength(5);
   });
 });
+
+describe("findLoops（入り組んだ閉路）", () => {
+  it("閉路を作らない枝が多くても、閉路だけを数える", () => {
+    // a→b→c→a の閉路に、閉路へ戻らない枝 b→d, d→e, c→d を足す
+    const edges: [string, string, "+" | "-"][] = [
+      ["a", "b", "+"],
+      ["b", "c", "+"],
+      ["c", "a", "+"],
+      ["b", "d", "+"],
+      ["d", "e", "+"],
+      ["c", "d", "+"],
+      ["e", "b", "-"],
+    ];
+    const { loops } = findLoops(linksOf(edges));
+    expect(loops.map((loop) => loop.links.length).toSorted((x, y) => x - y)).toEqual([3, 3, 4]);
+  });
+});
