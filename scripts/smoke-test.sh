@@ -15,7 +15,16 @@ npx loopcraft loops diagram.json --format md
 # npx を挟むと $! が npx になり、止めてもサーバーが残るので、直接起動する
 ./node_modules/.bin/loopcraft serve diagram.json --no-open --port 4799 > serve.log 2>&1 &
 server=$!
-trap 'kill "$server" 2> /dev/null || true' EXIT
+finish() {
+  local status=$?
+  kill "$server" 2> /dev/null || true
+  # 失敗したら、serve が何を出していたかを見せる
+  if [ "$status" -ne 0 ]; then
+    echo "--- serve.log"
+    cat serve.log
+  fi
+}
+trap finish EXIT
 for _ in $(seq 1 40); do
   grep -q "token=" serve.log && break
   sleep 0.25

@@ -63,13 +63,29 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: package
+      # 応答を待ちきれずに失敗しても、公開は済んでいることがあるので、前後に npm で確かめる
       - name: Publish to npm
         run: |
-          if ! npm publish loopcraft-*.tgz --tag "$DIST_TAG"; then
-            echo "::error::npm への公開に失敗しました。npm の trusted publisher（ワークフロー release.yml、environment npm）を確かめてください"
-            exit 1
+          published() { [ "$(npm view "loopcraft@$VERSION" version 2> /dev/null)" = "$VERSION" ]; }
+          if published; then
+            echo "::notice::loopcraft@$VERSION は公開済みです"
+            exit 0
           fi
+          if npm publish loopcraft-*.tgz --tag "$DIST_TAG" 2>&1 | tee "$RUNNER_TEMP/publish.log"; then
+            exit 0
+          fi
+          if published; then
+            echo "::notice::npm publish は失敗しましたが、loopcraft@$VERSION は公開されています"
+            exit 0
+          fi
+          if grep -qE "ENEEDAUTH|E401|E403|E404|OIDC" "$RUNNER_TEMP/publish.log"; then
+            echo "::error::npm に認証されませんでした。npm の trusted publisher（ワークフロー release.yml、environment npm）を確かめてください"
+          else
+            echo "::error::npm への公開に失敗しました。ログを確かめて、このジョブを再実行してください"
+          fi
+          exit 1
         env:
+          VERSION: ${{ needs.verify.outputs.version }}
           DIST_TAG: ${{ needs.verify.outputs.dist-tag }}
 
   release:
