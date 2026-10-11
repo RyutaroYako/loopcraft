@@ -57,6 +57,17 @@ vp run gen:schema          # JSON Schema の再生成
 
 ブラウザのテストには Chromium を使います。初回は `vp exec --filter @loopcraft/web playwright install chromium` を実行してください。
 
+## リリース
+
+`main` で版を上げてタグを付け、タグを push すると、GitHub Actions が npm への公開と GitHub Release の作成を行います。npm への認証は OIDC（trusted publishing）で、トークンは使いません。
+
+```bash
+vpr release patch          # 0.1.0 → 0.1.1。minor / major / 1.2.3 のような指定もできる
+git push --follow-tags     # main とタグを送ると公開が始まる
+```
+
+`vpr release preminor --preid beta` のようなプレリリース（`v0.2.0-beta.0`）は、npm の `next` タグと GitHub のプレリリースとして公開します。
+
 ## ライセンス
 
 [MIT](LICENSE)
