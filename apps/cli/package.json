@@ -1,6 +1,6 @@
 {
   "name": "loopcraft",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "システム思考の因果ループ図を描くエディタと CLI",
   "keywords": [
     "causal-loop-diagram",
