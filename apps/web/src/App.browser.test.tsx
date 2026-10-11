@@ -86,10 +86,13 @@ describe("キーボード", () => {
     await userEvent.keyboard("{Control>}y{/Control}");
     await expect.element(node("離職数")).not.toBeInTheDocument();
 
+    // 出来事を選んだまま入力欄で打っても、図の操作にはならない
+    nodeElement("sales").focus();
     const title = page.getByRole("textbox", { name: "図のタイトル" });
     await userEvent.click(title);
     await userEvent.keyboard("{Control>}z{/Control}{Delete}");
     await expect.element(node("離職数")).not.toBeInTheDocument();
+    await expect.element(node("売上")).toBeVisible();
   });
 
   it("Escape で選択を外し、Enter で選んだ出来事の名前を編集する", async () => {

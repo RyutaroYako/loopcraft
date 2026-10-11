@@ -26,6 +26,19 @@ const heading = (name: string) => page.getByRole("heading", { name, exact: true 
 const field = (name: string | RegExp) =>
   page.getByRole("textbox", { name, exact: typeof name === "string" });
 const inspector = () => page.getByRole("region", { name: "選択中の項目" });
+
+/** ブラウザに自動保存された図 */
+function stored(): Diagram {
+  return JSON.parse(localStorage.getItem("loopcraft:document") ?? "null") as Diagram;
+}
+
+/** 説明を書いて保存されたこと、消すと項目ごと無くなることを確かめる */
+async function writeAndClearDescription(read: (diagram: Diagram) => string | undefined) {
+  await userEvent.fill(field("説明"), "メモ");
+  await expect.poll(() => read(stored())).toBe("メモ");
+  await userEvent.fill(field("説明"), "");
+  await expect.poll(() => read(stored())).toBeUndefined();
+}
 const button = (name: string | RegExp) =>
   page.getByRole("button", { name, exact: typeof name === "string" });
 
@@ -84,8 +97,9 @@ describe("出来事", () => {
     await expect.element(heading("出来事")).toBeVisible();
     await userEvent.fill(field("名前"), "売上高");
     await expect.element(node("売上高")).toBeVisible();
-    await userEvent.fill(field("説明"), "月ごと");
-    await userEvent.fill(field("説明"), "");
+    await writeAndClearDescription(
+      (diagram) => diagram.variables.find((item) => item.id === "sales")?.description,
+    );
 
     const add = page.getByRole("button", { name: "追加", exact: true });
     await expect.element(add.first()).toBeDisabled();
@@ -148,8 +162,9 @@ describe("関連", () => {
     await expect.element(page.getByRole("checkbox", { name: /遅れがある/ })).toBeChecked();
     await page.getByText("遅れがある").click();
     await expect.element(page.getByRole("checkbox", { name: /遅れがある/ })).not.toBeChecked();
-    await userEvent.fill(field("説明"), "人が増えると売れる");
-    await userEvent.fill(field("説明"), "");
+    await writeAndClearDescription(
+      (diagram) => diagram.links.find((item) => item.id === "l_sales")?.description,
+    );
     await button("曲がり具合を戻す").click();
     await expect.element(button("曲がり具合を戻す")).toBeDisabled();
     await button(/関連を削除/).click();
@@ -186,8 +201,9 @@ describe("ループ", () => {
       .element(page.getByText("逆向きの関連が無いので、変化が増幅し続けます"))
       .toBeVisible();
     await userEvent.fill(field("名前"), "成長");
-    await userEvent.fill(field("説明"), "売上が人を呼ぶ");
-    await userEvent.fill(field("説明"), "");
+    await writeAndClearDescription(
+      (diagram) => diagram.loops.find((item) => item.id === "p_growth")?.description,
+    );
     await button("記号の位置を戻す").click();
     await inspector()
       .getByRole("button", { name: /見出しを外す/ })

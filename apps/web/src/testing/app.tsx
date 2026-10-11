@@ -27,6 +27,8 @@ function unmount() {
 export function cleanup() {
   unmount();
   localStorage.clear();
+  // 失敗したテストが差し替えたままの click などを、次のテストに持ち越さない
+  vi.restoreAllMocks();
 }
 
 export function browserStartup(diagram?: Diagram): Startup {

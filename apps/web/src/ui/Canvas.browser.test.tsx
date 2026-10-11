@@ -185,13 +185,11 @@ describe("ポインタでの操作", () => {
     expect(path()).not.toBe(before);
     await expect.element(page.getByRole("button", { name: "曲がり具合を戻す" })).not.toBeDisabled();
 
-    const moved = centerOf(document.querySelector(".curve-handle")!);
     await userEvent.dblClick(page.elementLocator(document.querySelector(".curve-handle")!), {
       position: { x: 6, y: 6 },
     });
     flush();
     expect(path()).toBe(before);
-    expect(moved).toBeTruthy();
   });
 
   it("ループの記号をドラッグで動かし、位置を戻せる", async () => {
@@ -296,10 +294,11 @@ describe("取り消しと例外的な操作", () => {
 });
 
 describe("表示倍率", () => {
-  it("ホイールで動かし、Ctrl+ホイールとボタンで拡大縮小する", async () => {
+  it("ホイールで動かし、Ctrl+ホイールとボタンで拡大縮小し、全体を表示し直す", async () => {
     await open();
     const svg = document.querySelector(".canvas-svg")!;
     const before = centerOf(nodeElement("sales"));
+    const fitted = zoomValue();
     svg.dispatchEvent(new WheelEvent("wheel", { deltaX: 10, deltaY: 20, cancelable: true }));
     flush();
     expect(Math.round(centerOf(nodeElement("sales")).y - before.y)).toBe(-20);
@@ -316,7 +315,10 @@ describe("表示倍率", () => {
     await page.getByRole("button", { name: "縮小" }).click();
     expect(zoomValue()).not.toBe(larger);
     await page.getByRole("button", { name: "全体を表示" }).click();
-    await expect.element(page.getByRole("button", { name: "全体を表示" })).toBeVisible();
+    flush();
+    expect(zoomValue()).toBe(fitted);
+    expect(Math.round(centerOf(nodeElement("sales")).x)).toBe(Math.round(before.x));
+    expect(Math.round(centerOf(nodeElement("sales")).y)).toBe(Math.round(before.y));
   });
 });
 
