@@ -69,6 +69,7 @@ git push --atomic --follow-tags     # main とタグをまとめて送る。ど�
 - `vpr release` は、`main` が `origin/main` と一致しているときだけ動きます。版の更新は `main` へ直接 push するので、`main` を守るルールでは管理者が通れるようにしてください
 - `vpr release preminor --preid beta` のようなプレリリース（`v0.2.0-beta.0`）は、npm の `next` タグと GitHub のプレリリースとして公開します
 - 途中で失敗したら、ワークフローを再実行できます。公開済みの版は npm への公開を飛ばし、GitHub Release だけを作ります
+- リリースは 1 つずつ順に動きます。前のリリースが終わる前に続けてタグを push すると、待っていた実行が取り消されることがあるので、その実行を再実行してください
 
 ### 初回の公開
 
