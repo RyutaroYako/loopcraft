@@ -3,6 +3,7 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { UsageError } from "../errors.ts";
+import { exists } from "../files.ts";
 import type { RunningServer } from "../server/server.ts";
 import { createWebDir, createWorkspace, writeSample } from "../testing/fixtures.ts";
 import { serve } from "./serve.ts";
@@ -47,6 +48,24 @@ describe("serve", () => {
     });
     expect(openBrowser).not.toHaveBeenCalled();
     expect(second.stderr[0]).toBe("✓ x.json を開きました（読み取り専用）");
+  });
+
+  it("--sample は新しいファイルだけに使え、保存するまでファイルを作らない", async () => {
+    const { context, stderr } = await createWorkspace();
+    running = await serve("new.json", { port: 0, open: false, sample: true }, context, {
+      webDir: await createWebDir(),
+    });
+    expect(stderr).toContain(
+      "  サンプルの図を表示しています。編集して保存すると new.json を作ります",
+    );
+    expect(await exists(join(context.cwd, "new.json"))).toBe(false);
+    await running.close();
+    running = undefined;
+
+    await writeSample(context.cwd);
+    await expect(
+      serve("diagram.json", { port: 0, sample: true }, context, { webDir: await createWebDir() }),
+    ).rejects.toThrow("diagram.json は既にあります");
   });
 
   it("既定のポートが使えなければ空いているポートへ逃げる", async () => {

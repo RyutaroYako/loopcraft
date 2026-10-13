@@ -1,6 +1,6 @@
-import { createEmptyDiagram } from "@loopcraft/core/io";
+import { createEmptyDiagram, stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   browserStartup,
   captureDownloads,
@@ -10,6 +10,7 @@ import {
   jsonFile,
   mount,
   node,
+  notice,
   page,
   userEvent,
 } from "../testing/app.tsx";
@@ -57,25 +58,142 @@ describe("ツールバー", () => {
     await expect.element(node("社員数")).toBeVisible();
   });
 
-  it("JSON を読み込み、選ばずに閉じたら何もしない", async () => {
+  it("画像と JSON の書き出しは閲覧モードでも使え、図が空なら画像は作れない", async () => {
+    mount(fileStartup({ status: "ok", diagram: createSampleDiagram(), revision: "r" }));
+    await expect.element(button("画像")).toBeEnabled();
+    await expect.element(button("JSON を書き出す")).toBeEnabled();
+    await expect.element(button("読み込み")).not.toBeInTheDocument();
     mount(browserStartup(createEmptyDiagram()));
+    await expect.element(button("画像")).toBeDisabled();
+  });
+});
+
+describe("JSON の読み込み", () => {
+  const dialog = () => page.getByRole("dialog", { name: "JSON を読み込む" });
+  const textarea = () => dialog().getByRole("textbox");
+
+  it("貼り付けた JSON を読み込み、誤りがあればダイアログに出す", async () => {
+    mount(browserStartup(createEmptyDiagram()));
+    await button("読み込み").click();
+    await expect.element(textarea()).toHaveFocus();
+    await expect.element(button("読み込む")).toBeDisabled();
+    await userEvent.fill(textarea(), '{"version": 1}');
+    await button("読み込む").click();
+    await expect.element(dialog().getByRole("alert")).toBeVisible();
+    expect(dialog().getByRole("alert").element().textContent).toContain("title: 無効な型");
+    // 書き直したら誤りの表示は消える
+    await userEvent.fill(textarea(), JSON.stringify(createSampleDiagram()));
+    await expect.element(dialog().getByRole("alert")).not.toBeInTheDocument();
+    await button("読み込む").click();
+    await expect.element(dialog()).not.toBeInTheDocument();
+    await expect.element(node("社員数")).toBeVisible();
+    expect(notice()?.textContent).toContain("JSON を読み込みました");
+  });
+
+  it("ファイルからも選べ、選ばなければダイアログに戻る", async () => {
+    mount(browserStartup(createEmptyDiagram()));
+    await button("読み込み").click();
     chooseFile(undefined);
-    await button("読み込み").click();
-    await expect.element(page.getByRole("heading", { name: /最初の出来事を置いて/ })).toBeVisible();
+    await button("ファイルから選ぶ").click();
+    await expect.element(dialog()).toBeVisible();
     chooseFile(jsonFile(createSampleDiagram(), "growth.json"));
-    await button("読み込み").click();
+    await button("ファイルから選ぶ").click();
+    await expect.element(dialog()).not.toBeInTheDocument();
     await expect.element(node("社員数")).toBeVisible();
   });
 
-  it("JSON を書き出す", async () => {
+  it("キャンセルや背景のクリックで閉じ、開いている間は図のショートカットが効かない", async () => {
+    mount(browserStartup(createSampleDiagram()));
+    (node("社員数").element() as SVGGElement).focus();
+    await button("読み込み").click();
+    await button("キャンセル").click();
+    await expect.element(dialog()).not.toBeInTheDocument();
+
+    await button("読み込み").click();
+    await userEvent.keyboard("{Control>}z{/Control}");
+    (dialog().element() as HTMLDialogElement).dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Delete", bubbles: true }),
+    );
+    await expect.element(node("社員数")).toBeVisible();
+    // 枠の外（背景）のクリックは dialog 要素そのものに当たる
+    (dialog().element() as HTMLDialogElement).click();
+    await expect.element(dialog()).not.toBeInTheDocument();
+    await expect.element(node("社員数")).toBeVisible();
+  });
+});
+
+describe("JSON の書き出し", () => {
+  const dialog = () => page.getByRole("dialog", { name: "JSON を書き出す" });
+
+  it("JSON を表示してコピーでき、ファイルにも保存できる", async () => {
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
     const downloads = captureDownloads();
     try {
-      mount(browserStartup({ ...createSampleDiagram(), title: "a/b" }));
+      const diagram = { ...createSampleDiagram(), title: "a/b" };
+      mount(browserStartup(diagram));
       await button("JSON を書き出す").click();
+      const text = dialog().getByRole("textbox");
+      await expect.element(text).toHaveValue(stringifyDiagram(diagram));
+      await button("コピー").click();
+      await expect.element(button("コピーしました")).toBeVisible();
+      expect(writeText).toHaveBeenCalledWith(stringifyDiagram(diagram));
+      await button("ファイルに保存").click();
       expect(downloads.files).toEqual(["a_b.json"]);
     } finally {
       downloads.restore();
     }
+  });
+
+  it("コピーできなければボタンで伝える", async () => {
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("denied"));
+    mount(browserStartup(createSampleDiagram()));
+    await button("JSON を書き出す").click();
+    await button("コピー").click();
+    await expect.element(button("コピーできませんでした")).toBeVisible();
+  });
+});
+
+describe("画像の書き出し", () => {
+  const dialog = () => page.getByRole("dialog", { name: "画像として書き出す" });
+
+  it("選択を外して図全体を写し、コピーや PNG の保存ができる", async () => {
+    const write = vi.spyOn(navigator.clipboard, "write").mockResolvedValue();
+    const downloads = captureDownloads();
+    try {
+      mount(browserStartup({ ...createSampleDiagram(), title: "成長" }));
+      (node("社員数").element() as SVGGElement).focus();
+      await button("画像").click();
+      const image = dialog().getByRole("img", { name: "成長 の画像" });
+      await expect.element(image).toBeVisible();
+      expect(document.querySelector(".node.selected")).toBeNull();
+      const { naturalWidth, naturalHeight } = image.element() as HTMLImageElement;
+      const box = document.querySelector<SVGGElement>(".canvas-content")!.getBBox();
+      // 余白を付けて、表示の倍率にかかわらず等倍の 2 倍の解像度で写す
+      expect(naturalWidth).toBe(Math.ceil(box.width + 64) * 2);
+      expect(naturalHeight).toBe(Math.ceil(box.height + 64) * 2);
+
+      await button("コピー").click();
+      await expect.element(button("コピーしました")).toBeVisible();
+      const item = write.mock.calls[0]![0][0]!;
+      expect(item.types).toEqual(["image/png"]);
+      await button("PNG を保存").click();
+      expect(downloads.files).toEqual(["成長.png"]);
+    } finally {
+      downloads.restore();
+    }
+  });
+
+  it("写せなければダイアログで伝える", async () => {
+    vi.spyOn(SVGGraphicsElement.prototype, "getBBox").mockImplementation(() => {
+      throw new Error("測れません");
+    });
+    mount(browserStartup(createSampleDiagram()));
+    await button("画像").click();
+    await expect.element(dialog().getByRole("alert")).toBeVisible();
+    expect(dialog().getByRole("alert").element().textContent).toBe(
+      "画像を作れませんでした測れません",
+    );
+    await expect.element(button("PNG を保存")).toBeDisabled();
   });
 });
 

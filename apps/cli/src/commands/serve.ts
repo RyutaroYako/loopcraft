@@ -1,7 +1,7 @@
 import { dirname, relative, resolve } from "node:path";
 import type { Context } from "../context.ts";
 import { UsageError } from "../errors.ts";
-import { isDirectory } from "../files.ts";
+import { exists, isDirectory } from "../files.ts";
 import { startServer, type RunningServer } from "../server/server.ts";
 import { resolveWebDir } from "../web-dir.ts";
 
@@ -15,6 +15,8 @@ export interface ServeOptions {
   edit?: boolean;
   /** 編集モードに切り替えられないようにし、サーバーも書き込みを拒否する */
   readonly?: boolean;
+  /** ファイルが無いとき、空の図ではなくサンプルの図で開く。保存するまでファイルは作らない */
+  sample?: boolean;
 }
 
 export interface ServeDependencies {
@@ -37,6 +39,9 @@ export async function serve(
     throw new UsageError(`${relative(cwd, directory) || directory} というディレクトリがありません`);
   }
   if (await isDirectory(path)) throw new UsageError(`${shown} はディレクトリです`);
+  if (options.sample && (await exists(path))) {
+    throw new UsageError(`${shown} は既にあります。--sample は新しいファイルを開くときに使えます`);
+  }
   const webDir = dependencies.webDir ?? resolveWebDir();
   if (!webDir) {
     throw new Error(
@@ -49,6 +54,7 @@ export async function serve(
     webDir,
     editable: options.edit ?? false,
     readonly: options.readonly ?? false,
+    sample: options.sample ?? false,
     log,
   };
   let server: RunningServer;
@@ -65,6 +71,8 @@ export async function serve(
   const mode = options.readonly ? "読み取り専用" : options.edit ? "編集モード" : "閲覧モード";
   log.success(`${shown} を開きました（${mode}）`);
   log.info(server.url);
+  if (options.sample)
+    log.note(`  サンプルの図を表示しています。編集して保存すると ${shown} を作ります`);
   log.note("  Ctrl+C で終了します");
   if (options.open !== false && dependencies.openBrowser) {
     await dependencies.openBrowser(server.url).catch((error: unknown) => {

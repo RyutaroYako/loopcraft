@@ -1,12 +1,15 @@
-import { createSignal, onSettled, untrack } from "solid-js";
+import { Show, createSignal, onSettled, untrack } from "solid-js";
 import { AutosaveContext, setupAutosave } from "./editor/autosave.ts";
 import { createEditor, EditorContext } from "./editor/editor.ts";
 import { createNotices } from "./editor/notices.ts";
+import { captureDiagram } from "./editor/screenshot.ts";
 import { resolveStartup, type Startup } from "./editor/startup.ts";
 import { Canvas } from "./ui/Canvas.tsx";
+import { ExportDialog, ImportDialog } from "./ui/JsonDialogs.tsx";
 import { NoticeView } from "./ui/NoticeView.tsx";
+import { ScreenshotDialog } from "./ui/ScreenshotDialog.tsx";
 import { Sidebar } from "./ui/Sidebar.tsx";
-import { Toolbar } from "./ui/Toolbar.tsx";
+import { Toolbar, type DialogKind } from "./ui/Toolbar.tsx";
 
 /** Enter を自前で扱う要素（ボタンやリンクなど）。ここでの Enter は横取りしない */
 function isInteractive(target: EventTarget | null) {
@@ -38,8 +41,13 @@ function App(props: { startup: Startup }) {
   });
 
   const [dropping, setDropping] = createSignal(false);
+  const [dialog, setDialog] = createSignal<DialogKind | null>(null);
+  let canvasSvg: SVGSVGElement | undefined;
+  const closeDialog = () => setDialog(null);
 
   const onKeyDown = (event: KeyboardEvent) => {
+    // ダイアログを開いている間は、図への操作のショートカットを効かせない
+    if (dialog() !== null) return;
     const mod = event.metaKey || event.ctrlKey;
     if (mod && event.key.toLowerCase() === "z" && !isTextInput(event.target)) {
       event.preventDefault();
@@ -111,7 +119,7 @@ function App(props: { startup: Startup }) {
         <div
           class={["app", { dropping: dropping(), viewing: !editor.editable() }]}
           onDragOver={(event) => {
-            if (!hasFiles(event)) return;
+            if (!hasFiles(event) || dialog() !== null) return;
             event.preventDefault();
             setDropping(true);
           }}
@@ -126,12 +134,21 @@ function App(props: { startup: Startup }) {
             if (file) void editor.importFile(file);
           }}
         >
-          <Toolbar readonly={readonly} />
+          <Toolbar readonly={readonly} onOpenDialog={setDialog} />
           <main class="workspace">
-            <Canvas />
+            <Canvas svgRef={(svg) => (canvasSvg = svg)} />
             <Sidebar />
           </main>
           <NoticeView />
+          <Show when={dialog() === "import"}>
+            <ImportDialog onClose={closeDialog} />
+          </Show>
+          <Show when={dialog() === "export"}>
+            <ExportDialog onClose={closeDialog} />
+          </Show>
+          <Show when={dialog() === "screenshot"}>
+            <ScreenshotDialog capture={() => captureDiagram(canvasSvg!)} onClose={closeDialog} />
+          </Show>
           <div class="drop-overlay" aria-hidden="true">
             <p>JSON ファイルをドロップして読み込む</p>
           </div>

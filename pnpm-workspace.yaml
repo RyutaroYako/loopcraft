@@ -4,12 +4,16 @@ packages:
 
 catalogMode: prefer
 
+# 依存は最新版を exact で入れる
+savePrefix: ""
+
 catalog:
-  "@types/node": ^24.13.3
+  "@types/node": 24.19.2
   "@vitest/browser-playwright": 5.0.3
   "@vitest/coverage-v8": 5.0.3
-  typescript: ^7.0.2
-  valibot: ^1.5.0
+  modern-screenshot: 4.7.0
+  typescript: 7.0.2
+  valibot: 1.5.0
   vite: npm:@voidzero-dev/vite-plus-core@1.1.0
   vite-plus: 1.1.0
   vitest: 5.0.3

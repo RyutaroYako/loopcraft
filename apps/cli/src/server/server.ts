@@ -29,6 +29,8 @@ export interface ServerOptions {
   port: number;
   editable: boolean;
   readonly: boolean;
+  /** ファイルが無いとき、エディタをサンプルの図で始める */
+  sample?: boolean;
   log: Logger;
   token?: string;
 }
@@ -63,6 +65,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     file: basename(options.file),
     editable: options.editable && !options.readonly,
     readonly: options.readonly,
+    ...(options.sample ? { sample: true } : {}),
   };
   const { log } = options;
   /** 最後に読んだ・書いたファイルの版。外部での変更と自分の書き込みを見分ける */

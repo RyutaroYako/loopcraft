@@ -55,6 +55,27 @@ export const SaveIcon = () => (
   </Icon>
 );
 
+export const ImageIcon = () => (
+  <Icon>
+    <rect x="3" y="3.75" width="14" height="12.5" rx="1.75" />
+    <circle cx="7.25" cy="8" r="1.25" />
+    <path d="m3.5 14.25 4-4 3 3 2-2 4 4" />
+  </Icon>
+);
+
+export const CopyIcon = () => (
+  <Icon>
+    <rect x="7" y="7" width="9.25" height="9.25" rx="1.5" />
+    <path d="M13 7V5.25c0-.83-.67-1.5-1.5-1.5H5.25c-.83 0-1.5.67-1.5 1.5v6.25c0 .83.67 1.5 1.5 1.5H7" />
+  </Icon>
+);
+
+export const CheckIcon = () => (
+  <Icon>
+    <path d="m4.5 10.5 3.5 3.5 7.5-8" />
+  </Icon>
+);
+
 export const PlusIcon = () => (
   <Icon>
     <path d="M10 4.5v11M4.5 10h11" />

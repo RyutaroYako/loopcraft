@@ -23,7 +23,9 @@ afterEach(async () => {
   running = undefined;
 });
 
-async function start(options: { readonly?: boolean; editable?: boolean; existing?: boolean } = {}) {
+async function start(
+  options: { readonly?: boolean; editable?: boolean; existing?: boolean; sample?: boolean } = {},
+) {
   const workspace = await createWorkspace();
   const file = join(workspace.cwd, "diagram.json");
   if (options.existing !== false) await writeSample(workspace.cwd);
@@ -33,6 +35,7 @@ async function start(options: { readonly?: boolean; editable?: boolean; existing
     port: 0,
     editable: options.editable ?? true,
     readonly: options.readonly ?? false,
+    sample: options.sample,
     log: workspace.logger,
     token: TOKEN,
   });
@@ -72,6 +75,11 @@ const api = (server: RunningServer, path: string, init: Parameters<typeof send>[
   send(server, path, { ...init, headers: { [TOKEN_HEADER]: TOKEN, ...init.headers } });
 
 describe("startServer", () => {
+  it("--sample ならセッションで伝える", async () => {
+    const { server } = await start({ existing: false, sample: true });
+    expect((await send(server, `/?token=${TOKEN}`)).body).toContain("&quot;sample&quot;:true");
+  });
+
   it("エディタにセッションを埋め込んで配る", async () => {
     const { server } = await start({ editable: false });
     expect(server.url).toBe(`http://127.0.0.1:${server.port}/?token=${TOKEN}`);
@@ -83,6 +91,7 @@ describe("startServer", () => {
     expect(index.headers["cache-control"]).toBe("no-store");
     expect(index.body).toContain(`<meta name="${SESSION_META_NAME}"`);
     expect(index.body).toContain("&quot;editable&quot;:false");
+    expect(index.body).not.toContain("sample");
     const css = await send(server, "/app.css");
     expect(css.headers["content-type"]).toBe("text/css; charset=utf-8");
     expect((await send(server, "/blob.bin")).headers["content-type"]).toBe(

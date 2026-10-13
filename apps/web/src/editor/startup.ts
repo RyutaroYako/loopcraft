@@ -1,4 +1,5 @@
 import { createEmptyDiagram } from "@loopcraft/core/io";
+import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { Diagram } from "@loopcraft/core/schema";
 import type { Session } from "@loopcraft/core/session";
 import type { AutosaveStatus } from "./autosave.ts";
@@ -54,7 +55,12 @@ export function resolveStartup(startup: Startup): ResolvedStartup {
   }
   const { session, loaded, store } = startup;
   return {
-    initial: loaded.status === "ok" ? loaded.diagram : createEmptyDiagram(titleOf(session.file)),
+    initial:
+      loaded.status === "ok"
+        ? loaded.diagram
+        : loaded.status === "missing" && session.sample
+          ? createSampleDiagram()
+          : createEmptyDiagram(titleOf(session.file)),
     store,
     editable: session.editable && !session.readonly,
     readonly: session.readonly,

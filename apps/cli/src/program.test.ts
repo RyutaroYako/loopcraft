@@ -98,27 +98,43 @@ describe("runCli", () => {
     expect(result.openBrowser).toHaveBeenCalledOnce();
     expect(result.stderr).toContain("✓ diagram.json を開きました（編集モード）");
     expect(result.stderr.at(-1)).toBe("✓ 終了しました");
+    const sample = await run(["serve", "new.json", "--port", "0", "--sample"]);
+    expect(sample.stderr).toContain(
+      "  サンプルの図を表示しています。編集して保存すると new.json を作ります",
+    );
     const noOpen = await run(["serve", "diagram.json", "--port", "0", "--no-open", "--readonly"]);
     expect(noOpen.openBrowser).not.toHaveBeenCalled();
   });
 
   describe("対話できるとき", () => {
     it("足りない引数を聞く", async () => {
+      const chooseFile = vi.fn(async () => "diagram.json");
+      const askInit = vi.fn(async () => ({ file: "asked.json", sample: true }));
       const prompts = fakePrompts({
         chooseFiles: vi.fn(async () => ["diagram.json"]),
-        chooseFile: vi.fn(async () => "diagram.json"),
-        askInit: vi.fn(async () => ({ file: "asked.json", sample: true })),
+        chooseFile,
+        askInit,
       });
       expect((await run(["validate"], { interactive: true, prompts })).exitCode).toBe(0);
       expect((await run(["loops"], { interactive: true, prompts })).exitCode).toBe(0);
       expect((await run(["serve", "--port", "0"], { interactive: true, prompts })).exitCode).toBe(
         0,
       );
+      chooseFile.mockResolvedValueOnce("new.json");
+      await run(["serve", "--port", "0", "--sample"], { interactive: true, prompts });
+      expect(chooseFile).toHaveBeenLastCalledWith(expect.any(String), {
+        message: "開くファイル",
+        allowNew: true,
+        newOnly: true,
+      });
       const init = await run(["init"], { interactive: true, prompts });
       expect(init.exitCode).toBe(0);
       expect(
         JSON.parse(await readFile(join(init.cwd, "asked.json"), "utf8")).variables.length,
       ).toBeGreaterThan(0);
+      expect(askInit).toHaveBeenLastCalledWith({ sample: undefined });
+      await run(["init", "--sample"], { interactive: true, prompts });
+      expect(askInit).toHaveBeenLastCalledWith({ sample: true });
     });
 
     it("図のファイルが選べなければ使い方の誤りにする", async () => {

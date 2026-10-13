@@ -2,22 +2,19 @@ import { Show, useContext } from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
 import { EditorContext } from "../editor/editor.ts";
 import { AutosaveIndicator } from "./AutosaveIndicator.tsx";
-import { pickJsonFile } from "../editor/file.ts";
 import * as edit from "@loopcraft/core/edit";
-import { FileIcon, LogoMark, OpenIcon, RedoIcon, SaveIcon, UndoIcon } from "./icons.tsx";
+import { FileIcon, ImageIcon, LogoMark, OpenIcon, RedoIcon, SaveIcon, UndoIcon } from "./icons.tsx";
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 const mod = isMac ? "⌘" : "Ctrl+";
 
-export function Toolbar(props: { readonly: boolean }) {
+export type DialogKind = "import" | "export" | "screenshot";
+
+export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogKind) => void }) {
   const editor = useContext(EditorContext);
   const autosave = useContext(AutosaveContext);
   const setTitle = (title: string) =>
     editor.commit(edit.setTitle(editor.current(), title), "title");
-  const open = async () => {
-    const file = await pickJsonFile();
-    if (file) await editor.importFile(file);
-  };
   return (
     <header class="toolbar">
       <div class="brand">
@@ -78,9 +75,9 @@ export function Toolbar(props: { readonly: boolean }) {
           <button
             type="button"
             class="button ghost"
-            onClick={open}
+            onClick={() => props.onOpenDialog("import")}
             aria-label="読み込み"
-            title="JSON ファイルを読み込む"
+            title="JSON を貼り付けるか、ファイルから読み込む"
           >
             <OpenIcon />
             <span class="button-label">読み込み</span>
@@ -88,10 +85,21 @@ export function Toolbar(props: { readonly: boolean }) {
         </Show>
         <button
           type="button"
+          class="button ghost"
+          onClick={() => props.onOpenDialog("screenshot")}
+          disabled={editor.diagram().variables.length === 0}
+          aria-label="画像"
+          title="図全体を画像にしてコピー・保存する"
+        >
+          <ImageIcon />
+          <span class="button-label">画像</span>
+        </button>
+        <button
+          type="button"
           class="button primary"
-          onClick={() => editor.exportFile()}
+          onClick={() => props.onOpenDialog("export")}
           aria-label="JSON を書き出す"
-          title={`JSON ファイルとして保存 (${mod}S)`}
+          title={`JSON をコピーするか、ファイルに保存する（${mod}S でファイルに保存）`}
         >
           <SaveIcon />
           <span class="button-label">JSON を書き出す</span>

@@ -20,6 +20,8 @@ export const SessionSchema = v.object({
   editable: v.boolean(),
   /** true なら編集モードに切り替えられない */
   readonly: v.boolean(),
+  /** true なら、ファイルが無いときに空の図ではなくサンプルの図で始める */
+  sample: v.optional(v.boolean()),
 });
 
 export type Session = v.InferOutput<typeof SessionSchema>;

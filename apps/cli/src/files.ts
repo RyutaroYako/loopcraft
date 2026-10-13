@@ -1,5 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
-import { chmod, readdir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  readdir,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { parseDiagramJson, stringifyDiagram } from "@loopcraft/core/io";
 import type { Diagram } from "@loopcraft/core/schema";
@@ -81,6 +91,17 @@ function isIgnored(name: string) {
 
 export function isNotFound(error: unknown) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+/** 無ければ false。権限などほかの理由で調べられなければ投げる */
+export async function exists(path: string) {
+  try {
+    await access(path);
+    return true;
+  } catch (error) {
+    if (isNotFound(error)) return false;
+    throw error;
+  }
 }
 
 /** 無ければ false。権限などほかの理由で調べられなければ投げる */

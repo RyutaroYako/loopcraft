@@ -18,10 +18,12 @@ export interface Prompts {
   /** 選べるファイルが無く、新しく作ることもできないときは null */
   chooseFile(
     cwd: string,
-    options: { message: string; allowNew: boolean },
+    /** newOnly なら一覧から選ばせず、新しいファイル名を聞く */
+    options: { message: string; allowNew: boolean; newOnly?: boolean },
   ): Promise<string | null | undefined>;
   chooseFiles(cwd: string): Promise<string[] | undefined>;
-  askInit(): Promise<{ file: string; sample: boolean } | undefined>;
+  /** オプションで決まっている項目は聞かない */
+  askInit(known: { sample?: boolean }): Promise<{ file: string; sample: boolean } | undefined>;
   cancelled(): void;
 }
 
@@ -34,11 +36,11 @@ export const clackPrompts: Prompts = {
     return isCancel(command) ? undefined : command;
   },
 
-  async chooseFile(cwd, { message, allowNew }) {
+  async chooseFile(cwd, { message, allowNew, newOnly }) {
     const files = await listJsonFiles(cwd);
     if (files.length === 0 && !allowNew) return null;
     const choice =
-      files.length === 0
+      files.length === 0 || newOnly
         ? NEW_FILE
         : await select({
             message,
@@ -71,7 +73,7 @@ export const clackPrompts: Prompts = {
     return isCancel(chosen) ? undefined : chosen;
   },
 
-  async askInit() {
+  async askInit(known) {
     const file = await text({
       message: "作るファイル名",
       placeholder: DEFAULT_FILE,
@@ -80,6 +82,7 @@ export const clackPrompts: Prompts = {
         value && !value.endsWith(".json") ? "拡張子は .json にしてください" : undefined,
     });
     if (isCancel(file)) return undefined;
+    if (known.sample !== undefined) return { file, sample: known.sample };
     const sample = await confirm({ message: "サンプルの図を入れますか？", initialValue: false });
     if (isCancel(sample)) return undefined;
     return { file, sample };
