@@ -1,10 +1,9 @@
-import { access } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import { createEmptyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { Context } from "../context.ts";
 import { UsageError } from "../errors.ts";
-import { isDirectory, isNotFound, writeDiagramFile } from "../files.ts";
+import { exists, isDirectory, writeDiagramFile } from "../files.ts";
 
 export const DEFAULT_FILE = "diagram.json";
 
@@ -31,14 +30,4 @@ export async function init(file: string, options: InitOptions, { log, cwd }: Con
   log.success(`${shown} を作成しました`);
   log.note(`  loopcraft serve ${shown} で編集できます`);
   return path;
-}
-
-async function exists(path: string) {
-  try {
-    await access(path);
-    return true;
-  } catch (error) {
-    if (isNotFound(error)) return false;
-    throw error;
-  }
 }

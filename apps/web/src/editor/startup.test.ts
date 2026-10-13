@@ -99,6 +99,9 @@ describe("resolveStartup", () => {
     expect(
       resolveStartup(file({ status: "missing" }, { editable: true, readonly: true })).editable,
     ).toBe(false);
+    expect(resolveStartup(file({ status: "missing" }, { sample: true })).initial).toEqual(
+      createSampleDiagram(),
+    );
     expect(resolveStartup(file({ status: "missing" }, { file: ".json" })).initial.title).toBe(
       "無題のシステム図",
     );

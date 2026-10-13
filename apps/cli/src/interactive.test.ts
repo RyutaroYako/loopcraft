@@ -58,6 +58,15 @@ describe("clackPrompts", () => {
     expect(await clackPrompts.chooseFile(cwd, { message: "m", allowNew: true })).toBeUndefined();
   });
 
+  it("newOnly なら一覧を出さず、新しいファイル名だけを聞く", async () => {
+    const cwd = await withFiles("a.json");
+    prompts.text.mockResolvedValueOnce("new.json");
+    expect(
+      await clackPrompts.chooseFile(cwd, { message: "m", allowNew: true, newOnly: true }),
+    ).toBe("new.json");
+    expect(prompts.select).not.toHaveBeenCalled();
+  });
+
   it("JSON が無ければ、新規なら名前だけを聞き、そうでなければ null を返す", async () => {
     const cwd = await withFiles();
     prompts.text.mockResolvedValueOnce("first.json");
@@ -77,17 +86,23 @@ describe("clackPrompts", () => {
   it("作るファイルとサンプルの有無を聞く", async () => {
     prompts.text.mockResolvedValueOnce("x.json");
     prompts.confirm.mockResolvedValueOnce(true);
-    expect(await clackPrompts.askInit()).toEqual({ file: "x.json", sample: true });
+    expect(await clackPrompts.askInit({})).toEqual({ file: "x.json", sample: true });
     const validate = (prompts.text.mock.calls[0]![0] as { validate: (v: string) => unknown })
       .validate;
     expect(validate("x")).toBeTruthy();
     expect(validate("")).toBeUndefined();
 
     prompts.text.mockResolvedValueOnce(CANCEL);
-    expect(await clackPrompts.askInit()).toBeUndefined();
+    expect(await clackPrompts.askInit({})).toBeUndefined();
     prompts.text.mockResolvedValueOnce("x.json");
     prompts.confirm.mockResolvedValueOnce(CANCEL);
-    expect(await clackPrompts.askInit()).toBeUndefined();
+    expect(await clackPrompts.askInit({})).toBeUndefined();
+  });
+
+  it("--sample が付いていればサンプルの有無は聞かない", async () => {
+    prompts.text.mockResolvedValueOnce("x.json");
+    expect(await clackPrompts.askInit({ sample: true })).toEqual({ file: "x.json", sample: true });
+    expect(prompts.confirm).not.toHaveBeenCalled();
   });
 
   it("キャンセルを伝える", () => {
