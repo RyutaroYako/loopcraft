@@ -6,7 +6,11 @@ export function downloadDiagram(diagram: Diagram) {
 }
 
 export function downloadText(text: string, fileName: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  downloadBlob(new Blob([text], { type: "application/json" }), fileName);
+}
+
+export function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
@@ -17,7 +21,8 @@ export function downloadText(text: string, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
-function fileNameOf(title: string) {
+/** 図のタイトルから、拡張子を除いたファイル名を作る */
+export function fileNameOf(title: string) {
   const name = title.trim().replace(/[\\/:*?"<>|]+/g, "_");
   return name || "system-diagram";
 }

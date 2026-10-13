@@ -37,7 +37,7 @@ type DragInit = Drag extends infer D ? (D extends Drag ? Omit<D, keyof DragBase>
 /** これ以下の移動はクリックとみなす（画面上の px） */
 const DRAG_THRESHOLD = 3;
 
-export function Canvas() {
+export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   const editor = useContext(EditorContext);
   const [linkDraft, setLinkDraft] = createSignal<LinkDraft | null>(null);
   const [panning, setPanning] = createSignal(false);
@@ -259,6 +259,7 @@ export function Canvas() {
 
   const bindSvg = (element: SVGSVGElement) => {
     svg = element;
+    props.svgRef?.(element);
     element.addEventListener("wheel", onWheel, { passive: false });
   };
 
@@ -331,7 +332,7 @@ export function Canvas() {
           </marker>
         </defs>
         <rect class="grid-bg" width="100%" height="100%" fill="url(#grid-dots)" />
-        <g transform={transform()}>
+        <g class="canvas-content" transform={transform()}>
           <g class="links">
             <For each={editor.diagram().links} keyed={(link) => link.id}>
               {(link) => <LinkView id={link().id} />}
