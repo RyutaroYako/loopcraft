@@ -24,24 +24,36 @@ describe("isFocusLost", () => {
 });
 
 describe("refocusWhenLost", () => {
-  it("描画の後でフォーカスを失っていれば移し、ほかへ移っていれば奪わない", () => {
+  it("描画を待ってから確かめ、失っていれば移し、その間にほかへ移っていれば奪わない", () => {
+    const frames: FrameRequestCallback[] = [];
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      callback(0);
-      return 0;
+      frames.push(callback);
+      return frames.length;
     });
+    const runFrames = () => frames.splice(0).forEach((callback) => callback(0));
     const target = document.createElement("button");
     const other = document.createElement("input");
-    document.body.append(target, other);
-
     const pressed = document.createElement("button");
-    document.body.append(pressed);
+    document.body.append(target, other, pressed);
+
+    // 押した時点ではまだ消えていない。描画で消えてから確かめる
     pressed.focus();
-    pressed.remove();
     refocusWhenLost(() => target);
+    pressed.remove();
+    runFrames();
     expect(document.activeElement).toBe(target);
 
-    other.focus();
+    // 描画を待つ間にほかへ移ったフォーカスは奪わない
+    target.blur();
     refocusWhenLost(() => target);
+    other.focus();
+    runFrames();
     expect(document.activeElement).toBe(other);
+
+    // 移す先が無ければ何もしない
+    other.blur();
+    refocusWhenLost(() => null);
+    expect(runFrames).not.toThrow();
+    expect(document.activeElement).toBe(document.body);
   });
 });

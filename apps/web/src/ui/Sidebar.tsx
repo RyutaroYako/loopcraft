@@ -543,8 +543,8 @@ function LoopInspector(props: { id: LoopId }) {
 }
 
 /** 押したボタンが消えたとき、target か検査パネルへフォーカスを移す */
-function refocusInInspector(target: () => HTMLElement | null = () => null) {
-  refocusWhenLost(() => target() ?? document.querySelector<HTMLElement>(".inspector"));
+function refocusInInspector(target?: () => HTMLElement | null) {
+  refocusWhenLost(() => target?.() ?? document.querySelector<HTMLElement>(".inspector"));
 }
 
 function DeleteButton(props: { label: string }) {
