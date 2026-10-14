@@ -215,6 +215,7 @@ describe("serve で開いたとき", () => {
   });
 
   it("狭い画面では読み取り専用の印を鍵のアイコンに縮める", async () => {
+    const original = { width: window.innerWidth, height: window.innerHeight };
     await page.viewport(390, 800);
     try {
       mount(fileStartup(ok(), { readonly: true }));
@@ -223,7 +224,7 @@ describe("serve で開いたとき", () => {
         .poll(() => document.querySelector(".mode-badge-short svg")?.getBoundingClientRect().width)
         .toBeGreaterThan(0);
     } finally {
-      await page.viewport(1280, 800);
+      await page.viewport(original.width, original.height);
     }
   });
 
