@@ -77,6 +77,13 @@ describe("autoLayout", () => {
     }
   });
 
+  it("整列済みの図をもう一度整列しても、何も変えない", () => {
+    const diagram = createSampleDiagram();
+    const sizes = sizesOf(diagram);
+    const once = autoLayout(diagram, sizes);
+    expect(autoLayout(once, sizes)).toBe(once);
+  });
+
   it("空の図はそのまま返す", () => {
     const diagram = { ...createSampleDiagram(), variables: [], links: [], loops: [] };
     expect(autoLayout(diagram, new Map())).toBe(diagram);

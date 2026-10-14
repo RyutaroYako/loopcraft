@@ -1,5 +1,14 @@
 import { moveVariables, updateLink, updateLoop } from "./edit.ts";
-import { centroid, type Size } from "./geometry.ts";
+import {
+  centroid,
+  defaultCurvature,
+  linkGeometry,
+  NODE_HEIGHT,
+  NODE_MIN_WIDTH,
+  quadraticPoint,
+  type Size,
+} from "./geometry.ts";
+import { linkPairKey } from "./integrity.ts";
 import type { Diagram, LoopId, Point, VariableId } from "./schema.ts";
 
 /*
@@ -15,13 +24,15 @@ const ITERATIONS = 400;
 const GAP_X = 40;
 const GAP_Y = 56;
 const GRAVITY = 0.04;
+/** 大きさが分からない出来事は、名前が空のときの大きさとみなす */
+const FALLBACK_SIZE: Size = { width: NODE_MIN_WIDTH, height: NODE_HEIGHT };
 
 export function autoLayout(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>): Diagram {
   const variables = diagram.variables;
   if (variables.length === 0) return diagram;
   const ids = variables.map((variable) => variable.id);
   const index = new Map(ids.map((id, at) => [id, at]));
-  const sizeOf = (at: number) => sizes.get(ids[at]!) ?? { width: 72, height: 36 };
+  const sizeOf = (at: number) => sizes.get(ids[at]!) ?? FALLBACK_SIZE;
 
   const edges = undirectedEdges(diagram, index);
   const order = traversalOrder(ids.length, edges);
@@ -47,8 +58,11 @@ export function autoLayout(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size
   let next = moveVariables(diagram, moved);
   for (const link of diagram.links) next = updateLink(next, link.id, { curvature: undefined });
   const markers = placeMarkers(next, sizes);
-  for (const loop of diagram.loops) {
-    next = updateLoop(next, loop.id, { marker: markers.get(loop.id) });
+  for (const loop of next.loops) {
+    const marker = markers.get(loop.id);
+    // 同じ位置なら差し替えず、整列を繰り返しても変化の無い編集にならないようにする
+    if (marker?.x === loop.marker?.x && marker?.y === loop.marker?.y) continue;
+    next = updateLoop(next, loop.id, { marker });
   }
   return next;
 }
@@ -183,44 +197,64 @@ function removeOverlaps(positions: Point[], sizeOf: (at: number) => Size) {
 const MARKER_CLEARANCE = 64;
 const MARKER_GRID = 8;
 
+/** 曲線の関連を折れ線で近似するときの分割数 */
+const CURVE_STEPS = 8;
+/** 極性の印の半径（11）に余白を足したもの */
+const POLARITY_RADIUS = 28;
+/** ほかのループ記号の半径（26）に余白を足したもの */
+const MARKER_RADIUS = 40;
+
 /**
- * 各ループの記号を、ループの内側で出来事・関連・ほかの記号から最も離れた点に置く。
+ * 各ループの記号を、ループの内側で出来事・関連・極性の印・ほかの記号から最も離れた点に置く。
  * 十分に離れた点がいくつもあるときは重心に近いものを選ぶ。内側に点が無いときは重心に置く
  */
 function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {
   const variableById = new Map(diagram.variables.map((variable) => [variable.id, variable]));
-  const linkById = new Map(diagram.links.map((link) => [link.id, link]));
-  const boxes = diagram.variables.map((variable) => ({
-    center: variable.position,
-    size: sizes.get(variable.id) ?? { width: 72, height: 36 },
-  }));
-  const segments = diagram.links.flatMap((link) => {
-    const from = variableById.get(link.from);
-    const to = variableById.get(link.to);
-    return from && to ? [[from.position, to.position] as const] : [];
-  });
+  const boxOf = (id: VariableId) => {
+    const variable = variableById.get(id);
+    return variable && { center: variable.position, size: sizes.get(id) ?? FALLBACK_SIZE };
+  };
+  const boxes = diagram.variables.map((variable) => boxOf(variable.id)!);
+  // 関連は画面と同じ形（逆向きの関連があれば曲線）で、折れ線と極性の印の位置に分解しておく
+  const pairs = new Set(diagram.links.map((link) => linkPairKey(link.from, link.to)));
+  const segments: [Point, Point][] = [];
+  const labels: Point[] = [];
+  for (const link of diagram.links) {
+    const from = boxOf(link.from);
+    const to = boxOf(link.to);
+    if (!from || !to) continue;
+    const curvature = defaultCurvature(pairs.has(linkPairKey(link.to, link.from)));
+    const { start, control, end, label } = linkGeometry(from, to, curvature);
+    let previous = start;
+    for (let step = 1; step <= CURVE_STEPS; step++) {
+      const point = quadraticPoint(start, control, end, step / CURVE_STEPS);
+      segments.push([previous, point]);
+      previous = point;
+    }
+    labels.push(label);
+  }
+
   const placed: Point[] = [];
+  const clearance = (point: Point) => {
+    let nearest = Infinity;
+    for (const box of boxes) nearest = Math.min(nearest, boxDistance(point, box.center, box.size));
+    for (const [a, b] of segments) nearest = Math.min(nearest, segmentDistance(point, a, b));
+    for (const label of labels)
+      nearest = Math.min(nearest, distance(point, label) - POLARITY_RADIUS);
+    for (const other of placed) nearest = Math.min(nearest, distance(point, other) - MARKER_RADIUS);
+    return nearest;
+  };
+
+  const fromByLink = new Map(diagram.links.map((link) => [link.id, link.from]));
   const markers = new Map<LoopId, Point>();
   for (const loop of diagram.loops) {
     const polygon = loop.links.flatMap((id) => {
-      const from = linkById.get(id)?.from;
+      const from = fromByLink.get(id);
       const variable = from && variableById.get(from);
       return variable ? [variable.position] : [];
     });
     if (polygon.length === 0) continue;
     const center = centroid(polygon);
-    const clearance = (point: Point) =>
-      Math.min(
-        ...boxes.map((box) => boxDistance(point, box.center, box.size)),
-        ...segments.map(([a, b]) => segmentDistance(point, a, b)),
-        // 極性の印は関連の終端寄り（0.82 の位置）に半径 11 で描かれる
-        ...segments.map(
-          ([a, b]) =>
-            Math.hypot(point.x - (a.x + (b.x - a.x) * 0.82), point.y - (a.y + (b.y - a.y) * 0.82)) -
-            28,
-        ),
-        ...placed.map((other) => Math.hypot(point.x - other.x, point.y - other.y) - 40),
-      );
     let best = { point: center, score: -Infinity, distance: Infinity };
     const xs = polygon.map((point) => point.x);
     const ys = polygon.map((point) => point.y);
@@ -229,9 +263,9 @@ function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {
         const point = { x, y };
         if (!insidePolygon(point, polygon)) continue;
         const score = Math.min(clearance(point), MARKER_CLEARANCE);
-        const distance = Math.hypot(x - center.x, y - center.y);
-        if (score > best.score || (score === best.score && distance < best.distance)) {
-          best = { point, score, distance };
+        const away = distance(point, center);
+        if (score > best.score || (score === best.score && away < best.distance)) {
+          best = { point, score, distance: away };
         }
       }
     }
@@ -240,6 +274,10 @@ function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {
     markers.set(loop.id, marker);
   }
   return markers;
+}
+
+function distance(a: Point, b: Point) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 function boxDistance(point: Point, center: Point, size: Size) {

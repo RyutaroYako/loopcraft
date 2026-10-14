@@ -3,6 +3,7 @@ import { findLoops } from "@loopcraft/core/cycles";
 import { listLoopEntries } from "@loopcraft/core/loops";
 import * as edit from "@loopcraft/core/edit";
 import { boundsOf, nodeSize, type Size } from "@loopcraft/core/geometry";
+import { linkPairKey } from "@loopcraft/core/integrity";
 import { createEmptyDiagram, parseDiagramJson } from "@loopcraft/core/io";
 import { autoLayout as layoutDiagram } from "@loopcraft/core/layout";
 import { cycleKey } from "@loopcraft/core/loop";
@@ -112,9 +113,11 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   );
   const linkById = createMemo(() => new Map(links().map((link) => [link.id, link])));
   /** 逆向きの関連があるかを引くための「原因→結果」の組 */
-  const linkPairs = createMemo(() => new Set(links().map((link) => pairKey(link.from, link.to))));
+  const linkPairs = createMemo(
+    () => new Set(links().map((link) => linkPairKey(link.from, link.to))),
+  );
   const hasReverse = (link: { from: VariableId; to: VariableId }) =>
-    linkPairs().has(pairKey(link.to, link.from));
+    linkPairs().has(linkPairKey(link.to, link.from));
   const boxes = createMemo(() => {
     fontsVersion();
     return computeBoxes(diagram().variables);
@@ -529,10 +532,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     fitView,
     viewCenter,
   };
-}
-
-function pairKey(from: VariableId, to: VariableId) {
-  return JSON.stringify([from, to]);
 }
 
 export type Editor = ReturnType<typeof createEditor>;

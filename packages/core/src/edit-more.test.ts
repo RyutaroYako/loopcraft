@@ -62,6 +62,15 @@ describe("edit（図全体とループ）", () => {
     expect(moved.variables[0]!.position).toEqual({ x: 5, y: 6 });
   });
 
+  it("出来事を動かすと、位置を指定したループ記号もループの重心が動いた分だけ動く", () => {
+    const sample = createSample();
+    const marked = updateLoop(sample, pid("b1"), { marker: { x: 100, y: 150 } });
+    // b1 は 4 つの出来事からなるので、1 つを 40 動かすと重心は 10 動く
+    const moved = moveVariables(marked, new Map([[vid("staff"), { x: 40, y: -80 }]]));
+    expect(moved.loops.find((loop) => loop.id === "b1")!.marker).toEqual({ x: 110, y: 130 });
+    expect(moved.loops.find((loop) => loop.id === "r1")).not.toHaveProperty("marker");
+  });
+
   it("存在しない出来事への関連は作れない", () => {
     expect(addLink(createSample(), { from: vid("staff"), to: vid("ghost") })).toEqual({
       ok: false,
