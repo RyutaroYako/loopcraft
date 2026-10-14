@@ -1,6 +1,6 @@
 import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
-import { EditorContext, type Editor } from "../editor/editor.ts";
+import { canvasElement, EditorContext, type Editor } from "../editor/editor.ts";
 import type { LoopEntry } from "@loopcraft/core/loops";
 import { downloadText } from "../editor/file.ts";
 import { refocusWhenLost } from "../editor/focus.ts";
@@ -75,6 +75,8 @@ function VariableList(props: { hidden: boolean }) {
   const [query, setQuery] = createSignal("");
   /** 変数ごとの、原因（入ってくる矢印）と結果（出ていく矢印）の数 */
   const degrees = createMemo(() => {
+    // 隠れている間は数えない（ドラッグ中の途中経過のたびに数え直さないように）
+    if (props.hidden) return new Map<VariableId, { causes: number; effects: number }>();
     const counts = new Map<VariableId, { causes: number; effects: number }>();
     const of = (id: VariableId) => {
       let count = counts.get(id);
@@ -88,6 +90,7 @@ function VariableList(props: { hidden: boolean }) {
     return counts;
   });
   const visible = createMemo(() => {
+    if (props.hidden) return [];
     const words = query().trim().toLowerCase();
     return editor
       .diagram()
@@ -103,11 +106,14 @@ function VariableList(props: { hidden: boolean }) {
     editor.select({ kind: "variable", id });
     const variable = editor.variableById().get(id);
     if (variable) editor.centerOn(variable.position);
-    // 狭い画面では一覧がキャンバスの下にあるので、キャンバスが見えていなければ見える所まで動かす
-    const canvas = document.querySelector(".canvas-svg");
+    // 狭い画面では一覧がキャンバスの下にある。変数を出したキャンバスの中央が見えていなければ、
+    // キャンバスが見える所まで動かす
+    const canvas = canvasElement();
     const rect = canvas?.getBoundingClientRect();
-    if (rect && (rect.bottom < 0 || rect.top > window.innerHeight)) {
-      canvas!.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const middle = rect && rect.top + rect.height / 2;
+    if (canvas && middle !== undefined && (middle < 0 || middle > window.innerHeight)) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      canvas.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
     }
   };
   return (

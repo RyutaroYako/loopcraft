@@ -506,6 +506,26 @@ describe("右クリックのメニュー", () => {
     await expect.poll(() => document.querySelector('[data-link-id="l_sales"]')).toBeNull();
   });
 
+  it("押したまま（macOS の Ctrl+クリックや長押し）でも開き、Tab で閉じると元へ戻り、拡大縮小で閉じる", async () => {
+    await open();
+    const sales = nodeElement("sales");
+    press(sales, centerOf(sales));
+    openMenu(sales, centerOf(sales));
+    await expect.element(menu("「売上」の操作")).toBeVisible();
+    await userEvent.keyboard("{Tab}");
+    await expect.element(menu("「売上」の操作")).not.toBeInTheDocument();
+    await expect.element(node("売上")).toHaveFocus();
+
+    openMenu(sales, centerOf(sales));
+    await expect.element(menu("「売上」の操作")).toBeVisible();
+    canvas()
+      .element()
+      .dispatchEvent(
+        new WheelEvent("wheel", { bubbles: true, cancelable: true, ctrlKey: true, deltaY: -50 }),
+      );
+    await expect.element(menu("「売上」の操作")).not.toBeInTheDocument();
+  });
+
   it("キャンバスのメニューで変数を足し、外側を押すと閉じる。読み取り専用では開かない", async () => {
     await open();
     const background = document.querySelector(".grid-bg")!;

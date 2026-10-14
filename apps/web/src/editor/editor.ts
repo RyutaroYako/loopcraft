@@ -66,7 +66,12 @@ export function computeBoxes(variables: readonly Variable[]): Map<VariableId, No
  * 描画が追いついた後でキャンバスへフォーカスを移す
  */
 function keepFocusInCanvas() {
-  refocusWhenLost(() => document.querySelector<SVGSVGElement>(".canvas-svg"));
+  refocusWhenLost(canvasElement);
+}
+
+/** 描画中のキャンバスの svg */
+export function canvasElement() {
+  return document.querySelector<SVGSVGElement>(".canvas-svg");
 }
 
 export function createEditor(initial: Diagram, options: { editable?: boolean } = {}) {

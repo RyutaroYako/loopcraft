@@ -69,10 +69,11 @@ export function ContextMenu(props: {
         else if (event.key === "Home") buttons()[0]?.focus();
         else if (event.key === "End") buttons().at(-1)?.focus();
         else if (event.key === "Escape") props.onClose(true);
-        else if (event.key === "Tab") props.onClose(false);
+        // Tab でも閉じて元の要素へ戻す。消えたボタンの位置から無関係な所へ移らないようにする
+        else if (event.key === "Tab") props.onClose(true);
         // メニューを開いている間は、Delete や元に戻すなどのショートカットを図に届けない
         event.stopPropagation();
-        if (["ArrowDown", "ArrowUp", "Home", "End", "Escape"].includes(event.key)) {
+        if (["ArrowDown", "ArrowUp", "Home", "End", "Escape", "Tab"].includes(event.key)) {
           event.preventDefault();
         }
       }}
