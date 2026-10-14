@@ -8,7 +8,10 @@ export interface Size {
 export const NODE_HEIGHT = 36;
 export const NODE_PADDING_X = 16;
 export const NODE_MIN_WIDTH = 72;
-export const DEFAULT_CURVATURE = 0.18;
+/** 曲がり具合の既定値。関連は直線で描く */
+export const DEFAULT_CURVATURE = 0;
+/** 逆向きの関連と重ならないよう、対になった関連に付ける曲がり具合 */
+export const PAIRED_CURVATURE = 0.18;
 /** 矢印の先端と出来事の枠の間に空ける隙間 */
 const LINK_GAP = 6;
 
@@ -79,6 +82,11 @@ function controlPoint(from: Point, to: Point, curvature: number): Point {
     x: (from.x + to.x) / 2 + normal.x * offset,
     y: (from.y + to.y) / 2 + normal.y * offset,
   };
+}
+
+/** 曲がり具合が指定されていないときの値。逆向きの関連があるときだけ膨らませて重なりを避ける */
+export function defaultCurvature(hasReverse: boolean): number {
+  return hasReverse ? PAIRED_CURVATURE : DEFAULT_CURVATURE;
 }
 
 export function linkGeometry(

@@ -369,7 +369,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
                 if (handle) onCurvePointerDown(event, handle.id);
               }}
             >
-              <title>ドラッグで曲がり具合を変更、ダブルクリックで元に戻す</title>
+              <title>ドラッグで曲がり具合を変更、ダブルクリックで既定の線に戻す</title>
             </circle>
           </Show>
           <Show when={editor.editingVariable()} keyed>

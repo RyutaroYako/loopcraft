@@ -4,6 +4,7 @@ import { listLoopEntries } from "@loopcraft/core/loops";
 import * as edit from "@loopcraft/core/edit";
 import { boundsOf, nodeSize, type Size } from "@loopcraft/core/geometry";
 import { createEmptyDiagram, parseDiagramJson } from "@loopcraft/core/io";
+import { autoLayout as layoutDiagram } from "@loopcraft/core/layout";
 import { cycleKey } from "@loopcraft/core/loop";
 import type { Diagram, LinkId, LoopId, Point, Variable, VariableId } from "@loopcraft/core/schema";
 import { downloadDiagram } from "./file.ts";
@@ -110,6 +111,10 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     () => new Map(diagram().variables.map((variable) => [variable.id, variable])),
   );
   const linkById = createMemo(() => new Map(links().map((link) => [link.id, link])));
+  /** 逆向きの関連があるかを引くための「原因→結果」の組 */
+  const linkPairs = createMemo(() => new Set(links().map((link) => pairKey(link.from, link.to))));
+  const hasReverse = (link: { from: VariableId; to: VariableId }) =>
+    linkPairs().has(pairKey(link.to, link.from));
   const boxes = createMemo(() => {
     fontsVersion();
     return computeBoxes(diagram().variables);
@@ -398,6 +403,14 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     downloadDiagram(present);
   }
 
+  /** 出来事の配置を自動で整える。元に戻せる */
+  function autoLayout() {
+    if (!isEditable) return;
+    const next = layoutDiagram(present, new Map([...boxes()].map(([id, box]) => [id, box.size])));
+    commit(next);
+    fitView(next);
+  }
+
   function newDiagram() {
     replaceDiagram(createEmptyDiagram());
   }
@@ -470,6 +483,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     current: () => present,
     variableById,
     linkById,
+    hasReverse,
     boxes,
     detection,
     loopEntries,
@@ -507,6 +521,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     importFile,
     exportFile,
     newDiagram,
+    autoLayout,
     screenToWorld,
     zoomAt,
     zoomBy,
@@ -514,6 +529,10 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     fitView,
     viewCenter,
   };
+}
+
+function pairKey(from: VariableId, to: VariableId) {
+  return JSON.stringify([from, to]);
 }
 
 export type Editor = ReturnType<typeof createEditor>;

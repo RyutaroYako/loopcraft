@@ -165,8 +165,8 @@ describe("関連", () => {
     await writeAndClearDescription(
       (diagram) => diagram.links.find((item) => item.id === "l_sales")?.description,
     );
-    await button("曲がり具合を戻す").click();
-    await expect.element(button("曲がり具合を戻す")).toBeDisabled();
+    await button("既定の線に戻す").click();
+    await expect.element(button("既定の線に戻す")).toBeDisabled();
     await button(/関連を削除/).click();
     await expect.element(heading("図の概要")).toBeVisible();
     expect(document.querySelector('[aria-label^="社員数から売上への関連"]')).toBeNull();

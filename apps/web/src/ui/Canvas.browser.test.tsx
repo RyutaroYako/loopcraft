@@ -183,7 +183,7 @@ describe("ポインタでの操作", () => {
     dragFrom(handle, start, offset(start, 0, 60));
     flush();
     expect(path()).not.toBe(before);
-    await expect.element(page.getByRole("button", { name: "曲がり具合を戻す" })).not.toBeDisabled();
+    await expect.element(page.getByRole("button", { name: "既定の線に戻す" })).not.toBeDisabled();
 
     await userEvent.dblClick(page.elementLocator(document.querySelector(".curve-handle")!), {
       position: { x: 6, y: 6 },

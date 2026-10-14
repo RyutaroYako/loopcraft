@@ -1,7 +1,13 @@
 import { Show, createMemo, useContext } from "solid-js";
 import { EditorContext, type Editor, type Gesture, type NodeBox } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
-import { centroid, DEFAULT_CURVATURE, isClockwise, linkGeometry } from "@loopcraft/core/geometry";
+import {
+  centroid,
+  DEFAULT_CURVATURE,
+  defaultCurvature,
+  isClockwise,
+  linkGeometry,
+} from "@loopcraft/core/geometry";
 import type { Link, LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
 
 /*
@@ -23,7 +29,7 @@ export function geometryOf(editor: Editor, link: Link) {
   const from = boxes.get(link.from);
   const to = boxes.get(link.to);
   if (!from || !to) return undefined;
-  return linkGeometry(from, to, link.curvature ?? DEFAULT_CURVATURE);
+  return linkGeometry(from, to, link.curvature ?? defaultCurvature(editor.hasReverse(link)));
 }
 
 export function LinkView(props: { id: LinkId }) {
@@ -126,7 +132,10 @@ export function LinkDraftView(props: { draft: LinkDraft | null }) {
     if (!draft || !from) return undefined;
     const target = draft.target ? editor.boxes().get(draft.target) : undefined;
     const to: NodeBox = target ?? { center: draft.to, size: NO_SIZE };
-    return linkGeometry(from, to, DEFAULT_CURVATURE).path;
+    const curvature = draft.target
+      ? defaultCurvature(editor.hasReverse({ from: draft.from, to: draft.target }))
+      : DEFAULT_CURVATURE;
+    return linkGeometry(from, to, curvature).path;
   });
   return <path class="link-draft" d={path()} marker-end="url(#arrowhead)" />;
 }

@@ -3,7 +3,16 @@ import { AutosaveContext } from "../editor/autosave.ts";
 import { EditorContext } from "../editor/editor.ts";
 import { AutosaveIndicator } from "./AutosaveIndicator.tsx";
 import * as edit from "@loopcraft/core/edit";
-import { FileIcon, ImageIcon, LogoMark, OpenIcon, RedoIcon, SaveIcon, UndoIcon } from "./icons.tsx";
+import {
+  FileIcon,
+  ImageIcon,
+  LayoutIcon,
+  LogoMark,
+  OpenIcon,
+  RedoIcon,
+  SaveIcon,
+  UndoIcon,
+} from "./icons.tsx";
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 const mod = isMac ? "⌘" : "Ctrl+";
@@ -60,6 +69,19 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           <RedoIcon />
         </button>
       </div>
+      <Show when={editor.editable()}>
+        <button
+          type="button"
+          class="button ghost"
+          onClick={() => editor.autoLayout()}
+          disabled={editor.diagram().variables.length < 2}
+          aria-label="整列"
+          title="出来事の配置を自動で整える（元に戻せます）"
+        >
+          <LayoutIcon />
+          <span class="button-label">整列</span>
+        </button>
+      </Show>
       <div class="toolbar-group toolbar-file" role="group" aria-label="ファイル">
         <Show when={editor.editable()}>
           <button
