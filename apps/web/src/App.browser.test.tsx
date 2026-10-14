@@ -214,6 +214,19 @@ describe("serve で開いたとき", () => {
     expect(document.querySelector(".inline-label")).toBeNull();
   });
 
+  it("狭い画面では読み取り専用の印を鍵のアイコンに縮める", async () => {
+    await page.viewport(390, 800);
+    try {
+      mount(fileStartup(ok(), { readonly: true }));
+      await expect.element(page.getByText("読み取り専用", { exact: true })).not.toBeVisible();
+      await expect
+        .poll(() => document.querySelector(".mode-badge-short svg")?.getBoundingClientRect().width)
+        .toBeGreaterThan(0);
+    } finally {
+      await page.viewport(1280, 800);
+    }
+  });
+
   it("ファイルがまだ無ければ、最初の保存で作ることを知らせる", async () => {
     mount(fileStartup({ status: "missing" }));
     await expect

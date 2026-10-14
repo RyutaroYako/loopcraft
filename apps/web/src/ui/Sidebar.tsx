@@ -165,10 +165,7 @@ function BackupList() {
     setConfirming(null);
     setBackups(listBackups());
     // 押したボタンは行ごと消えるので、残りの項目か検査パネルへフォーカスを移す
-    requestAnimationFrame(() => {
-      const next = list?.isConnected ? list.querySelector("button") : null;
-      (next ?? document.querySelector<HTMLElement>(".inspector"))?.focus();
-    });
+    refocusWhenLost(() => (list?.isConnected ? list.querySelector("button") : null));
   };
   return (
     <Show when={backups().length > 0}>
@@ -477,10 +474,8 @@ function LinkInspector(props: { id: LinkId }) {
               class="button ghost small"
               onClick={() => {
                 update({ curvature: undefined });
-                // 押したボタンは消えるので、キーボードで続けられるよう削除ボタンへフォーカスを移す
-                requestAnimationFrame(() =>
-                  document.querySelector<HTMLElement>(".inspector .button.danger")?.focus(),
-                );
+                // 押したボタンは消えるので、検査パネルへフォーカスを戻す
+                refocusWhenLost();
               }}
             >
               {reversed() ? "既定の曲がりに戻す" : "直線に戻す"}
@@ -544,6 +539,17 @@ function LoopInspector(props: { id: LoopId }) {
       </Show>
     </div>
   );
+}
+
+/**
+ * 押したボタンが描画から消えたとき、フォーカスが失われていれば target か検査パネルへ移す。
+ * 描画を待ってから確かめるので、その間にほかへ移ったフォーカスは奪わない
+ */
+function refocusWhenLost(target: () => HTMLElement | null = () => null) {
+  requestAnimationFrame(() => {
+    if (document.activeElement !== document.body) return;
+    (target() ?? document.querySelector<HTMLElement>(".inspector"))?.focus();
+  });
 }
 
 function DeleteButton(props: { label: string }) {
