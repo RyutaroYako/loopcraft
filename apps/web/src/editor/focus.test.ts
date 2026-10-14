@@ -30,10 +30,7 @@ describe("refocusWhenLost", () => {
       frames.push(callback);
       return frames.length;
     });
-    // 中で次のフレームを頼まれても、空になるまで流す
-    const runFrames = () => {
-      while (frames.length > 0) frames.shift()!(0);
-    };
+    const runFrames = () => frames.splice(0).forEach((callback) => callback(0));
     const target = document.createElement("button");
     const other = document.createElement("input");
     const pressed = document.createElement("button");
@@ -60,5 +57,15 @@ describe("refocusWhenLost", () => {
     expect(runFrames).not.toThrow();
     expect(missing).toHaveBeenCalledOnce();
     expect(document.activeElement).toBe(document.body);
+
+    // 候補は先頭から試し、外れた要素は飛ばして次へ移す
+    const detached = document.createElement("button");
+    refocusWhenLost(
+      () => null,
+      () => detached,
+      () => target,
+    );
+    runFrames();
+    expect(document.activeElement).toBe(target);
   });
 });

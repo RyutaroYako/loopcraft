@@ -7,12 +7,22 @@ export function isFocusLost(): boolean {
   return active === null || active === document.body || !active.isConnected;
 }
 
+type FocusTarget = () => HTMLElement | SVGElement | null | undefined;
+
 /**
  * 押したボタンなどが描画から消えたときに、キーボード操作を続けられるようフォーカスを移す。
- * 描画を待ってから確かめ、その間にほかへ移ったフォーカスは奪わない
+ * 描画を待ってから確かめ、その間にほかへ移ったフォーカスは奪わない。
+ * 候補は先頭から順に試し、文書の中に残っている最初の要素へ移す
  */
-export function refocusWhenLost(target: () => HTMLElement | SVGElement | null) {
+export function refocusWhenLost(...candidates: FocusTarget[]) {
   requestAnimationFrame(() => {
-    if (isFocusLost()) target()?.focus();
+    if (!isFocusLost()) return;
+    for (const candidate of candidates) {
+      const element = candidate();
+      if (element?.isConnected) {
+        element.focus();
+        return;
+      }
+    }
   });
 }

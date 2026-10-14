@@ -166,7 +166,7 @@ function BackupList() {
     setConfirming(null);
     setBackups(listBackups());
     // 押したボタンは行ごと消えるので、残りの項目か検査パネルへフォーカスを移す
-    refocusInInspector(() => list?.querySelector("button") ?? null);
+    refocusWhenLost(() => list?.querySelector("button"), inspectorElement);
   };
   return (
     <Show when={backups().length > 0}>
@@ -476,7 +476,7 @@ function LinkInspector(props: { id: LinkId }) {
               onClick={() => {
                 update({ curvature: undefined });
                 // 押したボタンは消えるので、検査パネルへフォーカスを戻す
-                refocusInInspector();
+                refocusWhenLost(inspectorElement);
               }}
             >
               {reversed() ? "既定の曲がりに戻す" : "直線に戻す"}
@@ -542,13 +542,7 @@ function LoopInspector(props: { id: LoopId }) {
   );
 }
 
-/** 押したボタンが消えたとき、target か検査パネルへフォーカスを移す */
-function refocusInInspector(target?: () => HTMLElement | null) {
-  refocusWhenLost(() => {
-    const element = target?.();
-    return element?.isConnected ? element : document.querySelector<HTMLElement>(".inspector");
-  });
-}
+const inspectorElement = () => document.querySelector<HTMLElement>(".inspector");
 
 function DeleteButton(props: { label: string }) {
   const editor = useContext(EditorContext);
