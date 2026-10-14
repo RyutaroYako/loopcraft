@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { nodeSize, type Size } from "./geometry.ts";
 import { autoLayout } from "./layout.ts";
 import { createSampleDiagram } from "./sample.ts";
-import type { Diagram, VariableId } from "./schema.ts";
+import type { Diagram, LinkId, VariableId } from "./schema.ts";
 
 function sizesOf(diagram: Diagram): Map<VariableId, Size> {
   return new Map(
@@ -82,6 +82,40 @@ describe("autoLayout", () => {
     const sizes = sizesOf(diagram);
     const once = autoLayout(diagram, sizes);
     expect(autoLayout(once, sizes)).toBe(once);
+  });
+
+  it("大きさの分からない出来事は名前が空のときの大きさとみなし、出来事が 1 つなら重心に置く", () => {
+    const sample = createSampleDiagram();
+    const single = { ...sample, variables: sample.variables.slice(0, 1), links: [], loops: [] };
+    const result = autoLayout(single, new Map());
+    expect(result.variables[0]!.position).toEqual(single.variables[0]!.position);
+    expect(autoLayout(stacked(), new Map()).variables).toHaveLength(sample.variables.length);
+  });
+
+  it("ばねだけでは離しきれない大きな出来事も、縦横どちらへも押し広げて重ならないようにする", () => {
+    const diagram = createSampleDiagram();
+    for (const size of [
+      { width: 900, height: 36 },
+      { width: 72, height: 2000 },
+    ]) {
+      const result = autoLayout(diagram, new Map(diagram.variables.map((item) => [item.id, size])));
+      const positions = result.variables.map((variable) => variable.position);
+      for (const [index, p] of positions.entries()) {
+        for (const q of positions.slice(index + 1)) {
+          const apart = Math.abs(p.x - q.x) >= size.width || Math.abs(p.y - q.y) >= size.height;
+          expect(apart).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("逆向きの関連があっても配置できる", () => {
+    const sample = createSampleDiagram();
+    const first = sample.links[0]!;
+    const reversed = { ...first, id: "reverse" as LinkId, from: first.to, to: first.from };
+    const diagram = { ...sample, links: [...sample.links, reversed] };
+    const result = autoLayout(diagram, sizesOf(diagram));
+    expect(result.loops.every((loop) => loop.marker !== undefined)).toBe(true);
   });
 
   it("空の図はそのまま返す", () => {

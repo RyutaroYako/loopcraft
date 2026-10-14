@@ -71,9 +71,9 @@ function undirectedEdges(diagram: Diagram, index: ReadonlyMap<VariableId, number
   const seen = new Set<string>();
   const edges: [number, number][] = [];
   for (const link of diagram.links) {
-    const a = index.get(link.from);
-    const b = index.get(link.to);
-    if (a === undefined || b === undefined || a === b) continue;
+    // 図は検証済みなので、参照先は必ずあり、自分自身への関連も無い
+    const a = index.get(link.from)!;
+    const b = index.get(link.to)!;
     const key = a < b ? `${a}:${b}` : `${b}:${a}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -137,14 +137,14 @@ function simulate(
     const forces: Point[] = positions.map(() => ({ x: 0, y: 0 }));
     for (let a = 0; a < count; a++) {
       for (let b = a + 1; b < count; b++) {
-        const { dx, dy, distance } = delta(positions[a]!, positions[b]!, a, b);
+        const { dx, dy, distance } = delta(positions[a]!, positions[b]!);
         const reach = IDEAL_LENGTH + (sizeOf(a).width + sizeOf(b).width) / 4;
         const force = (reach * reach) / distance;
         apply(forces, a, b, (dx / distance) * force, (dy / distance) * force);
       }
     }
     for (const [a, b] of edges) {
-      const { dx, dy, distance } = delta(positions[a]!, positions[b]!, a, b);
+      const { dx, dy, distance } = delta(positions[a]!, positions[b]!);
       const force = (distance * distance) / IDEAL_LENGTH;
       apply(forces, a, b, (-dx / distance) * force, (-dy / distance) * force);
     }
@@ -210,21 +210,22 @@ const MARKER_RADIUS = 40;
  */
 function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {
   const variableById = new Map(diagram.variables.map((variable) => [variable.id, variable]));
-  const boxOf = (id: VariableId) => {
-    const variable = variableById.get(id);
-    return variable && { center: variable.position, size: sizes.get(id) ?? FALLBACK_SIZE };
-  };
-  const boxes = diagram.variables.map((variable) => boxOf(variable.id)!);
+  const boxOf = (id: VariableId) => ({
+    center: variableById.get(id)!.position,
+    size: sizes.get(id) ?? FALLBACK_SIZE,
+  });
+  const boxes = diagram.variables.map((variable) => boxOf(variable.id));
   // 関連は画面と同じ形（逆向きの関連があれば曲線）で、折れ線と極性の印の位置に分解しておく
   const pairs = new Set(diagram.links.map((link) => linkPairKey(link.from, link.to)));
   const segments: [Point, Point][] = [];
   const labels: Point[] = [];
   for (const link of diagram.links) {
-    const from = boxOf(link.from);
-    const to = boxOf(link.to);
-    if (!from || !to) continue;
     const curvature = defaultCurvature(pairs.has(linkPairKey(link.to, link.from)));
-    const { start, control, end, label } = linkGeometry(from, to, curvature);
+    const { start, control, end, label } = linkGeometry(
+      boxOf(link.from),
+      boxOf(link.to),
+      curvature,
+    );
     let previous = start;
     for (let step = 1; step <= CURVE_STEPS; step++) {
       const point = quadraticPoint(start, control, end, step / CURVE_STEPS);
@@ -248,12 +249,7 @@ function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {
   const fromByLink = new Map(diagram.links.map((link) => [link.id, link.from]));
   const markers = new Map<LoopId, Point>();
   for (const loop of diagram.loops) {
-    const polygon = loop.links.flatMap((id) => {
-      const from = fromByLink.get(id);
-      const variable = from && variableById.get(from);
-      return variable ? [variable.position] : [];
-    });
-    if (polygon.length === 0) continue;
+    const polygon = loop.links.map((id) => variableById.get(fromByLink.get(id)!)!.position);
     const center = centroid(polygon);
     let best = { point: center, score: -Infinity, distance: Infinity };
     const xs = polygon.map((point) => point.x);
@@ -310,15 +306,10 @@ function insidePolygon(point: Point, polygon: readonly Point[]) {
   return inside;
 }
 
-/** a から見た b へのずれ。位置が重なっているときは添字から決まる向きにわずかにずらす */
-function delta(pa: Point, pb: Point, a: number, b: number) {
-  let dx = pa.x - pb.x;
-  let dy = pa.y - pb.y;
-  if (dx === 0 && dy === 0) {
-    const angle = (a * 7 + b * 13) % 360;
-    dx = Math.cos((angle * Math.PI) / 180) * 0.01;
-    dy = Math.sin((angle * Math.PI) / 180) * 0.01;
-  }
+/** b から a へのずれ。円周上の異なる点から始めるので重なることはまず無いが、0 で割らないようにする */
+function delta(pa: Point, pb: Point) {
+  const dx = pa.x - pb.x;
+  const dy = pa.y - pb.y;
   return { dx, dy, distance: Math.max(Math.hypot(dx, dy), 0.01) };
 }
 
