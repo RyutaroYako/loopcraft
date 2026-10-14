@@ -113,27 +113,9 @@ function Field(props: {
 function DiagramInspector() {
   const editor = useContext(EditorContext);
   const autosave = useContext(AutosaveContext);
-  const stats = () => {
-    const diagram = editor.diagram();
-    return [
-      { label: "出来事", value: diagram.variables.length },
-      { label: "関連", value: diagram.links.length },
-      { label: "見出したループ", value: diagram.loops.length },
-    ];
-  };
   return (
     <div class="inspector-body">
       <SectionHeading kicker="Diagram" title="図の概要" />
-      <dl class="stats">
-        <For each={stats()} keyed={false}>
-          {(stat) => (
-            <div class="stat">
-              <dt>{stat().label}</dt>
-              <dd>{stat().value}</dd>
-            </div>
-          )}
-        </For>
-      </dl>
       <Field
         name="diagram-description"
         label="この図で伝えたいこと"
@@ -477,16 +459,6 @@ function LinkInspector(props: { id: LinkId }) {
         }
       />
       <Show when={editor.editable()}>
-        <div class="inline-actions">
-          <button
-            type="button"
-            class="button ghost small"
-            disabled={link()?.curvature === undefined}
-            onClick={() => update({ curvature: undefined })}
-          >
-            既定の線に戻す
-          </button>
-        </div>
         <DeleteButton label="関連を削除" />
       </Show>
     </div>

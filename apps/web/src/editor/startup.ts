@@ -28,8 +28,7 @@ export async function prepareStartup(doc: Document = document): Promise<Startup>
 export interface ResolvedStartup {
   initial: Diagram;
   store: DocumentStore;
-  editable: boolean;
-  /** true なら、閲覧モードから編集モードへ切り替えられない */
+  /** true なら編集できない（serve --readonly） */
   readonly: boolean;
   /** 自動保存を問題のある状態から始めるとき */
   initialStatus: AutosaveStatus | undefined;
@@ -41,7 +40,6 @@ export function resolveStartup(startup: Startup): ResolvedStartup {
     return {
       initial: stored.status === "ok" ? stored.diagram : createEmptyDiagram(),
       store: createBrowserStore(),
-      editable: true,
       readonly: false,
       // 保存先が使えないときと、開けなかった前回の図を退避できなかったとき（書き出してもらうまで
       // 上書きしない）は、最初から問題のある状態として始めてツールバーにも出す
@@ -62,7 +60,6 @@ export function resolveStartup(startup: Startup): ResolvedStartup {
           ? createSampleDiagram()
           : createEmptyDiagram(titleOf(session.file)),
     store,
-    editable: session.editable && !session.readonly,
     readonly: session.readonly,
     // 読めなかったファイルを、空の図で上書きしてしまわないよう止めておく
     initialStatus:

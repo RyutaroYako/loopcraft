@@ -79,7 +79,6 @@ export function createProgram(dependencies: ProgramDependencies) {
         {
           port: options.port,
           open: options.open,
-          edit: options.edit,
           readonly: options.readonly,
           sample: options.sample,
         },
@@ -152,8 +151,9 @@ export function createProgram(dependencies: ProgramDependencies) {
       "待ち受けるポート（既定: 4747。使えなければ空いているポート）",
       parsePort,
     )
-    .option("--edit", "編集モードで開く（既定は閲覧モード）")
-    .option("--readonly", "読み取り専用で開く。編集モードに切り替えられない")
+    .option("--readonly", "読み取り専用で開く")
+    // 以前は閲覧モードが既定で、編集するときに付けていた。今は常に編集できるので何もしない
+    .addOption(new Option("--edit").hideHelp())
     .option("--sample", "新しいファイルをサンプルの図で開く。保存するまでファイルは作らない")
     .option("--no-open", "ブラウザを開かない")
     .action(actions.serve);
@@ -191,8 +191,8 @@ export function createProgram(dependencies: ProgramDependencies) {
     [
       "",
       "例:",
-      "  loopcraft serve diagram.json        ブラウザで開く（閲覧モード）",
-      "  loopcraft serve diagram.json --edit 編集モードで開く",
+      "  loopcraft serve diagram.json        ブラウザで開いて編集する",
+      "  loopcraft serve diagram.json --readonly 読み取り専用で開く",
       "  loopcraft serve new.json --sample   サンプルの図で試す",
       "  loopcraft validate *.json           まとめて検証する",
       "  loopcraft loops diagram.json --format md",
@@ -223,7 +223,6 @@ export function createProgram(dependencies: ProgramDependencies) {
 
 interface ServeFlags {
   port?: number;
-  edit?: boolean;
   readonly?: boolean;
   sample?: boolean;
   open: boolean;

@@ -66,14 +66,13 @@ export function fakeFileStore() {
 
 export function fileStartup(
   loaded: Extract<Startup, { kind: "file" }>["loaded"],
-  options: { editable?: boolean; readonly?: boolean; store?: DocumentStore } = {},
+  options: { readonly?: boolean; store?: DocumentStore } = {},
 ): Startup {
   return {
     kind: "file",
     session: {
       token: "t",
       file: "growth.json",
-      editable: options.editable ?? false,
       readonly: options.readonly ?? false,
     },
     loaded,

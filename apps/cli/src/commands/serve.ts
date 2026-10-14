@@ -11,9 +11,7 @@ export interface ServeOptions {
   /** 指定されたら、そのポートが使えないときに別のポートへ逃げない */
   port?: number;
   open?: boolean;
-  /** 最初から編集モードで開く */
-  edit?: boolean;
-  /** 編集モードに切り替えられないようにし、サーバーも書き込みを拒否する */
+  /** 編集できないようにし、サーバーも書き込みを拒否する */
   readonly?: boolean;
   /** ファイルが無いとき、空の図ではなくサンプルの図で開く。保存するまでファイルは作らない */
   sample?: boolean;
@@ -52,7 +50,6 @@ export async function serve(
   const common = {
     file: path,
     webDir,
-    editable: options.edit ?? false,
     readonly: options.readonly ?? false,
     sample: options.sample ?? false,
     log,
@@ -68,8 +65,7 @@ export async function serve(
     server = await startServer({ ...common, port: 0 });
   }
 
-  const mode = options.readonly ? "読み取り専用" : options.edit ? "編集モード" : "閲覧モード";
-  log.success(`${shown} を開きました（${mode}）`);
+  log.success(`${shown} を開きました${options.readonly ? "（読み取り専用）" : ""}`);
   log.info(server.url);
   if (options.sample)
     log.note(`  サンプルの図を表示しています。編集して保存すると ${shown} を作ります`);

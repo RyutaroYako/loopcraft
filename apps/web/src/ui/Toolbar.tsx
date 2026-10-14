@@ -1,5 +1,4 @@
 import { Show, useContext } from "solid-js";
-import { AutosaveContext } from "../editor/autosave.ts";
 import { EditorContext } from "../editor/editor.ts";
 import { AutosaveIndicator } from "./AutosaveIndicator.tsx";
 import * as edit from "@loopcraft/core/edit";
@@ -21,7 +20,6 @@ export type DialogKind = "import" | "export" | "screenshot";
 
 export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogKind) => void }) {
   const editor = useContext(EditorContext);
-  const autosave = useContext(AutosaveContext);
   const setTitle = (title: string) =>
     editor.commit(edit.setTitle(editor.current(), title), "title");
   return (
@@ -43,8 +41,10 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           onCompositionEnd={(event) => setTitle(event.currentTarget.value)}
         />
       </label>
-      <Show when={autosave.store.kind === "file"}>
-        <ModeSwitch readonly={props.readonly} />
+      <Show when={props.readonly}>
+        <span class="mode-badge" title="loopcraft serve --readonly で開いています">
+          読み取り専用
+        </span>
       </Show>
       <AutosaveIndicator />
       <div class="toolbar-group" role="group" aria-label="履歴">
@@ -128,41 +128,5 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
         </button>
       </div>
     </header>
-  );
-}
-
-/** serve で開いたときの、閲覧モードと編集モードの切り替え */
-function ModeSwitch(props: { readonly: boolean }) {
-  const editor = useContext(EditorContext);
-  return (
-    <Show
-      when={!props.readonly}
-      fallback={
-        <span class="mode-badge" title="loopcraft serve --readonly で開いています">
-          読み取り専用
-        </span>
-      }
-    >
-      <div class="mode-switch" role="radiogroup" aria-label="モード">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={editor.editable() ? "false" : "true"}
-          class={{ active: !editor.editable() }}
-          onClick={() => editor.setEditable(false)}
-        >
-          閲覧
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={editor.editable() ? "true" : "false"}
-          class={{ active: editor.editable() }}
-          onClick={() => editor.setEditable(true)}
-        >
-          編集
-        </button>
-      </div>
-    </Show>
   );
 }

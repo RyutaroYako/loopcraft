@@ -96,7 +96,8 @@ describe("runCli", () => {
     const result = await run(["serve", "diagram.json", "--port", "0", "--edit"]);
     expect(result.exitCode).toBe(0);
     expect(result.openBrowser).toHaveBeenCalledOnce();
-    expect(result.stderr).toContain("✓ diagram.json を開きました（編集モード）");
+    // --edit は以前の既定（閲覧モード）の名残で、受け付けるが何もしない
+    expect(result.stderr).toContain("✓ diagram.json を開きました");
     expect(result.stderr.at(-1)).toBe("✓ 終了しました");
     const sample = await run(["serve", "new.json", "--port", "0", "--sample"]);
     expect(sample.stderr).toContain(

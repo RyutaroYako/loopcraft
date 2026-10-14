@@ -52,7 +52,7 @@ function setup(store: DocumentStore, startup: Startup, readonly = false) {
 const browserStartup: Startup = { kind: "browser", stored: { status: "empty" } };
 const fileStartup = (loaded: Extract<Startup, { kind: "file" }>["loaded"]): Startup => ({
   kind: "file",
-  session: { token: "t", file: "a.json", editable: true, readonly: false },
+  session: { token: "t", file: "a.json", readonly: false },
   loaded,
   store: fileStore,
 });

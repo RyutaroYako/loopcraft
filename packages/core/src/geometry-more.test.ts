@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import {
-  boundsOf,
-  boxBoundaryPoint,
-  centroid,
-  curvatureFromHandle,
-  linkGeometry,
-  quadraticPoint,
-} from "./geometry.ts";
+import { boundsOf, boxBoundaryPoint, centroid, linkGeometry, quadraticPoint } from "./geometry.ts";
 
 describe("geometry（境界値）", () => {
   it("同じ点へは中心をそのまま返す", () => {
@@ -28,10 +21,6 @@ describe("geometry（境界値）", () => {
     const box = { center: { x: 0, y: 0 }, size: { width: 0, height: 0 } };
     const geometry = linkGeometry(box, { ...box, center: { x: 2, y: 0 } }, 0);
     expect(geometry.start).toEqual({ x: 0, y: 0 });
-  });
-
-  it("端点が重なっていれば曲がり具合は 0", () => {
-    expect(curvatureFromHandle({ x: 1, y: 1 }, { x: 1, y: 1 }, { x: 5, y: 5 })).toBe(0);
   });
 
   it("二次ベジェの両端は始点と終点", () => {

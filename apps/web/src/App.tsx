@@ -29,8 +29,8 @@ function isTextInput(target: EventTarget | null) {
 function App(props: { startup: Startup }) {
   // 起動時の情報は描画中に変わらないので、最初に一度だけ解決する
   const startup = untrack(() => props.startup);
-  const { initial, store, editable, readonly, initialStatus } = resolveStartup(startup);
-  const editor = createEditor(initial, { editable });
+  const { initial, store, readonly, initialStatus } = resolveStartup(startup);
+  const editor = createEditor(initial, { editable: !readonly });
   const notices = createNotices({ editor, store, startup, readonly, autosave: () => autosave });
   const autosave = setupAutosave(editor, store, {
     initialStatus,

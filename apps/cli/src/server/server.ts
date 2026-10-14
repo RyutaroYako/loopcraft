@@ -27,7 +27,6 @@ export interface ServerOptions {
   host?: string;
   /** 0 なら空いているポートを使う */
   port: number;
-  editable: boolean;
   readonly: boolean;
   /** ファイルが無いとき、エディタをサンプルの図で始める */
   sample?: boolean;
@@ -63,7 +62,6 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const session: Session = {
     token,
     file: basename(options.file),
-    editable: options.editable && !options.readonly,
     readonly: options.readonly,
     ...(options.sample ? { sample: true } : {}),
   };

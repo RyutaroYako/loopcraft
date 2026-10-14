@@ -21,12 +21,12 @@ describe("serve", () => {
     const { context, stderr } = await createWorkspace();
     await writeSample(context.cwd);
     const openBrowser = vi.fn(async () => undefined);
-    running = await serve("diagram.json", { port: 0, edit: true }, context, {
+    running = await serve("diagram.json", { port: 0 }, context, {
       openBrowser,
       webDir: await createWebDir(),
     });
     expect(openBrowser).toHaveBeenCalledWith(running.url);
-    expect(stderr[0]).toBe("✓ diagram.json を開きました（編集モード）");
+    expect(stderr[0]).toBe("✓ diagram.json を開きました");
     expect(stderr[1]).toBe(`ℹ ${running.url}`);
   });
 
@@ -36,7 +36,7 @@ describe("serve", () => {
       openBrowser: async () => Promise.reject(new Error("no browser")),
       webDir: await createWebDir(),
     });
-    expect(stderr[0]).toBe("✓ new.json を開きました（閲覧モード）");
+    expect(stderr[0]).toBe("✓ new.json を開きました");
     expect(stderr.at(-1)).toMatch(/^⚠ ブラウザを開けませんでした/);
     await running.close();
 

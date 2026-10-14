@@ -1,10 +1,8 @@
-import { For, Show, createMemo, createSignal, onSettled, useContext } from "solid-js";
+import { For, Show, createSignal, onSettled, useContext } from "solid-js";
 import { EditorContext, type Gesture } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
-import { curvatureFromHandle } from "@loopcraft/core/geometry";
-import type { LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
+import type { LoopId, Point, VariableId } from "@loopcraft/core/schema";
 import {
-  geometryOf,
   InlineLabelEditor,
   LinkDraftView,
   LinkView,
@@ -28,7 +26,6 @@ type Drag = DragBase &
     | { kind: "pan"; origin: Point }
     | { kind: "move"; id: VariableId; origin: Point; grab: Point; gesture: Gesture }
     | { kind: "connect"; from: VariableId }
-    | { kind: "curve"; id: LinkId; gesture: Gesture }
     | { kind: "marker"; id: LoopId; offset: Point; gesture: Gesture }
   );
 
@@ -114,11 +111,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     setLinkDraft({ from, to: worldPoint(event) });
   };
 
-  const onCurvePointerDown = (event: PointerEvent, id: LinkId) => {
-    if (!canStartDrag(event)) return;
-    startDrag(event, () => ({ kind: "curve", id, gesture: editor.beginGesture() }));
-  };
-
   const onMarkerPointerDown = (event: PointerEvent, id: LoopId, position: Point) => {
     if (!canStartDrag(event)) return;
     editor.select({ kind: "loop", id });
@@ -164,18 +156,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         });
         return;
       }
-      case "curve": {
-        const { id } = drag;
-        const link = editor.current().links.find((item) => item.id === id);
-        const boxes = editor.boxes();
-        const from = link && boxes.get(link.from);
-        const to = link && boxes.get(link.to);
-        if (!link || !from || !to) return;
-        const curvature =
-          Math.round(curvatureFromHandle(from.center, to.center, point) * 100) / 100;
-        drag.gesture.preview(edit.updateLink(editor.current(), link.id, { curvature }));
-        return;
-      }
       case "marker": {
         const marker = {
           x: Math.round(point.x + drag.offset.x),
@@ -201,7 +181,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         }
         return;
       case "move":
-      case "curve":
       case "marker":
         if (cancelled) finished.gesture.cancel();
         else finished.gesture.end();
@@ -239,11 +218,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       return;
     }
     const top = document.elementFromPoint(event.clientX, event.clientY);
-    const handle = selectedLinkHandle();
-    if (handle && top?.classList.contains("curve-handle")) {
-      editor.commit(edit.updateLink(editor.current(), handle.id, { curvature: undefined }));
-      return;
-    }
     if (!top?.classList.contains("grid-bg")) return;
     editor.addVariableAt({ x: Math.round(point.x), y: Math.round(point.y) });
   };
@@ -283,14 +257,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     const { x, y, zoom } = editor.viewport();
     return `translate(${x} ${y}) scale(${zoom})`;
   };
-
-  const selectedLinkHandle = createMemo(() => {
-    const selected = editor.selection();
-    if (selected?.kind !== "link") return undefined;
-    const link = editor.linkById().get(selected.id);
-    const geometry = link && geometryOf(editor, link);
-    return geometry ? { id: selected.id, point: geometry.middle } : undefined;
-  });
 
   const isEmpty = () => editor.diagram().variables.length === 0;
 
@@ -358,20 +324,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
               )}
             </For>
           </g>
-          <Show when={editor.editable() && selectedLinkHandle() !== undefined}>
-            <circle
-              class="curve-handle"
-              cx={selectedLinkHandle()?.point.x}
-              cy={selectedLinkHandle()?.point.y}
-              r={6 / editor.viewport().zoom}
-              onPointerDown={(event) => {
-                const handle = selectedLinkHandle();
-                if (handle) onCurvePointerDown(event, handle.id);
-              }}
-            >
-              <title>ドラッグで曲がり具合を変更、ダブルクリックで既定の線に戻す</title>
-            </circle>
-          </Show>
           <Show when={editor.editingVariable()} keyed>
             {(id) => <InlineLabelEditor id={id} />}
           </Show>
@@ -412,7 +364,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           when={editor.editable()}
           fallback={
             <p class="canvas-hint">
-              <span>閲覧モード</span>
+              <span>読み取り専用</span>
               <span>ドラッグで移動、Ctrl+ホイールで拡大縮小</span>
             </p>
           }

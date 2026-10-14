@@ -9,7 +9,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-const session = { token: "t", file: "dir/growth.json", editable: false, readonly: false };
+const session = { token: "t", file: "dir/growth.json", readonly: false };
 const store = { kind: "file", label: "growth.json" } as DocumentStore;
 
 function withSession() {
@@ -52,7 +52,6 @@ describe("resolveStartup", () => {
     const diagram = createSampleDiagram();
     expect(resolveStartup({ kind: "browser", stored: { status: "ok", diagram } })).toMatchObject({
       initial: diagram,
-      editable: true,
       readonly: false,
       initialStatus: undefined,
     });
@@ -90,15 +89,12 @@ describe("resolveStartup", () => {
     });
     expect(resolveStartup(file({ status: "ok", diagram, revision: "r" }))).toMatchObject({
       initial: diagram,
-      editable: false,
+      readonly: false,
       store,
     });
-    const missing = resolveStartup(file({ status: "missing" }, { editable: true }));
+    const missing = resolveStartup(file({ status: "missing" }));
     expect(missing.initial.title).toBe("growth");
-    expect(missing.editable).toBe(true);
-    expect(
-      resolveStartup(file({ status: "missing" }, { editable: true, readonly: true })).editable,
-    ).toBe(false);
+    expect(resolveStartup(file({ status: "missing" }, { readonly: true })).readonly).toBe(true);
     expect(resolveStartup(file({ status: "missing" }, { sample: true })).initial).toEqual(
       createSampleDiagram(),
     );

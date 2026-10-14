@@ -43,10 +43,9 @@ const button = (name: string | RegExp) =>
   page.getByRole("button", { name, exact: typeof name === "string" });
 
 describe("図の概要", () => {
-  it("数を並べ、伝えたいことを書ける", async () => {
+  it("伝えたいことを書ける", async () => {
     await open();
     await expect.element(heading("図の概要")).toBeVisible();
-    expect(document.querySelector(".stats")?.textContent).toContain("出来事7");
     await userEvent.fill(field(/^この図で伝えたいこと/), "成長と負荷");
     await expect.element(field(/^この図で伝えたいこと/)).toHaveValue("成長と負荷");
   });
@@ -142,13 +141,8 @@ describe("出来事", () => {
 });
 
 describe("関連", () => {
-  it("極性・遅れ・説明・曲がり具合を変え、削除する", async () => {
-    await open({
-      ...createSampleDiagram(),
-      links: createSampleDiagram().links.map((link) =>
-        link.id === "l_sales" ? { ...link, curvature: 0.4 } : link,
-      ),
-    });
+  it("極性・遅れ・説明を変え、削除する", async () => {
+    await open();
     const polarity = () =>
       page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement;
     polarity().focus();
@@ -165,8 +159,6 @@ describe("関連", () => {
     await writeAndClearDescription(
       (diagram) => diagram.links.find((item) => item.id === "l_sales")?.description,
     );
-    await button("既定の線に戻す").click();
-    await expect.element(button("既定の線に戻す")).toBeDisabled();
     await button(/関連を削除/).click();
     await expect.element(heading("図の概要")).toBeVisible();
     expect(document.querySelector('[aria-label^="社員数から売上への関連"]')).toBeNull();
@@ -272,9 +264,14 @@ describe("ループ", () => {
   });
 });
 
-describe("閲覧モード", () => {
+describe("読み取り専用", () => {
   it("入力欄は読み取り専用になり、操作のボタンは出さない", async () => {
-    mount(fileStartup({ status: "ok", diagram: createSampleDiagram(), revision: "r" }));
+    mount(
+      fileStartup(
+        { status: "ok", diagram: createSampleDiagram(), revision: "r" },
+        { readonly: true },
+      ),
+    );
     await expect.element(node("社員数")).toBeVisible();
     await expect
       .element(page.getByText("出来事・矢印・ループを選ぶと、ここで詳しく見られます"))

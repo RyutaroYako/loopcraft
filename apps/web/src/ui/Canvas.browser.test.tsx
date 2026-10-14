@@ -168,7 +168,7 @@ describe("ポインタでの操作", () => {
     expect(document.querySelectorAll(".link")).toHaveLength(2);
   });
 
-  it("関連を選ぶと曲がり具合を変えられ、ハンドルのダブルクリックで戻す", async () => {
+  it("関連を選ぶと検査パネルに出し、曲がり具合のハンドルは出さない", async () => {
     await open();
     const hit = document.querySelector(".link .link-hit")!;
     const point = hit.getBoundingClientRect();
@@ -176,20 +176,8 @@ describe("ポインタでの操作", () => {
     press(hit, { x: point.left, y: point.top });
     release({ x: point.left, y: point.top });
     await expect.element(heading("関連")).toBeVisible();
-    const handle = document.querySelector(".curve-handle")!;
-    const path = () => document.querySelector(".link.selected .link-path")!.getAttribute("d");
-    const before = path();
-    const start = centerOf(handle);
-    dragFrom(handle, start, offset(start, 0, 60));
-    flush();
-    expect(path()).not.toBe(before);
-    await expect.element(page.getByRole("button", { name: "既定の線に戻す" })).not.toBeDisabled();
-
-    await userEvent.dblClick(page.elementLocator(document.querySelector(".curve-handle")!), {
-      position: { x: 6, y: 6 },
-    });
-    flush();
-    expect(path()).toBe(before);
+    expect(document.querySelector(".link.selected")).not.toBeNull();
+    expect(document.querySelector(".curve-handle")).toBeNull();
   });
 
   it("ループの記号をドラッグで動かし、位置を戻せる", async () => {

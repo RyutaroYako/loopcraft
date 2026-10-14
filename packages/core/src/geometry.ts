@@ -40,7 +40,7 @@ export interface LinkGeometry {
   end: Point;
   /** SVG の path d 属性 */
   path: string;
-  /** 曲線の中点。曲がり具合を変えるハンドルを置く */
+  /** 曲線の中点。遅れの印を置く */
   middle: Point;
   /** 中点での進行方向の単位ベクトル */
   tangent: Point;
@@ -117,18 +117,6 @@ export function linkGeometry(
       y: labelAnchor.y + normal.y * 17 * side,
     },
   };
-}
-
-/** 中点ハンドルを point までドラッグしたときの曲がり具合 */
-export function curvatureFromHandle(from: Point, to: Point, point: Point): number {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const distance = Math.hypot(dx, dy);
-  if (distance === 0) return 0;
-  const normal = leftNormal(dx, dy);
-  const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
-  const offset = (point.x - mid.x) * normal.x + (point.y - mid.y) * normal.y;
-  return offset / distance;
 }
 
 function moveToward(point: Point, target: Point, distance: number): Point {

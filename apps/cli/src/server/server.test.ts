@@ -23,9 +23,7 @@ afterEach(async () => {
   running = undefined;
 });
 
-async function start(
-  options: { readonly?: boolean; editable?: boolean; existing?: boolean; sample?: boolean } = {},
-) {
+async function start(options: { readonly?: boolean; existing?: boolean; sample?: boolean } = {}) {
   const workspace = await createWorkspace();
   const file = join(workspace.cwd, "diagram.json");
   if (options.existing !== false) await writeSample(workspace.cwd);
@@ -33,7 +31,6 @@ async function start(
     file,
     webDir: await createWebDir(),
     port: 0,
-    editable: options.editable ?? true,
     readonly: options.readonly ?? false,
     sample: options.sample,
     log: workspace.logger,
@@ -81,7 +78,7 @@ describe("startServer", () => {
   });
 
   it("エディタにセッションを埋め込んで配る", async () => {
-    const { server } = await start({ editable: false });
+    const { server } = await start();
     expect(server.url).toBe(`http://127.0.0.1:${server.port}/?token=${TOKEN}`);
     expect((await send(server, "/")).status).toBe(403);
     expect((await send(server, "/index.html?token=wrong")).status).toBe(403);
@@ -90,7 +87,7 @@ describe("startServer", () => {
     expect(index.status).toBe(200);
     expect(index.headers["cache-control"]).toBe("no-store");
     expect(index.body).toContain(`<meta name="${SESSION_META_NAME}"`);
-    expect(index.body).toContain("&quot;editable&quot;:false");
+    expect(index.body).toContain("&quot;readonly&quot;:false");
     expect(index.body).not.toContain("sample");
     const css = await send(server, "/app.css");
     expect(css.headers["content-type"]).toBe("text/css; charset=utf-8");
@@ -218,7 +215,6 @@ describe("startServer", () => {
     const { server } = await start({ readonly: true });
     const index = await send(server, `/?token=${TOKEN}`);
     expect(index.body).toContain("&quot;readonly&quot;:true");
-    expect(index.body).toContain("&quot;editable&quot;:false");
     const rejected = await api(server, "/api/document", {
       method: "PUT",
       body: JSON.stringify({ diagram: createSampleDiagram(), baseRevision: null }),
@@ -294,7 +290,6 @@ describe("startServer", () => {
       file: link,
       webDir: await createWebDir(),
       port: 0,
-      editable: true,
       readonly: false,
       log: workspace.logger,
       token: TOKEN,
@@ -341,7 +336,6 @@ describe("startServer", () => {
       file,
       webDir: await createWebDir(),
       port: 0,
-      editable: true,
       readonly: false,
       log: workspace.logger,
     });
@@ -356,7 +350,6 @@ describe("startServer", () => {
         file: join(workspace.cwd, "missing", "diagram.json"),
         webDir: await createWebDir(),
         port: 0,
-        editable: true,
         readonly: false,
         log: workspace.logger,
       }),
@@ -379,7 +372,6 @@ describe("injectSession", () => {
     const html = injectSession("<html><head></head></html>", {
       token: "a&b",
       file: '"<x>"',
-      editable: true,
       readonly: false,
     });
     expect(html).toContain("a&amp;b");

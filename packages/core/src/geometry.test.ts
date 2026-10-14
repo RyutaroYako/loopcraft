@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
   boxBoundaryPoint,
-  curvatureFromHandle,
   defaultCurvature,
   isClockwise,
   linkGeometry,
@@ -20,13 +19,12 @@ describe("geometry", () => {
     expect(boxBoundaryPoint({ x: 0, y: 0 }, size, { x: 0, y: -200 })).toEqual({ x: 0, y: -20 });
   });
 
-  it("中点ハンドルの位置から曲がり具合を逆算できる", () => {
+  it("正の曲がり具合では進行方向の左に膨らむ", () => {
     const from = { center: { x: 0, y: 0 }, size: { width: 0, height: 0 } };
     const to = { center: { x: 400, y: 0 }, size: { width: 0, height: 0 } };
     const geometry = linkGeometry(from, to, 0.25);
     // 左（画面上は上）に膨らむ
     expect(geometry.middle.y).toBeLessThan(0);
-    expect(curvatureFromHandle(from.center, to.center, geometry.middle)).toBeCloseTo(0.25, 1);
   });
 
   it("既定では直線にし、逆向きの関連があるときだけ膨らませる", () => {

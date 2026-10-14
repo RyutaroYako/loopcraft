@@ -84,9 +84,9 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   let coalesce: { key: string; at: number } | undefined;
   let activeGesture: { base: Diagram } | undefined;
 
-  /** 閲覧モードでは false。編集の操作はすべて何もしない */
-  let isEditable = options.editable ?? true;
-  const [editable, setEditableSignal] = createSignal(isEditable);
+  /** 読み取り専用では false。編集の操作はすべて何もしない */
+  const isEditable = options.editable ?? true;
+  const editable = () => isEditable;
 
   const [selection, setSelection] = createSignal<Selection | null>(null);
   const [editingVariable, setEditingVariableSignal] = createSignal<VariableId | null>(null);
@@ -332,7 +332,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   }
 
   /**
-   * 保存先が外部で書き換えられたときに、その内容を取り込む。閲覧モードでも行い、
+   * 保存先が外部で書き換えられたときに、その内容を取り込む。読み取り専用でも行い、
    * 表示位置や選択はできるだけそのままにする。取り消し履歴には 1 回の変更として残す
    */
   function applyExternal(next: Diagram) {
@@ -347,13 +347,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     if (editingVariable() && !next.variables.some((item) => item.id === editingVariable())) {
       setEditingVariableSignal(null);
     }
-  }
-
-  function setEditable(value: boolean) {
-    finishGesture();
-    isEditable = value;
-    setEditableSignal(value);
-    if (!value) setEditingVariableSignal(null);
   }
 
   function setEditingVariable(id: VariableId | null) {
@@ -503,7 +496,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
 
     commit,
     applyExternal,
-    setEditable,
     beginGesture,
     undo,
     redo,
