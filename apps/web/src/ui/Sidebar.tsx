@@ -547,7 +547,9 @@ function LoopInspector(props: { id: LoopId }) {
  */
 function refocusWhenLost(target: () => HTMLElement | null = () => null) {
   requestAnimationFrame(() => {
-    if (document.activeElement !== document.body) return;
+    // 消えた要素のフォーカスは body に戻る（環境によっては null になる）
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
     (target() ?? document.querySelector<HTMLElement>(".inspector"))?.focus();
   });
 }
