@@ -9,6 +9,7 @@ import { autoLayout as layoutDiagram } from "@loopcraft/core/layout";
 import { cycleKey } from "@loopcraft/core/loop";
 import type { Diagram, LinkId, LoopId, Point, Variable, VariableId } from "@loopcraft/core/schema";
 import { downloadDiagram } from "./file.ts";
+import { isFocusLost } from "./focus.ts";
 import { clearMeasureCache, measureLabel } from "./measure.ts";
 
 export type Selection =
@@ -66,9 +67,7 @@ export function computeBoxes(variables: readonly Variable[]): Map<VariableId, No
  */
 function keepFocusInCanvas() {
   requestAnimationFrame(() => {
-    if (document.activeElement === document.body) {
-      document.querySelector<SVGSVGElement>(".canvas-svg")?.focus();
-    }
+    if (isFocusLost()) document.querySelector<SVGSVGElement>(".canvas-svg")?.focus();
   });
 }
 

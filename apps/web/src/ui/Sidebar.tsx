@@ -3,6 +3,7 @@ import { AutosaveContext } from "../editor/autosave.ts";
 import { EditorContext, type Editor } from "../editor/editor.ts";
 import type { LoopEntry } from "@loopcraft/core/loops";
 import { downloadText } from "../editor/file.ts";
+import { isFocusLost } from "../editor/focus.ts";
 import { listBackups, readBackup, removeBackup } from "../editor/storage.ts";
 import * as edit from "@loopcraft/core/edit";
 import { defaultCurvature } from "@loopcraft/core/geometry";
@@ -547,9 +548,7 @@ function LoopInspector(props: { id: LoopId }) {
  */
 function refocusWhenLost(target: () => HTMLElement | null = () => null) {
   requestAnimationFrame(() => {
-    // 消えた要素のフォーカスは body に戻る（環境によっては null になる）
-    const active = document.activeElement;
-    if (active !== null && active !== document.body) return;
+    if (!isFocusLost()) return;
     (target() ?? document.querySelector<HTMLElement>(".inspector"))?.focus();
   });
 }
