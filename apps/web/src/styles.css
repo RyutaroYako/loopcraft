@@ -1746,6 +1746,14 @@ button.save-status.warning .save-dot {
 
 /* ---------- small screens ---------- */
 
+/* 狭くて低い画面では、手順の説明を省いてボタンだけを残し、拡大縮小の操作と重ならないようにする */
+@media (max-width: 767px) and (max-height: 760px) {
+  .empty-state .empty-steps,
+  .empty-state .empty-note {
+    display: none;
+  }
+}
+
 @media (max-width: 767px) {
   /* 狭い画面では案内を詰め、下の拡大縮小の操作とボタンが重ならないようにする */
   .empty-state {
