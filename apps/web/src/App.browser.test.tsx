@@ -205,7 +205,11 @@ describe("serve で開いたとき", () => {
     await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveFocus();
 
     mount(fileStartup(ok(), { readonly: true }));
-    await expect.element(page.getByText("読み取り専用", { exact: true }).first()).toBeVisible();
+    await expect.element(page.getByText("読み取り専用", { exact: true })).toBeVisible();
+    // 読み上げは画面の幅によらず、読み取り専用であることと、その意味を伝える
+    await expect
+      .element(page.getByText("読み取り専用。編集も保存もできません"))
+      .toBeInTheDocument();
     await userEvent.dblClick(canvas(), { position: { x: 300, y: 120 } });
     expect(document.querySelector(".inline-label")).toBeNull();
   });

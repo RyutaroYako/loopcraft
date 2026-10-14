@@ -1673,8 +1673,13 @@ button.save-status.warning .save-dot {
     display: none;
   }
 
+  .mode-badge {
+    display: inline-flex;
+    padding: 4px 6px;
+  }
+
   .mode-badge-short {
-    display: inline;
+    display: inline-flex;
   }
 }
 

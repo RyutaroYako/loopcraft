@@ -18,7 +18,7 @@ export function EmptyState() {
           <p class="eyebrow">Causal Loop Diagram</p>
           <h2 id="empty-title">まだ出来事がありません</h2>
           <p class="empty-note">
-            読み取り専用で開いています。編集するには、<code>--readonly</code>
+            読み取り専用で開いています。編集するには、<code>--readonly</code>{" "}
             を付けずに開き直してください。
           </p>
         </section>

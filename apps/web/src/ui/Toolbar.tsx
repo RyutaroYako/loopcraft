@@ -5,6 +5,7 @@ import * as edit from "@loopcraft/core/edit";
 import {
   FileIcon,
   ImageIcon,
+  LockIcon,
   LayoutIcon,
   LogoMark,
   OpenIcon,
@@ -43,12 +44,14 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
       </label>
       <Show when={props.readonly}>
         <span class="mode-badge" title="loopcraft serve --readonly で開いています">
-          <span class="mode-badge-long">読み取り専用</span>
-          {/* 狭い画面ではタイトルを潰さないよう短くする */}
-          <span class="mode-badge-short" aria-hidden="true">
-            閲覧のみ
+          {/* 狭い画面ではタイトルを潰さないよう短くする。読み上げは画面の幅によらず同じにする */}
+          <span class="mode-badge-long" aria-hidden="true">
+            読み取り専用
           </span>
-          <span class="visually-hidden">。編集も保存もできません</span>
+          <span class="mode-badge-short" aria-hidden="true">
+            <LockIcon />
+          </span>
+          <span class="visually-hidden">読み取り専用。編集も保存もできません</span>
         </span>
       </Show>
       <AutosaveIndicator />

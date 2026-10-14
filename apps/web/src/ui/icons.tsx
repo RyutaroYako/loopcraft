@@ -127,6 +127,13 @@ export const CloseIcon = () => (
   </Icon>
 );
 
+export const LockIcon = () => (
+  <Icon>
+    <rect x="4.5" y="9" width="11" height="8" rx="1.75" />
+    <path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
+  </Icon>
+);
+
 export const SparkIcon = () => (
   <Icon>
     <path d="M10 3v3M10 14v3M3 10h3M14 10h3M5.05 5.05l2.1 2.1M12.85 12.85l2.1 2.1M5.05 14.95l2.1-2.1M12.85 7.15l2.1-2.1" />

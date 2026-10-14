@@ -166,6 +166,8 @@ describe("関連", () => {
     );
     await button("直線に戻す").click();
     await expect.element(button("直線に戻す")).not.toBeInTheDocument();
+    // 押したボタンは消えるので、フォーカスは削除ボタンへ移る
+    await expect.element(button(/関連を削除/)).toHaveFocus();
     await button(/関連を削除/).click();
     await expect.element(heading("図の概要")).toBeVisible();
     expect(document.querySelector('[aria-label^="社員数から売上への関連"]')).toBeNull();

@@ -475,7 +475,13 @@ function LinkInspector(props: { id: LinkId }) {
             <button
               type="button"
               class="button ghost small"
-              onClick={() => update({ curvature: undefined })}
+              onClick={() => {
+                update({ curvature: undefined });
+                // 押したボタンは消えるので、キーボードで続けられるよう削除ボタンへフォーカスを移す
+                requestAnimationFrame(() =>
+                  document.querySelector<HTMLElement>(".inspector .button.danger")?.focus(),
+                );
+              }}
             >
               {reversed() ? "既定の曲がりに戻す" : "直線に戻す"}
             </button>
