@@ -39,7 +39,10 @@ describe("runCli", () => {
   it("引数が無く対話できなければヘルプを出す", async () => {
     const { exitCode, stdout } = await run([]);
     expect(exitCode).toBe(0);
-    expect(stdout.join("\n")).toContain("Usage: loopcraft");
+    const help = stdout.join("\n");
+    expect(help).toContain("Usage: loopcraft");
+    // serve と役割が重なる init は案内しない（コマンドとしては使える）
+    expect(help).not.toMatch(/^\s+init\b/m);
   });
 
   it("ヘルプとバージョン", async () => {

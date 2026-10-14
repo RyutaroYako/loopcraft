@@ -4,11 +4,11 @@ import { listJsonFiles } from "./files.ts";
 
 export type CommandName = "serve" | "validate" | "loops" | "init" | "schema";
 
+/** 対話で選べるコマンド。init は serve と役割が重なるので出さない（コマンドとしては使える） */
 export const COMMANDS: { value: CommandName; label: string; hint: string }[] = [
   { value: "serve", label: "serve", hint: "ファイルをブラウザのエディタで開く" },
   { value: "validate", label: "validate", hint: "図の JSON を検証する" },
   { value: "loops", label: "loops", hint: "図に含まれるループを一覧する" },
-  { value: "init", label: "init", hint: "新しい図のファイルを作る" },
   { value: "schema", label: "schema", hint: "JSON Schema を出力する" },
 ];
 

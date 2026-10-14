@@ -214,16 +214,10 @@ describe("ループ", () => {
     await expect.element(page.getByText(/奇数なので変化を打ち消す/)).toBeVisible();
   });
 
-  it("種類で絞り込み、見出していないループは選ぶと強調し、ピンで見出す", async () => {
+  it("すべてのループを並べ、見出していないループは選ぶと強調し、ピンで見出す", async () => {
     await open();
-    const items = () => document.querySelectorAll(".loop-item");
-    await page.getByRole("radio", { name: /バランス B/ }).click();
-    await expect.poll(() => items().length).toBe(2);
+    await expect.poll(() => document.querySelectorAll(".loop-item").length).toBe(4);
     expect(document.querySelectorAll(".loop-item.balancing")).toHaveLength(2);
-    await page.getByRole("radio", { name: /自己強化 R/ }).click();
-    await expect.poll(() => document.querySelectorAll(".loop-item.reinforcing").length).toBe(2);
-    expect(items()).toHaveLength(2);
-    await page.getByRole("radio", { name: /すべて/ }).click();
 
     const plain = document.querySelector(".loop-item:not(.featured) .loop-item-main")!;
     await page.elementLocator(plain).click();
@@ -236,7 +230,7 @@ describe("ループ", () => {
     await expect.poll(() => document.querySelectorAll(".loop-item.featured").length).toBe(4);
   });
 
-  it("ループが無いときや、その種類が無いときは案内し、多すぎるときは知らせる", async () => {
+  it("ループが無いときは案内し、多すぎるときは知らせる", async () => {
     await open({
       ...createEmptyDiagram(),
       variables: [{ id: "a" as VariableId, label: "社員数", position: { x: 0, y: 0 } }],
@@ -259,8 +253,6 @@ describe("ループ", () => {
     };
     await open(complete);
     await expect.element(page.getByText(/ループが多すぎるため/)).toBeVisible();
-    await page.getByRole("radio", { name: /バランス B/ }).click();
-    await expect.element(page.getByText("この種類のループはありません")).toBeVisible();
   });
 });
 

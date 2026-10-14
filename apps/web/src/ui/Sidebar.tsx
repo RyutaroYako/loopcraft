@@ -565,21 +565,8 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
   );
 }
 
-type Filter = "all" | LoopKind;
-
 function LoopList() {
   const editor = useContext(EditorContext);
-  const [filter, setFilter] = createSignal<Filter>("all");
-  const visible = createMemo(() =>
-    editor.loopEntries().filter((entry) => filter() === "all" || entry.kind === filter()),
-  );
-  const count = (kind: Filter) =>
-    editor.loopEntries().filter((entry) => kind === "all" || entry.kind === kind).length;
-  const filters: { value: Filter; label: string }[] = [
-    { value: "all", label: "すべて" },
-    { value: "reinforcing", label: "自己強化 R" },
-    { value: "balancing", label: "バランス B" },
-  ];
   return (
     <section class="loop-list" aria-labelledby="loop-list-title">
       <header class="loop-list-header">
@@ -591,29 +578,13 @@ function LoopList() {
           <span>{editor.loopEntries().length}</span> 検出
         </p>
       </header>
-      <div class="filter-chips" role="radiogroup" aria-label="ループの種類で絞り込む">
-        <For each={filters}>
-          {(item) => (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={pressedState(filter() === item.value)}
-              class={["chip", { active: filter() === item.value }]}
-              onClick={() => setFilter(item.value)}
-            >
-              {item.label}
-              <span class="chip-count">{count(item.value)}</span>
-            </button>
-          )}
-        </For>
-      </div>
       <Show when={editor.detection().truncated}>
         <p class="loop-warning">
           ループが多すぎるため、先頭の {editor.detection().loops.length} 件だけを表示しています
         </p>
       </Show>
       <Show
-        when={visible().length > 0}
+        when={editor.loopEntries().length > 0}
         fallback={
           <div class="loop-empty">
             <svg viewBox="0 0 64 40" aria-hidden="true" class="loop-empty-art">
@@ -622,16 +593,12 @@ function LoopList() {
               <path d="m20 26-3 4 4 3" />
               <path d="m44 14 3-4-4-3" />
             </svg>
-            <p>
-              {editor.loopEntries().length === 0
-                ? "矢印をつないで輪を作ると、ここにループが自動で現れます"
-                : "この種類のループはありません"}
-            </p>
+            <p>矢印をつないで輪を作ると、ここにループが自動で現れます</p>
           </div>
         }
       >
         <ul class="loop-items">
-          <For each={visible()} keyed={(entry) => entry.key}>
+          <For each={editor.loopEntries()} keyed={(entry) => entry.key}>
             {(entry, index) => <LoopItem entry={entry()} index={index()} />}
           </For>
         </ul>

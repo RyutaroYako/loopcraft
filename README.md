@@ -21,7 +21,6 @@ npx loopcraft serve diagram.json   # ブラウザのエディタで開く（無�
 npx loopcraft serve new.json --sample  # 新しいファイルをサンプルの図で開いて試す
 npx loopcraft validate *.json      # スキーマと整合性を検証する（CI 向け）
 npx loopcraft loops diagram.json   # ループを一覧する（--format md で表にする）
-npx loopcraft init --sample        # 新しい図を作る
 npx loopcraft schema               # JSON Schema を出力する
 ```
 

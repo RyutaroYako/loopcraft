@@ -175,8 +175,10 @@ export function createProgram(dependencies: ProgramDependencies) {
     )
     .action(actions.loops);
 
+  // serve はファイルが無ければ最初の保存で作るので、新しく始める手段としては案内しない。
+  // 既存のスクリプトのために、コマンドとしては残す
   program
-    .command("init")
+    .command("init", { hidden: true })
     .description("新しい図のファイルを作る")
     .argument("[file]", `作るファイル（既定: ${DEFAULT_FILE}）`)
     .option("--sample", "サンプルの図を入れる")

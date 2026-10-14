@@ -1464,47 +1464,6 @@ button.save-status.warning .save-dot {
   color: var(--ink);
 }
 
-.filter-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 20px 12px;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-2);
-  transition:
-    background-color 0.2s var(--ease-out),
-    border-color 0.2s var(--ease-out),
-    color 0.2s var(--ease-out);
-}
-
-.chip:hover {
-  border-color: var(--line-strong);
-}
-
-.chip.active {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: #fafafa;
-}
-
-.chip-count {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  opacity: 0.6;
-}
-
 .loop-warning {
   margin: 0 20px 10px;
   padding: 8px 10px;
