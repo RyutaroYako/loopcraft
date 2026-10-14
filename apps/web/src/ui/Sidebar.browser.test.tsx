@@ -316,6 +316,12 @@ describe("変数の一覧", () => {
 
     await userEvent.fill(search(), "存在しない");
     await expect.element(page.getByText("名前が一致する変数はありません")).toBeVisible();
+
+    // タブを切り替えても、絞り込みは残る
+    await page.getByRole("tab", { name: /ループ/ }).click();
+    await expect.element(search()).not.toBeVisible();
+    await page.getByRole("tab", { name: /変数/ }).click();
+    await expect.element(search()).toHaveValue("存在しない");
   });
 
   it("左右の矢印キーでタブを移り、変数が無ければ足し方を案内する", async () => {

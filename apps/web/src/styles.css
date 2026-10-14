@@ -1499,6 +1499,10 @@ button.save-status.warning .save-dot {
   min-height: 0;
 }
 
+.loop-list[hidden] {
+  display: none;
+}
+
 .browser {
   display: flex;
   flex-direction: column;

@@ -425,6 +425,15 @@ describe("選んだ変数のまわり", () => {
       true,
     );
   });
+
+  it("矢印の無い変数を選んだときや、名前の入力中は薄くしない", async () => {
+    await open();
+    await userEvent.dblClick(canvas(), { position: { x: 40, y: 40 } });
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
+    expect(document.querySelectorAll(".node.dimmed")).toHaveLength(0);
+    await userEvent.keyboard("{Escape}");
+    expect(document.querySelectorAll(".node.dimmed")).toHaveLength(0);
+  });
 });
 
 describe("右クリックのメニュー", () => {
@@ -448,9 +457,34 @@ describe("右クリックのメニュー", () => {
     await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
 
+    // メニューを開いている間は、Delete などのショートカットを図に届けない
     openMenu(nodeElement("sales"), centerOf(nodeElement("sales")));
+    await expect.element(menuItem(/名前を変える/)).toHaveFocus();
+    await userEvent.keyboard("{Delete}");
+    await expect.element(node("売上")).toBeVisible();
+
     await menuItem(/変数を削除/).click();
     await expect.element(node("売上")).not.toBeInTheDocument();
+  });
+
+  it("図や表示範囲が変わったら閉じ、項目を選んだ後は元の要素へフォーカスを戻す", async () => {
+    await open();
+    const link = () => document.querySelector('[data-link-id="l_sales"]')!;
+    const at = () => centerOf(link().querySelector(".polarity")!);
+    openMenu(link().querySelector(".link-hit")!, at());
+    await menuItem("遅れを付ける").click();
+    await expect.poll(() => document.activeElement?.closest("[data-link-id]")).toBe(link());
+
+    openMenu(link().querySelector(".link-hit")!, at());
+    await expect.element(menu("関連の操作")).toBeVisible();
+    // ほかの操作（ここではショートカットではなく直接の元に戻す）で図が変わると閉じる
+    (document.querySelector('[aria-label="元に戻す"]') as HTMLButtonElement).click();
+    await expect.element(menu("関連の操作")).not.toBeInTheDocument();
+
+    openMenu(document.querySelector(".grid-bg")!, canvasPoint(40, 40));
+    await expect.element(menu("キャンバスの操作")).toBeVisible();
+    (document.querySelector('[title="拡大"]') as HTMLButtonElement).click();
+    await expect.element(menu("キャンバスの操作")).not.toBeInTheDocument();
   });
 
   it("関連のメニューで極性と遅れを切り替え、削除できる", async () => {
@@ -489,7 +523,10 @@ describe("右クリックのメニュー", () => {
       ),
     );
     await settle();
-    openMenu(document.querySelector(".grid-bg")!, point);
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    document.querySelector(".grid-bg")!.dispatchEvent(event);
     expect(document.querySelector(".context-menu")).toBeNull();
+    // ブラウザ自身のメニューは妨げない
+    expect(event.defaultPrevented).toBe(false);
   });
 });

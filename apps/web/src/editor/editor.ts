@@ -147,12 +147,12 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   });
 
   /**
-   * 選んだ変数と、その直接の原因・結果。ループを強調しているときは、そちらを優先して作らない。
-   * キャンバスでは、ここに含まれない変数と矢印を薄くする
+   * 選んだ変数と、その直接の原因・結果。名前の入力中や、まだ矢印の無い変数では作らない
+   * （足したばかりの変数で、ほかがすべて薄くなるのを避ける）
    */
   const neighborhood = createMemo(() => {
     const selected = selection();
-    if (selected?.kind !== "variable" || highlightedLoop() !== undefined) return undefined;
+    if (selected?.kind !== "variable" || editingVariable() !== null) return undefined;
     const variables = new Set<VariableId>([selected.id]);
     const linkIds = new Set<LinkId>();
     for (const link of links()) {
@@ -161,8 +161,11 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
       variables.add(link.from);
       variables.add(link.to);
     }
-    return { variables, links: linkIds };
+    return linkIds.size > 0 ? { variables, links: linkIds } : undefined;
   });
+
+  /** キャンバスで目立たせる範囲。強調しているループを、選んだ変数のまわりより優先する。外は薄くする */
+  const emphasis = createMemo(() => highlightedLoop() ?? neighborhood());
 
   function updateHistorySize() {
     setHistorySize({ undo: undoStack.length, redo: redoStack.length });
@@ -510,7 +513,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     loopEntries,
     loopEntryByLoopId,
     highlightedLoop,
-    neighborhood,
+    emphasis,
     historySize,
     editable,
     selection,

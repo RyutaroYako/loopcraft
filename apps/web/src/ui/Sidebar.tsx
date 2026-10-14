@@ -59,15 +59,15 @@ function Browser() {
           )}
         </For>
       </div>
-      <Show when={tab() === "loops"} fallback={<VariableList />}>
-        <LoopList />
-      </Show>
+      {/* 切り替えても絞り込みやスクロール位置が消えないよう、両方を描いたまま隠す */}
+      <LoopList hidden={tab() !== "loops"} />
+      <VariableList hidden={tab() !== "variables"} />
     </section>
   );
 }
 
 /** 変数の一覧。名前で絞り込み、選ぶとキャンバスでその変数を中央に出す */
-function VariableList() {
+function VariableList(props: { hidden: boolean }) {
   const editor = useContext(EditorContext);
   const [query, setQuery] = createSignal("");
   /** 変数ごとの、原因（入ってくる矢印）と結果（出ていく矢印）の数 */
@@ -97,7 +97,6 @@ function VariableList() {
     return selection?.kind === "variable" ? selection.id : undefined;
   };
   const choose = (id: VariableId) => {
-    editor.setFocusedLoop(null);
     editor.select({ kind: "variable", id });
     const variable = editor.variableById().get(id);
     if (variable) editor.centerOn(variable.position);
@@ -106,6 +105,7 @@ function VariableList() {
     <div
       class="loop-list"
       role="tabpanel"
+      hidden={props.hidden}
       id="browser-panel-variables"
       aria-labelledby="browser-tab-variables"
     >
@@ -730,12 +730,13 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
   );
 }
 
-function LoopList() {
+function LoopList(props: { hidden: boolean }) {
   const editor = useContext(EditorContext);
   return (
     <div
       class="loop-list"
       role="tabpanel"
+      hidden={props.hidden}
       id="browser-panel-loops"
       aria-labelledby="browser-tab-loops"
     >

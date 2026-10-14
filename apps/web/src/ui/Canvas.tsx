@@ -208,9 +208,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     }
   };
 
-  // ドラッグ中はポインタをキャプチャしているので、dblclick の target は常に svg になる。
-  // 実際にポインタの下にあるものを調べて振り分ける
-  const [menu, setMenu] = createSignal<MenuState | null>(null);
+  const [menu, setMenu] = createSignal<(MenuState & ReturnType<typeof openedAt>) | null>(null);
   /** メニューを Escape で閉じたときに、フォーカスを戻す先 */
   let menuOrigin: HTMLElement | SVGElement | undefined;
 
@@ -271,8 +269,11 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   ];
 
   const onContextMenu = (event: MouseEvent) => {
-    event.preventDefault();
+    // 読み取り専用では、ブラウザ自身のメニューをそのまま使えるようにする
     if (!editor.editable() || !svg) return;
+    event.preventDefault();
+    // ドラッグ中はキャプチャで target が常に svg になり、狙いと違うメニューになるので開かない
+    if (drag !== undefined) return;
     const target = event.target instanceof Element ? event.target : svg;
     const node = target.closest<SVGElement>("[data-variable-id]");
     const link = target.closest<SVGElement>("[data-link-id]");
@@ -290,14 +291,30 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       const id = node.dataset.variableId as VariableId;
       editor.select({ kind: "variable", id });
       const label = editor.variableById().get(id)?.label || "名称未設定";
-      setMenu({ ...position, label: `「${label}」の操作`, items: variableMenu(id) });
+      setMenu({ ...position, ...openedAt(), label: `「${label}」の操作`, items: variableMenu(id) });
     } else if (link) {
       const id = link.dataset.linkId as LinkId;
       editor.select({ kind: "link", id });
-      setMenu({ ...position, label: "関連の操作", items: linkMenu(id) });
+      setMenu({ ...position, ...openedAt(), label: "関連の操作", items: linkMenu(id) });
     } else {
-      setMenu({ ...position, label: "キャンバスの操作", items: canvasMenu(worldPoint(at)) });
+      setMenu({
+        ...position,
+        ...openedAt(),
+        label: "キャンバスの操作",
+        items: canvasMenu(worldPoint(at)),
+      });
     }
+  };
+
+  /** 開いた時点の図と表示範囲。どちらかが変わったら、メニューの項目や位置が古くなるので閉じる */
+  const openedAt = () => ({ diagram: editor.diagram(), viewport: editor.viewport() });
+  const menuIsCurrent = () => {
+    const current = menu();
+    return (
+      current !== null &&
+      current.diagram === editor.diagram() &&
+      current.viewport === editor.viewport()
+    );
   };
 
   const closeMenu = (restoreFocus: boolean) => {
@@ -305,6 +322,8 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     if (restoreFocus) menuOrigin?.focus();
   };
 
+  // ドラッグ中はポインタをキャプチャしているので、dblclick の target は常に svg になる。
+  // 実際にポインタの下にあるものを調べて振り分ける
   const onDoubleClick = (event: MouseEvent) => {
     const point = worldPoint(event);
     const node = nodeAt(point);
@@ -431,7 +450,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         <EmptyState />
       </Show>
 
-      <Show when={menu()} keyed>
+      <Show when={menuIsCurrent() && menu()} keyed>
         {(current) => (
           <ContextMenu
             menu={current}
