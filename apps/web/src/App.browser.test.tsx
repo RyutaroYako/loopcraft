@@ -198,29 +198,38 @@ describe("案内", () => {
 });
 
 describe("serve で開いたとき", () => {
-  it("閲覧モードでは編集できず、編集モードに切り替えると編集できる", async () => {
-    mount(fileStartup(ok(), { editable: false }));
-    await expect.element(page.getByRole("radio", { name: "閲覧" })).toBeChecked();
+  it("最初から編集でき、読み取り専用のときだけ編集できない", async () => {
+    mount(fileStartup(ok()));
     await expect.element(page.getByText("growth.json")).toBeVisible();
-    await expect.element(page.getByText("閲覧モード", { exact: true })).toBeVisible();
-    await userEvent.dblClick(canvas(), { position: { x: 300, y: 120 } });
-    expect(document.querySelector(".inline-label")).toBeNull();
-
-    await page.getByRole("radio", { name: "編集" }).click();
     await userEvent.dblClick(canvas(), { position: { x: 300, y: 120 } });
     await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveFocus();
-    await page.getByRole("radio", { name: "閲覧" }).click();
-    await expect.element(page.getByRole("radio", { name: "閲覧" })).toBeChecked();
+
+    mount(fileStartup(ok(), { readonly: true }));
+    await expect.element(page.getByText("読み取り専用", { exact: true })).toBeVisible();
+    // 読み上げは画面の幅によらず、読み取り専用であることと、その意味を伝える
+    await expect
+      .element(page.getByText("読み取り専用。編集も保存もできません"))
+      .toBeInTheDocument();
+    await userEvent.dblClick(canvas(), { position: { x: 300, y: 120 } });
+    expect(document.querySelector(".inline-label")).toBeNull();
   });
 
-  it("読み取り専用ではモードを切り替えられない", async () => {
-    mount(fileStartup(ok(), { readonly: true }));
-    await expect.element(page.getByText("読み取り専用")).toBeVisible();
-    expect(document.querySelector(".mode-switch")).toBeNull();
+  it("狭い画面では読み取り専用の印を鍵のアイコンに縮める", async () => {
+    const original = { width: window.innerWidth, height: window.innerHeight };
+    await page.viewport(390, 800);
+    try {
+      mount(fileStartup(ok(), { readonly: true }));
+      await expect.element(page.getByText("読み取り専用", { exact: true })).not.toBeVisible();
+      await expect
+        .poll(() => document.querySelector(".mode-badge-short svg")?.getBoundingClientRect().width)
+        .toBeGreaterThan(0);
+    } finally {
+      await page.viewport(original.width, original.height);
+    }
   });
 
   it("ファイルがまだ無ければ、最初の保存で作ることを知らせる", async () => {
-    mount(fileStartup({ status: "missing" }, { editable: true }));
+    mount(fileStartup({ status: "missing" }));
     await expect
       .element(page.getByRole("status"))
       .toMatchTextContent(/growth\.json はまだありません/);
@@ -240,7 +249,7 @@ describe("serve で開いたとき", () => {
   it("保存に失敗したら表示を変え、押すと対処を案内する", async () => {
     const { store, control } = fakeFileStore();
     control.saveResult = { ok: false, reason: "failed", error: new Error("disk full") };
-    mount(fileStartup(ok(), { editable: true, store }));
+    mount(fileStartup(ok(), { store }));
     await userEvent.fill(page.getByRole("textbox", { name: "図のタイトル" }), "新しい題");
     const indicator = page.getByRole("button", { name: /自動保存できません/ });
     await expect.element(indicator).toBeVisible();

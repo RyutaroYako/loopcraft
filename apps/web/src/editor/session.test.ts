@@ -14,7 +14,7 @@ function documentWith(content: string | undefined) {
 
 describe("readSession", () => {
   it("埋め込まれたセッションを読む", () => {
-    const session = { token: "t", file: "a.json", editable: true, readonly: false };
+    const session = { token: "t", file: "a.json", readonly: false };
     expect(readSession(documentWith(JSON.stringify(session)))).toEqual(session);
   });
 

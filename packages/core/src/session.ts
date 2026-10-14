@@ -16,9 +16,7 @@ export const SessionSchema = v.object({
   token: v.pipe(v.string(), v.nonEmpty()),
   /** 表示用のファイル名 */
   file: v.string(),
-  /** 開いたときに編集できるか。false なら閲覧モードで始める */
-  editable: v.boolean(),
-  /** true なら編集モードに切り替えられない */
+  /** true なら編集できず、サーバーも書き込みを拒否する */
   readonly: v.boolean(),
   /** true なら、ファイルが無いときに空の図ではなくサンプルの図で始める */
   sample: v.optional(v.boolean()),

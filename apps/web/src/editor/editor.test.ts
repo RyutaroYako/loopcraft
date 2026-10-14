@@ -127,7 +127,7 @@ describe("履歴", () => {
   });
 });
 
-describe("閲覧モード", () => {
+describe("読み取り専用", () => {
   it("編集の操作はすべて何もしない", async () => {
     const editor = setup(createSampleDiagram(), false);
     const before = editor.current();
@@ -152,24 +152,9 @@ describe("閲覧モード", () => {
     expect(editor.editable()).toBe(false);
   });
 
-  it("編集モードに切り替えると編集でき、戻すと名前の入力を閉じる", () => {
-    const editor = setup(createSampleDiagram(), false);
-    editor.setEditable(true);
-    editor.setEditingVariable(vid("staff"));
-    editor.commit(edit.setTitle(editor.current(), "x"));
-    flush();
-    expect(editor.diagram().title).toBe("x");
-    expect(editor.editingVariable()).toBe("staff");
-    editor.setEditable(false);
-    flush();
-    expect(editor.editingVariable()).toBeNull();
-  });
-
-  it("外部の変更は閲覧モードでも取り込み、消えた要素の選択と入力を外す", () => {
+  it("外部の変更を取り込み、消えた要素の選択と入力を外す", () => {
     const editor = setup(createSampleDiagram(), true);
     editor.select({ kind: "variable", id: vid("staff") });
-    editor.setEditable(false);
-    editor.setEditable(true);
     editor.setEditingVariable(vid("staff"));
     flush();
     const next = edit.removeVariable(editor.current(), vid("staff"));

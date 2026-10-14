@@ -11,7 +11,6 @@ npx loopcraft serve diagram.json   # ブラウザのエディタで開く（無�
 npx loopcraft serve new.json --sample  # 新しいファイルをサンプルの図で開いて試す
 npx loopcraft validate *.json      # スキーマと整合性を検証する（CI 向け）
 npx loopcraft loops diagram.json   # ループを一覧する（--format md で表にする）
-npx loopcraft init --sample        # 新しい図を作る
 npx loopcraft schema               # JSON Schema を出力する
 ```
 
@@ -19,7 +18,7 @@ npx loopcraft schema               # JSON Schema を出力する
 
 ## エディタ
 
-`serve` は閲覧モードで開きます。編集するときは画面上の「編集」に切り替えるか、`--edit` を付けて起動してください。`--readonly` を付けると編集モードに切り替えられません。
+`serve` で開いた図はそのまま編集できます。見せるだけのときは `--readonly` を付けると、編集も保存もできなくなります。
 
 編集内容はそのファイルに自動で保存され、ほかのエディタや `git pull` でファイルが変わると画面にも反映されます。エディタは `127.0.0.1` だけで待ち受け、ターミナルに表示した URL からしか開けません。
 

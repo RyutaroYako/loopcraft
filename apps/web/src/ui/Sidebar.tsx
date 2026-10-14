@@ -3,8 +3,10 @@ import { AutosaveContext } from "../editor/autosave.ts";
 import { EditorContext, type Editor } from "../editor/editor.ts";
 import type { LoopEntry } from "@loopcraft/core/loops";
 import { downloadText } from "../editor/file.ts";
+import { refocusWhenLost } from "../editor/focus.ts";
 import { listBackups, readBackup, removeBackup } from "../editor/storage.ts";
 import * as edit from "@loopcraft/core/edit";
+import { defaultCurvature } from "@loopcraft/core/geometry";
 import type { LoopKind } from "@loopcraft/core/loop";
 import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
 import { ArrowRightIcon, PinIcon, TrashIcon } from "./icons.tsx";
@@ -113,27 +115,9 @@ function Field(props: {
 function DiagramInspector() {
   const editor = useContext(EditorContext);
   const autosave = useContext(AutosaveContext);
-  const stats = () => {
-    const diagram = editor.diagram();
-    return [
-      { label: "出来事", value: diagram.variables.length },
-      { label: "関連", value: diagram.links.length },
-      { label: "見出したループ", value: diagram.loops.length },
-    ];
-  };
   return (
     <div class="inspector-body">
       <SectionHeading kicker="Diagram" title="図の概要" />
-      <dl class="stats">
-        <For each={stats()} keyed={false}>
-          {(stat) => (
-            <div class="stat">
-              <dt>{stat().label}</dt>
-              <dd>{stat().value}</dd>
-            </div>
-          )}
-        </For>
-      </dl>
       <Field
         name="diagram-description"
         label="この図で伝えたいこと"
@@ -182,10 +166,7 @@ function BackupList() {
     setConfirming(null);
     setBackups(listBackups());
     // 押したボタンは行ごと消えるので、残りの項目か検査パネルへフォーカスを移す
-    requestAnimationFrame(() => {
-      const next = list?.isConnected ? list.querySelector("button") : null;
-      (next ?? document.querySelector<HTMLElement>(".inspector"))?.focus();
-    });
+    refocusWhenLost(() => list?.querySelector("button"), inspectorElement);
   };
   return (
     <Show when={backups().length > 0}>
@@ -404,6 +385,15 @@ function LinkInspector(props: { id: LinkId }) {
   const link = () => editor.linkById().get(props.id);
   const from = () => labelOf(editor, link()?.from);
   const to = () => labelOf(editor, link()?.to);
+  const reversed = () => {
+    const current = link();
+    return current !== undefined && editor.hasReverse(current);
+  };
+  /** 既定の形（直線、逆向きの関連があれば決まった曲がり）と違う曲がり具合が付いているか */
+  const customCurvature = () => {
+    const curvature = link()?.curvature;
+    return curvature !== undefined && curvature !== defaultCurvature(reversed());
+  };
   const update = (patch: Parameters<typeof edit.updateLink>[2], key?: string) =>
     editor.commit(edit.updateLink(editor.current(), props.id, patch), key);
   const selectEnd = (end: "from" | "to") => {
@@ -477,16 +467,22 @@ function LinkInspector(props: { id: LinkId }) {
         }
       />
       <Show when={editor.editable()}>
-        <div class="inline-actions">
-          <button
-            type="button"
-            class="button ghost small"
-            disabled={link()?.curvature === undefined}
-            onClick={() => update({ curvature: undefined })}
-          >
-            既定の線に戻す
-          </button>
-        </div>
+        {/* 以前の版や JSON で付けた曲がり具合は、ここでだけ既定の形に戻せる */}
+        <Show when={customCurvature()}>
+          <div class="inline-actions">
+            <button
+              type="button"
+              class="button ghost small"
+              onClick={() => {
+                update({ curvature: undefined });
+                // 押したボタンは消えるので、検査パネルへフォーカスを戻す
+                refocusWhenLost(inspectorElement);
+              }}
+            >
+              {reversed() ? "既定の曲がりに戻す" : "直線に戻す"}
+            </button>
+          </div>
+        </Show>
         <DeleteButton label="関連を削除" />
       </Show>
     </div>
@@ -546,6 +542,8 @@ function LoopInspector(props: { id: LoopId }) {
   );
 }
 
+const inspectorElement = () => document.querySelector<HTMLElement>(".inspector");
+
 function DeleteButton(props: { label: string }) {
   const editor = useContext(EditorContext);
   return (
@@ -593,21 +591,8 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
   );
 }
 
-type Filter = "all" | LoopKind;
-
 function LoopList() {
   const editor = useContext(EditorContext);
-  const [filter, setFilter] = createSignal<Filter>("all");
-  const visible = createMemo(() =>
-    editor.loopEntries().filter((entry) => filter() === "all" || entry.kind === filter()),
-  );
-  const count = (kind: Filter) =>
-    editor.loopEntries().filter((entry) => kind === "all" || entry.kind === kind).length;
-  const filters: { value: Filter; label: string }[] = [
-    { value: "all", label: "すべて" },
-    { value: "reinforcing", label: "自己強化 R" },
-    { value: "balancing", label: "バランス B" },
-  ];
   return (
     <section class="loop-list" aria-labelledby="loop-list-title">
       <header class="loop-list-header">
@@ -619,29 +604,13 @@ function LoopList() {
           <span>{editor.loopEntries().length}</span> 検出
         </p>
       </header>
-      <div class="filter-chips" role="radiogroup" aria-label="ループの種類で絞り込む">
-        <For each={filters}>
-          {(item) => (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={pressedState(filter() === item.value)}
-              class={["chip", { active: filter() === item.value }]}
-              onClick={() => setFilter(item.value)}
-            >
-              {item.label}
-              <span class="chip-count">{count(item.value)}</span>
-            </button>
-          )}
-        </For>
-      </div>
       <Show when={editor.detection().truncated}>
         <p class="loop-warning">
           ループが多すぎるため、先頭の {editor.detection().loops.length} 件だけを表示しています
         </p>
       </Show>
       <Show
-        when={visible().length > 0}
+        when={editor.loopEntries().length > 0}
         fallback={
           <div class="loop-empty">
             <svg viewBox="0 0 64 40" aria-hidden="true" class="loop-empty-art">
@@ -650,16 +619,12 @@ function LoopList() {
               <path d="m20 26-3 4 4 3" />
               <path d="m44 14 3-4-4-3" />
             </svg>
-            <p>
-              {editor.loopEntries().length === 0
-                ? "矢印をつないで輪を作ると、ここにループが自動で現れます"
-                : "この種類のループはありません"}
-            </p>
+            <p>矢印をつないで輪を作ると、ここにループが自動で現れます</p>
           </div>
         }
       >
         <ul class="loop-items">
-          <For each={visible()} keyed={(entry) => entry.key}>
+          <For each={editor.loopEntries()} keyed={(entry) => entry.key}>
             {(entry, index) => <LoopItem entry={entry()} index={index()} />}
           </For>
         </ul>

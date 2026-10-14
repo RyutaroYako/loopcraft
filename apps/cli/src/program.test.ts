@@ -39,7 +39,10 @@ describe("runCli", () => {
   it("引数が無く対話できなければヘルプを出す", async () => {
     const { exitCode, stdout } = await run([]);
     expect(exitCode).toBe(0);
-    expect(stdout.join("\n")).toContain("Usage: loopcraft");
+    const help = stdout.join("\n");
+    expect(help).toContain("Usage: loopcraft");
+    // serve と役割が重なる init は案内しない（コマンドとしては使える）
+    expect(help).not.toMatch(/^\s+init\b/m);
   });
 
   it("ヘルプとバージョン", async () => {
@@ -96,7 +99,11 @@ describe("runCli", () => {
     const result = await run(["serve", "diagram.json", "--port", "0", "--edit"]);
     expect(result.exitCode).toBe(0);
     expect(result.openBrowser).toHaveBeenCalledOnce();
-    expect(result.stderr).toContain("✓ diagram.json を開きました（編集モード）");
+    // --edit は以前の既定（閲覧モード）の名残で、受け付けて不要になったことを知らせる
+    expect(result.stderr).toContain(
+      "⚠ --edit は不要になりました。serve は常に編集できる状態で開きます",
+    );
+    expect(result.stderr).toContain("✓ diagram.json を開きました");
     expect(result.stderr.at(-1)).toBe("✓ 終了しました");
     const sample = await run(["serve", "new.json", "--port", "0", "--sample"]);
     expect(sample.stderr).toContain(
@@ -104,6 +111,10 @@ describe("runCli", () => {
     );
     const noOpen = await run(["serve", "diagram.json", "--port", "0", "--no-open", "--readonly"]);
     expect(noOpen.openBrowser).not.toHaveBeenCalled();
+    const both = await run(["serve", "diagram.json", "--port", "0", "--edit", "--readonly"]);
+    expect(both.stderr).toContain(
+      "⚠ --edit は不要になりました。--readonly を指定しているので読み取り専用で開きます",
+    );
   });
 
   describe("対話できるとき", () => {

@@ -2,7 +2,7 @@ import { createSampleDiagram } from "@loopcraft/core/sample";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createFileClient } from "./fileStore.ts";
 
-const session = { token: "tok", file: "a.json", editable: true, readonly: false };
+const session = { token: "tok", file: "a.json", readonly: false };
 
 function respond(status: number, body: unknown) {
   return new Response(typeof body === "string" ? body : JSON.stringify(body), { status });

@@ -69,12 +69,22 @@ describe("ツールバー", () => {
 
     mount(browserStartup(createEmptyDiagram()));
     await expect.element(button("整列")).toBeDisabled();
-    mount(fileStartup({ status: "ok", diagram: createSampleDiagram(), revision: "r" }));
+    mount(
+      fileStartup(
+        { status: "ok", diagram: createSampleDiagram(), revision: "r" },
+        { readonly: true },
+      ),
+    );
     await expect.element(button("整列")).not.toBeInTheDocument();
   });
 
-  it("画像と JSON の書き出しは閲覧モードでも使え、図が空なら画像は作れない", async () => {
-    mount(fileStartup({ status: "ok", diagram: createSampleDiagram(), revision: "r" }));
+  it("画像と JSON の書き出しは読み取り専用でも使え、図が空なら画像は作れない", async () => {
+    mount(
+      fileStartup(
+        { status: "ok", diagram: createSampleDiagram(), revision: "r" },
+        { readonly: true },
+      ),
+    );
     await expect.element(button("画像")).toBeEnabled();
     await expect.element(button("JSON を書き出す")).toBeEnabled();
     await expect.element(button("読み込み")).not.toBeInTheDocument();
@@ -227,8 +237,13 @@ describe("最初の画面", () => {
     await expect.element(node("社員数")).toBeVisible();
   });
 
-  it("閲覧モードでは編集に切り替えるよう案内する", async () => {
-    mount(fileStartup({ status: "ok", diagram: createEmptyDiagram(), revision: "r" }));
+  it("読み取り専用で図が空なら、その旨を示す", async () => {
+    mount(
+      fileStartup(
+        { status: "ok", diagram: createEmptyDiagram(), revision: "r" },
+        { readonly: true },
+      ),
+    );
     await expect
       .element(page.getByRole("heading", { name: "まだ出来事がありません" }))
       .toBeVisible();

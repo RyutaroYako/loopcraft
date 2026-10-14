@@ -24,7 +24,7 @@ const ARROW_OFFSETS: Partial<Record<string, Point>> = {
 };
 const NO_SIZE = { width: 0, height: 0 };
 
-export function geometryOf(editor: Editor, link: Link) {
+function geometryOf(editor: Editor, link: Link) {
   const boxes = editor.boxes();
   const from = boxes.get(link.from);
   const to = boxes.get(link.to);

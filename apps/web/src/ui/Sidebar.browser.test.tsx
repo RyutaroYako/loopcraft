@@ -43,10 +43,9 @@ const button = (name: string | RegExp) =>
   page.getByRole("button", { name, exact: typeof name === "string" });
 
 describe("図の概要", () => {
-  it("数を並べ、伝えたいことを書ける", async () => {
+  it("伝えたいことを書ける", async () => {
     await open();
     await expect.element(heading("図の概要")).toBeVisible();
-    expect(document.querySelector(".stats")?.textContent).toContain("出来事7");
     await userEvent.fill(field(/^この図で伝えたいこと/), "成長と負荷");
     await expect.element(field(/^この図で伝えたいこと/)).toHaveValue("成長と負荷");
   });
@@ -142,7 +141,7 @@ describe("出来事", () => {
 });
 
 describe("関連", () => {
-  it("極性・遅れ・説明・曲がり具合を変え、削除する", async () => {
+  it("極性・遅れ・説明を変え、付いていた曲がり具合を直線に戻し、削除する", async () => {
     await open({
       ...createSampleDiagram(),
       links: createSampleDiagram().links.map((link) =>
@@ -165,11 +164,40 @@ describe("関連", () => {
     await writeAndClearDescription(
       (diagram) => diagram.links.find((item) => item.id === "l_sales")?.description,
     );
-    await button("既定の線に戻す").click();
-    await expect.element(button("既定の線に戻す")).toBeDisabled();
+    await button("直線に戻す").click();
+    await expect.element(button("直線に戻す")).not.toBeInTheDocument();
+    // 押したボタンは消えるので、フォーカスは（削除ボタンではなく）検査パネルへ戻る
+    await expect.poll(() => document.activeElement?.classList.contains("inspector")).toBe(true);
     await button(/関連を削除/).click();
     await expect.element(heading("図の概要")).toBeVisible();
     expect(document.querySelector('[aria-label^="社員数から売上への関連"]')).toBeNull();
+  });
+
+  it("既定の形と同じ曲がり具合なら戻すボタンを出さず、逆向きの関連があれば既定の曲がりに戻す", async () => {
+    const sample = createSampleDiagram();
+    const sales = sample.links.find((link) => link.id === "l_sales")!;
+    await open({
+      ...sample,
+      links: sample.links.map((link) => (link.id === "l_sales" ? { ...link, curvature: 0 } : link)),
+    });
+    (
+      page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement
+    ).focus();
+    await expect.element(heading("関連")).toBeVisible();
+    expect(document.querySelector(".inspector .inline-actions")).toBeNull();
+
+    await open({
+      ...sample,
+      links: [
+        ...sample.links,
+        { ...sales, id: "l_back" as LinkId, from: sales.to, to: sales.from, curvature: 0.4 },
+      ],
+    });
+    (
+      page.getByRole("button", { name: /^売上から社員数への関連/ }).element() as SVGGElement
+    ).focus();
+    await button("既定の曲がりに戻す").click();
+    await expect.element(button("既定の曲がりに戻す")).not.toBeInTheDocument();
   });
 
   it("両端の出来事に移れ、名前が無ければ「名称未設定」と示す", async () => {
@@ -222,16 +250,10 @@ describe("ループ", () => {
     await expect.element(page.getByText(/奇数なので変化を打ち消す/)).toBeVisible();
   });
 
-  it("種類で絞り込み、見出していないループは選ぶと強調し、ピンで見出す", async () => {
+  it("すべてのループを並べ、見出していないループは選ぶと強調し、ピンで見出す", async () => {
     await open();
-    const items = () => document.querySelectorAll(".loop-item");
-    await page.getByRole("radio", { name: /バランス B/ }).click();
-    await expect.poll(() => items().length).toBe(2);
+    await expect.poll(() => document.querySelectorAll(".loop-item").length).toBe(4);
     expect(document.querySelectorAll(".loop-item.balancing")).toHaveLength(2);
-    await page.getByRole("radio", { name: /自己強化 R/ }).click();
-    await expect.poll(() => document.querySelectorAll(".loop-item.reinforcing").length).toBe(2);
-    expect(items()).toHaveLength(2);
-    await page.getByRole("radio", { name: /すべて/ }).click();
 
     const plain = document.querySelector(".loop-item:not(.featured) .loop-item-main")!;
     await page.elementLocator(plain).click();
@@ -244,7 +266,7 @@ describe("ループ", () => {
     await expect.poll(() => document.querySelectorAll(".loop-item.featured").length).toBe(4);
   });
 
-  it("ループが無いときや、その種類が無いときは案内し、多すぎるときは知らせる", async () => {
+  it("ループが無いときは案内し、多すぎるときは知らせる", async () => {
     await open({
       ...createEmptyDiagram(),
       variables: [{ id: "a" as VariableId, label: "社員数", position: { x: 0, y: 0 } }],
@@ -267,14 +289,17 @@ describe("ループ", () => {
     };
     await open(complete);
     await expect.element(page.getByText(/ループが多すぎるため/)).toBeVisible();
-    await page.getByRole("radio", { name: /バランス B/ }).click();
-    await expect.element(page.getByText("この種類のループはありません")).toBeVisible();
   });
 });
 
-describe("閲覧モード", () => {
+describe("読み取り専用", () => {
   it("入力欄は読み取り専用になり、操作のボタンは出さない", async () => {
-    mount(fileStartup({ status: "ok", diagram: createSampleDiagram(), revision: "r" }));
+    mount(
+      fileStartup(
+        { status: "ok", diagram: createSampleDiagram(), revision: "r" },
+        { readonly: true },
+      ),
+    );
     await expect.element(node("社員数")).toBeVisible();
     await expect
       .element(page.getByText("出来事・矢印・ループを選ぶと、ここで詳しく見られます"))
