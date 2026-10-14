@@ -89,11 +89,11 @@ describe("図の概要", () => {
   });
 });
 
-describe("出来事", () => {
+describe("変数", () => {
   it("名前と説明を書き換え、原因と結果を辿って追加し、削除する", async () => {
     await open();
     nodeElement("sales").focus();
-    await expect.element(heading("出来事")).toBeVisible();
+    await expect.element(heading("変数")).toBeVisible();
     await userEvent.fill(field("名前"), "売上高");
     await expect.element(node("売上高")).toBeVisible();
     await writeAndClearDescription(
@@ -104,14 +104,14 @@ describe("出来事", () => {
     await expect.element(add.first()).toBeDisabled();
     await page.getByRole("combobox", { name: "原因を追加" }).selectOptions("教育コスト");
     await add.first().click();
-    // 作った関連が選ばれるので、出来事を選び直す
+    // 作った関連が選ばれるので、変数を選び直す
     await expect.element(heading("関連")).toBeVisible();
     nodeElement("sales").focus();
     await page.getByRole("combobox", { name: "結果を追加" }).selectOptions("離職数");
     await add.last().click();
     await expect.element(heading("関連")).toBeVisible();
     await inspector().getByRole("button", { name: "売上高" }).click();
-    await expect.element(heading("出来事")).toBeVisible();
+    await expect.element(heading("変数")).toBeVisible();
     await expect.element(inspector().getByRole("button", { name: /教育コスト$/ })).toBeVisible();
 
     await inspector()
@@ -119,11 +119,11 @@ describe("出来事", () => {
       .click();
     await expect.element(heading("関連")).toBeVisible();
     await inspector().getByRole("button", { name: "売上高" }).click();
-    await button(/出来事を削除/).click();
+    await button(/変数を削除/).click();
     await expect.element(node("売上高")).not.toBeInTheDocument();
   });
 
-  it("繋がりの無い出来事は、無いことを示す", async () => {
+  it("繋がりの無い変数は、無いことを示す", async () => {
     await open({
       ...createEmptyDiagram(),
       variables: [
@@ -132,8 +132,8 @@ describe("出来事", () => {
       ],
     });
     nodeElement("a").focus();
-    await expect.element(page.getByText("この出来事に影響する矢印はありません")).toBeVisible();
-    await expect.element(page.getByText("この出来事から出る矢印はありません")).toBeVisible();
+    await expect.element(page.getByText("この変数に影響する矢印はありません")).toBeVisible();
+    await expect.element(page.getByText("この変数から出る矢印はありません")).toBeVisible();
     await page.getByRole("combobox", { name: "結果を追加" }).selectOptions("社員数");
     await page.getByRole("button", { name: "追加", exact: true }).last().click();
     await expect.element(inspector().getByRole("button", { name: "名称未設定" })).toBeVisible();
@@ -200,7 +200,7 @@ describe("関連", () => {
     await expect.element(button("既定の曲がりに戻す")).not.toBeInTheDocument();
   });
 
-  it("両端の出来事に移れ、名前が無ければ「名称未設定」と示す", async () => {
+  it("両端の変数に移れ、名前が無ければ「名称未設定」と示す", async () => {
     await open({
       ...createEmptyDiagram(),
       variables: [
@@ -302,12 +302,12 @@ describe("読み取り専用", () => {
     );
     await expect.element(node("社員数")).toBeVisible();
     await expect
-      .element(page.getByText("出来事・矢印・ループを選ぶと、ここで詳しく見られます"))
+      .element(page.getByText("変数・矢印・ループを選ぶと、ここで詳しく見られます"))
       .toBeVisible();
     nodeElement("sales").focus();
     await expect.element(field("名前")).toHaveAttribute("readonly");
     expect(document.querySelector(".relation-picker")).toBeNull();
-    await expect.element(button(/出来事を削除/)).not.toBeInTheDocument();
+    await expect.element(button(/変数を削除/)).not.toBeInTheDocument();
     (
       page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement
     ).focus();

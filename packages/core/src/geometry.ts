@@ -12,7 +12,7 @@ export const NODE_MIN_WIDTH = 72;
 export const DEFAULT_CURVATURE = 0;
 /** 逆向きの関連と重ならないよう、対になった関連に付ける曲がり具合 */
 export const PAIRED_CURVATURE = 0.18;
-/** 矢印の先端と出来事の枠の間に空ける隙間 */
+/** 矢印の先端と変数の枠の間に空ける隙間 */
 const LINK_GAP = 6;
 
 export function nodeSize(labelWidth: number): Size {

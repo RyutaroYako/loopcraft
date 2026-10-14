@@ -126,8 +126,8 @@ function DiagramInspector() {
         multiline
         hint={
           editor.editable()
-            ? "出来事・矢印・ループを選ぶと、ここで編集できます"
-            : "出来事・矢印・ループを選ぶと、ここで詳しく見られます"
+            ? "変数・矢印・ループを選ぶと、ここで編集できます"
+            : "変数・矢印・ループを選ぶと、ここで詳しく見られます"
         }
         onInput={(value) =>
           editor.commit(edit.setDescription(editor.current(), value), "diagram-description")
@@ -228,7 +228,7 @@ function VariableInspector(props: { id: VariableId }) {
       effects: links.filter((link) => link.from === props.id),
     };
   });
-  /** 自分自身と、既に同じ向きで繋がっている出来事を除いた候補 */
+  /** 自分自身と、既に同じ向きで繋がっている変数を除いた候補 */
   const candidates = (linked: VariableId[]) => {
     const excluded = new Set<VariableId>([props.id, ...linked]);
     return editor
@@ -240,7 +240,7 @@ function VariableInspector(props: { id: VariableId }) {
     editor.commit(edit.updateVariable(editor.current(), props.id, patch), `${key}:${props.id}`);
   return (
     <div class="inspector-body">
-      <SectionHeading kicker="Variable" title="出来事" />
+      <SectionHeading kicker="Variable" title="変数" />
       <Field
         name="variable-label"
         label="名前"
@@ -259,7 +259,7 @@ function VariableInspector(props: { id: VariableId }) {
       <div class="relations">
         <RelationList
           title="原因"
-          empty="この出来事に影響する矢印はありません"
+          empty="この変数に影響する矢印はありません"
           links={related().causes}
           labelOf={(link) => labelOf(editor, link.from)}
           addLabel="原因を追加"
@@ -268,7 +268,7 @@ function VariableInspector(props: { id: VariableId }) {
         />
         <RelationList
           title="結果"
-          empty="この出来事から出る矢印はありません"
+          empty="この変数から出る矢印はありません"
           links={related().effects}
           labelOf={(link) => labelOf(editor, link.to)}
           addLabel="結果を追加"
@@ -277,7 +277,7 @@ function VariableInspector(props: { id: VariableId }) {
         />
       </div>
       <Show when={editor.editable()}>
-        <DeleteButton label="出来事を削除" />
+        <DeleteButton label="変数を削除" />
       </Show>
     </div>
   );

@@ -58,7 +58,7 @@ describe("ツールバー", () => {
     await expect.element(node("社員数")).toBeVisible();
   });
 
-  it("整列で出来事を並べ直し、元に戻せる", async () => {
+  it("整列で変数を並べ直し、元に戻せる", async () => {
     mount(browserStartup(createSampleDiagram()));
     const transform = () => node("社員数").element().getAttribute("transform");
     const before = transform();
@@ -223,10 +223,10 @@ describe("画像の書き出し", () => {
 });
 
 describe("最初の画面", () => {
-  it("出来事を追加し、JSON を読み込める", async () => {
+  it("変数を追加し、JSON を読み込める", async () => {
     mount(browserStartup(createEmptyDiagram()));
-    await button("出来事を追加").click();
-    await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveFocus();
+    await button("変数を追加").click();
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
 
     mount(browserStartup(createEmptyDiagram()));
@@ -244,15 +244,13 @@ describe("最初の画面", () => {
         { readonly: true },
       ),
     );
-    await expect
-      .element(page.getByRole("heading", { name: "まだ出来事がありません" }))
-      .toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "まだ変数がありません" })).toBeVisible();
     await expect.element(button("全体を表示")).toBeDisabled();
   });
 });
 
 describe("入力欄", () => {
-  it("検査パネルと出来事の名前も、変換中は確定するまで反映しない", async () => {
+  it("検査パネルと変数の名前も、変換中は確定するまで反映しない", async () => {
     mount(browserStartup(createSampleDiagram()));
     await expect.element(node("売上")).toBeVisible();
     const description = page.getByRole("textbox", { name: /^この図で伝えたいこと/ });
@@ -266,7 +264,7 @@ describe("入力欄", () => {
     await expect.element(node("売上高")).toBeVisible();
 
     await userEvent.keyboard("{F2}");
-    const inline = page.getByRole("textbox", { name: "出来事の名前" });
+    const inline = page.getByRole("textbox", { name: "変数の名前" });
     await expect.element(inline).toHaveFocus();
     const element = inline.element() as HTMLInputElement;
     element.value = "へんかん";

@@ -16,7 +16,7 @@ export function EmptyState() {
       fallback={
         <section class="empty-state" aria-labelledby="empty-title">
           <p class="eyebrow">Causal Loop Diagram</p>
-          <h2 id="empty-title">まだ出来事がありません</h2>
+          <h2 id="empty-title">まだ変数がありません</h2>
           <p class="empty-note">
             読み取り専用で開いています。編集するには<code>--readonly</code>
             を付けずに開き直してください。
@@ -26,18 +26,19 @@ export function EmptyState() {
     >
       <section class="empty-state" aria-labelledby="empty-title">
         <p class="eyebrow">Causal Loop Diagram</p>
-        <h2 id="empty-title">最初の出来事を置いて、つながりを描きはじめる</h2>
+        <h2 id="empty-title">最初の変数を置いて、つながりを描きはじめる</h2>
         <ol class="empty-steps">
           <li>
             <span class="step-index">01</span>
             <span>
-              キャンバスを<strong>ダブルクリック</strong>して出来事を追加
+              キャンバスを<strong>ダブルクリック</strong>
+              して変数（売上・社員数のように増減するもの）を追加
             </span>
           </li>
           <li>
             <span class="step-index">02</span>
             <span>
-              出来事の右端の点を<strong>ドラッグ</strong>して因果の矢印を引く
+              変数の右端の点を<strong>ドラッグ</strong>して因果の矢印を引く
             </span>
           </li>
           <li>
@@ -54,7 +55,7 @@ export function EmptyState() {
             onClick={() => editor.addVariableAt(editor.viewCenter())}
           >
             <PlusIcon />
-            出来事を追加
+            変数を追加
           </button>
           <button
             type="button"

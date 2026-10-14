@@ -26,8 +26,8 @@ interface Edge {
 class LimitReached extends Error {}
 
 /**
- * 関連が作る単純閉路（同じ出来事を 2 度通らないループ）をすべて列挙する。
- * 出来事の位置には依存しないので、関連の配列だけを受け取る。
+ * 関連が作る単純閉路（同じ変数を 2 度通らないループ）をすべて列挙する。
+ * 変数の位置には依存しないので、関連の配列だけを受け取る。
  * Johnson のアルゴリズムを使うので、閉路数に比例した時間で終わる。
  */
 export function findLoops(links: readonly Link[], limit = DEFAULT_CYCLE_LIMIT): CycleSearchResult {

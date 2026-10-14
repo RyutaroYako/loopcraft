@@ -32,7 +32,7 @@ describe("findLoops", () => {
     );
   });
 
-  it("出来事の並びは関連の出発点と対応する", () => {
+  it("変数の並びは関連の出発点と対応する", () => {
     const { loops } = findLoops(
       linksOf([
         ["a", "b", "+"],

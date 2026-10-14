@@ -27,7 +27,7 @@ export const VariableSchema = v.pipe(
     position: PointSchema,
   }),
   v.title("Variable"),
-  v.description("出来事（システムを構成する変数）"),
+  v.description("変数（売上や社員数のように増えたり減ったりする、システムを構成する要素）"),
 );
 
 export const PolaritySchema = v.pipe(
@@ -41,8 +41,8 @@ export const PolaritySchema = v.pipe(
 export const LinkSchema = v.pipe(
   v.object({
     id: LinkIdSchema,
-    from: v.pipe(VariableIdSchema, v.description("原因側の出来事の ID")),
-    to: v.pipe(VariableIdSchema, v.description("結果側の出来事の ID")),
+    from: v.pipe(VariableIdSchema, v.description("原因側の変数の ID")),
+    to: v.pipe(VariableIdSchema, v.description("結果側の変数の ID")),
     polarity: PolaritySchema,
     delay: v.optional(v.pipe(v.boolean(), v.description("影響が現れるまでに遅れがあるか"))),
     curvature: v.optional(
@@ -54,7 +54,7 @@ export const LinkSchema = v.pipe(
     description: v.optional(v.string()),
   }),
   v.title("Link"),
-  v.description("出来事同士の因果関係（有向辺）"),
+  v.description("変数同士の因果関係（有向辺）"),
 );
 
 export const LoopSchema = v.pipe(

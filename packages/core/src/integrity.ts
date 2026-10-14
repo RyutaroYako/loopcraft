@@ -29,7 +29,7 @@ export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
       if (!variableIds.has(link[end])) {
         issues.push({
           path: ["links", index, end],
-          message: `出来事 "${link[end]}" は存在しません`,
+          message: `変数 "${link[end]}" は存在しません`,
         });
       }
     }
@@ -54,7 +54,7 @@ export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
       const message = {
         "unknown-link": `関連 "${loop.links[error.index]}" は存在しません`,
         disconnected: "前の関連の行き先と次の関連の出発点が一致しません",
-        "revisits-variable": "同じ出来事を 2 回通っています",
+        "revisits-variable": "同じ変数を 2 回通っています",
       }[error.kind];
       issues.push({ path: ["loops", index, "links", error.index], message });
       continue;

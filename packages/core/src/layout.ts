@@ -12,19 +12,19 @@ import { linkPairKey } from "./integrity.ts";
 import type { Diagram, LoopId, Point, VariableId } from "./schema.ts";
 
 /*
- * 自動レイアウト。力学モデル（関連はばね、出来事同士は反発）で配置し、最後に枠の重なりを解く。
+ * 自動レイアウト。力学モデル（関連はばね、変数同士は反発）で配置し、最後に枠の重なりを解く。
  * 毎回同じ結果になるよう乱数は使わず、関連を辿った順に円周へ並べた状態から始める。
- * ループを構成する出来事が円周上で隣り合うので、交差の少ない形に落ち着きやすい。
+ * ループを構成する変数が円周上で隣り合うので、交差の少ない形に落ち着きやすい。
  */
 
-/** 関連で結ばれた出来事の中心同士の理想的な距離 */
+/** 関連で結ばれた変数の中心同士の理想的な距離 */
 const IDEAL_LENGTH = 170;
 const ITERATIONS = 400;
 /** 枠同士の最小の隙間 */
 const GAP_X = 40;
 const GAP_Y = 56;
 const GRAVITY = 0.04;
-/** 大きさが分からない出来事は、名前が空のときの大きさとみなす */
+/** 大きさが分からない変数は、名前が空のときの大きさとみなす */
 const FALLBACK_SIZE: Size = { width: NODE_MIN_WIDTH, height: NODE_HEIGHT };
 
 export function autoLayout(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>): Diagram {
@@ -82,7 +82,7 @@ function undirectedEdges(diagram: Diagram, index: ReadonlyMap<VariableId, number
   return edges;
 }
 
-/** 関連を深さ優先で辿った順。繋がっていない出来事は元の並び順で後に続ける */
+/** 関連を深さ優先で辿った順。繋がっていない変数は元の並び順で後に続ける */
 function traversalOrder(count: number, edges: readonly [number, number][]) {
   const neighbors: number[][] = Array.from({ length: count }, () => []);
   for (const [a, b] of edges) {
@@ -91,7 +91,7 @@ function traversalOrder(count: number, edges: readonly [number, number][]) {
   }
   const visited = new Set<number>();
   const order: number[] = [];
-  // 繋がりの多い出来事から始めると、中心的なループがまとまって並ぶ
+  // 繋がりの多い変数から始めると、中心的なループがまとまって並ぶ
   const starts = [...neighbors.keys()].sort(
     (a, b) => neighbors[b]!.length - neighbors[a]!.length || a - b,
   );
@@ -123,7 +123,7 @@ function initialCircle(order: readonly number[], widthOf: (at: number) => number
   return positions;
 }
 
-/** Fruchterman–Reingold。出来事の横幅の分だけ反発を強めて、長い名前同士が詰まらないようにする */
+/** Fruchterman–Reingold。変数の横幅の分だけ反発を強めて、長い名前同士が詰まらないようにする */
 function simulate(
   positions: Point[],
   edges: readonly [number, number][],
@@ -205,7 +205,7 @@ const POLARITY_RADIUS = 28;
 const MARKER_RADIUS = 40;
 
 /**
- * 各ループの記号を、ループの内側で出来事・関連・極性の印・ほかの記号から最も離れた点に置く。
+ * 各ループの記号を、ループの内側で変数・関連・極性の印・ほかの記号から最も離れた点に置く。
  * 十分に離れた点がいくつもあるときは重心に近いものを選ぶ。内側に点が無いときは重心に置く
  */
 function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {

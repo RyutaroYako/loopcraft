@@ -237,7 +237,7 @@ export function NodeView(props: {
   );
 }
 
-/** 描画が追いついた後に、出来事の要素へフォーカスを移す */
+/** 描画が追いついた後に、変数の要素へフォーカスを移す */
 function focusVariable(id: VariableId) {
   requestAnimationFrame(() => {
     document.querySelector<SVGGElement>(`[data-variable-id="${CSS.escape(id)}"]`)?.focus();
@@ -268,7 +268,7 @@ export function InlineLabelEditor(props: { id: VariableId }) {
       gesture?.end();
     }
     editor.setEditingVariable(null);
-    // キーボードで閉じたときは、入力欄が消えても出来事にフォーカスを戻して操作を続けられるようにする
+    // キーボードで閉じたときは、入力欄が消えても変数にフォーカスを戻して操作を続けられるようにする
     if (how !== "blur") focusVariable(props.id);
   };
   return (
@@ -276,8 +276,8 @@ export function InlineLabelEditor(props: { id: VariableId }) {
       <input
         class="inline-label"
         name="variable-label-inline"
-        aria-label="出来事の名前"
-        placeholder="出来事の名前"
+        aria-label="変数の名前"
+        placeholder="例: 売上"
         value={original}
         ref={(element) => {
           queueMicrotask(() => {

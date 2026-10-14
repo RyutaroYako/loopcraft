@@ -291,7 +291,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     }
   }
 
-  /** 関連を引いた先に新しい出来事を作り、すぐ名前を入力できるようにする */
+  /** 関連を引いた先に新しい変数を作り、すぐ名前を入力できるようにする */
   function connectToNewVariable(from: VariableId, position: Point) {
     if (!isEditable) return;
     const added = edit.addVariable(present, { label: "", position });
@@ -396,7 +396,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     downloadDiagram(present);
   }
 
-  /** 出来事の配置を自動で整える。元に戻せる */
+  /** 変数の配置を自動で整える。元に戻せる */
   function autoLayout() {
     if (!isEditable) return;
     const next = layoutDiagram(present, new Map([...boxes()].map(([id, box]) => [id, box.size])));

@@ -1,4 +1,4 @@
-/** 出来事のラベルと同じ書体。styles.css の .node-label と揃える */
+/** 変数のラベルと同じ書体。styles.css の .node-label と揃える */
 export const LABEL_FONT = `500 14px "Geist Variable", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif`;
 
 const cache = new Map<string, number>();

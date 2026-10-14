@@ -84,7 +84,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           onClick={() => editor.autoLayout()}
           disabled={editor.diagram().variables.length < 2}
           aria-label="整列"
-          title="出来事の配置を自動で整える（元に戻せます）"
+          title="変数の配置を自動で整える（元に戻せます）"
         >
           <LayoutIcon />
           <span class="button-label">整列</span>

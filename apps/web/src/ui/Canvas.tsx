@@ -369,7 +369,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           }
         >
           <p class="canvas-hint">
-            <span>ダブルクリックで出来事を追加</span>
+            <span>ダブルクリックで変数を追加</span>
             <span>右端の点をドラッグで関連</span>
             <span>
               <kbd>Delete</kbd> で削除

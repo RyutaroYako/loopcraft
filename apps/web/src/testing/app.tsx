@@ -84,7 +84,7 @@ export const canvas = () => page.getByRole("group", { name: "システム図の�
 export const node = (name: string) => page.getByRole("button", { name, exact: true });
 export const notice = () => document.querySelector(".notice");
 
-/** 出来事の要素。data-variable-id で引く */
+/** 変数の要素。data-variable-id で引く */
 export function nodeElement(id: string) {
   return document.querySelector<SVGGElement>(`[data-variable-id="${id}"]`)!;
 }

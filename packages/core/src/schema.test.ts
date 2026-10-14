@@ -30,7 +30,7 @@ describe("DiagramSchema", () => {
     expect(issuesOf(sample)).toHaveProperty(["variables.1.id"], [`ID "staff" が重複しています`]);
   });
 
-  it("存在しない出来事への関連を検出する", () => {
+  it("存在しない変数への関連を検出する", () => {
     const sample = createSample();
     sample.links[0]!.to = "ghost";
     expect(issuesOf(sample)).toHaveProperty(["links.0.to"]);
@@ -53,7 +53,7 @@ describe("DiagramSchema", () => {
     expect(issuesOf(sample)).toHaveProperty(["loops.0.links.0"]);
   });
 
-  it("同じ出来事を 2 回通るループを検出する", () => {
+  it("同じ変数を 2 回通るループを検出する", () => {
     const sample = createSample();
     sample.links.push(
       { id: "x1", from: "training", to: "staff", polarity: "+" },

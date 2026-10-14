@@ -73,7 +73,7 @@ export function updateVariable(diagram: Diagram, id: VariableId, patch: Patch<Va
 }
 
 /**
- * 出来事を動かす。位置を指定したループ記号は、ループの出来事の重心が動いた分だけ一緒に動かし、
+ * 変数を動かす。位置を指定したループ記号は、ループの変数の重心が動いた分だけ一緒に動かし、
  * ループとの位置関係を保つ
  */
 export function moveVariables(
@@ -112,7 +112,7 @@ export function moveVariables(
   return { ...diagram, variables, loops };
 }
 
-/** 出来事を消すと、それに繋がる関連と、その関連を通るループも消える。 */
+/** 変数を消すと、それに繋がる関連と、その関連を通るループも消える。 */
 export function removeVariable(diagram: Diagram, id: VariableId): Diagram {
   if (!diagram.variables.some((variable) => variable.id === id)) return diagram;
   const removedLinks = diagram.links.filter((link) => link.from === id || link.to === id);

@@ -65,7 +65,7 @@ describe("ポインタでの操作", () => {
     const sales = centerOf(nodeElement("sales"));
     press(nodeElement("sales"), sales);
     release(sales);
-    await expect.element(heading("出来事")).toBeVisible();
+    await expect.element(heading("変数")).toBeVisible();
     await settle();
     const before = centerOf(nodeElement("sales"));
     const background = document.querySelector(".grid-bg")!;
@@ -74,14 +74,14 @@ describe("ポインタでの操作", () => {
     const after = centerOf(nodeElement("sales"));
     expect(Math.round(after.x - before.x)).toBe(100);
     expect(Math.round(after.y - before.y)).toBe(70);
-    await expect.element(heading("出来事")).toBeVisible();
+    await expect.element(heading("変数")).toBeVisible();
 
     press(background, canvasPoint(40, 40));
     release(canvasPoint(41, 40));
     await expect.element(heading("図の概要")).toBeVisible();
   });
 
-  it("出来事をドラッグで動かし、中断したら元に戻す", async () => {
+  it("変数をドラッグで動かし、中断したら元に戻す", async () => {
     await open();
     const target = nodeElement("profit");
     const start = centerOf(target);
@@ -128,7 +128,7 @@ describe("ポインタでの操作", () => {
     expect(Math.round(centerOf(nodeElement("profit")).x - start.x)).toBe(30);
   });
 
-  it("右端の点を引いて、別の出来事か何もない所で離すと関連ができる", async () => {
+  it("右端の点を引いて、別の変数か何もない所で離すと関連ができる", async () => {
     await open(createEmptyDiagram());
     await userEvent.dblClick(canvas(), { position: { x: 300, y: 300 } });
     await userEvent.keyboard("原因{Enter}");
@@ -144,7 +144,7 @@ describe("ポインタでの操作", () => {
     dragFrom(handle, start, offset(start, 20, 0));
     expect(document.querySelectorAll(".link")).toHaveLength(0);
 
-    // 引いている間は、離すと繋がる出来事を示す
+    // 引いている間は、離すと繋がる変数を示す
     press(handle, start);
     const svg = document.querySelector(".canvas-svg")!;
     const target = centerOf(to!);
@@ -164,7 +164,7 @@ describe("ポインタでの操作", () => {
     expect(document.querySelectorAll(".link")).toHaveLength(1);
 
     dragFrom(handle, start, canvasPoint(500, 600));
-    await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveFocus();
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     expect(document.querySelectorAll(".link")).toHaveLength(2);
   });
 
@@ -194,14 +194,14 @@ describe("ポインタでの操作", () => {
     await expect.element(reset).toBeDisabled();
   });
 
-  it("ダブルクリックした出来事の名前を編集する", async () => {
+  it("ダブルクリックした変数の名前を編集する", async () => {
     await open();
     const point = centerOf(nodeElement("sales"));
     const rect = document.querySelector(".canvas-svg")!.getBoundingClientRect();
     await userEvent.dblClick(canvas(), {
       position: { x: point.x - rect.left, y: point.y - rect.top },
     });
-    await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveValue("売上");
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveValue("売上");
   });
 });
 
@@ -222,7 +222,7 @@ describe("取り消しと例外的な操作", () => {
     release(offset(start, 1, 0));
     flush();
     expect(Math.round(centerOf(nodeElement("profit")).x - start.x)).toBe(0);
-    await expect.element(heading("出来事")).toBeVisible();
+    await expect.element(heading("変数")).toBeVisible();
 
     const links = document.querySelectorAll(".link").length;
     const handle = nodeElement("profit").querySelector(".node-handle")!;
@@ -232,7 +232,7 @@ describe("取り消しと例外的な操作", () => {
     expect(document.querySelector(".link-draft")).toBeNull();
   });
 
-  it("関連の上のダブルクリックでは出来事を足さず、編集中の出来事を押しても編集を続ける", async () => {
+  it("関連の上のダブルクリックでは変数を足さず、編集中の変数を押しても編集を続ける", async () => {
     await open();
     const count = document.querySelectorAll(".node").length;
     const path = document.querySelector(".link .link-hit")!;
@@ -248,7 +248,7 @@ describe("取り消しと例外的な操作", () => {
 
     nodeElement("sales").focus();
     await userEvent.keyboard("{F2}");
-    await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveFocus();
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     const body = nodeElement("sales").querySelector(".node-body")!;
     press(body, centerOf(body));
     release(centerOf(body));
@@ -324,7 +324,7 @@ describe("キーボードでの操作", () => {
     expect(Math.round(moved.y - start.y)).toBeLessThan(0);
 
     await userEvent.keyboard("{F2}");
-    const input = page.getByRole("textbox", { name: "出来事の名前" });
+    const input = page.getByRole("textbox", { name: "変数の名前" });
     await expect.element(input).toHaveFocus();
     await userEvent.keyboard("x");
     await expect.element(node("x")).toBeInTheDocument();
@@ -337,13 +337,13 @@ describe("キーボードでの操作", () => {
     await expect.element(node("収益")).toBeVisible();
   });
 
-  it("Enter や Space で出来事・関連・ループを選び、関連の極性を切り替える", async () => {
+  it("Enter や Space で変数・関連・ループを選び、関連の極性を切り替える", async () => {
     await open();
     nodeElement("attrition").focus();
     await userEvent.keyboard(" ");
-    await expect.element(heading("出来事")).toBeVisible();
+    await expect.element(heading("変数")).toBeVisible();
     await userEvent.keyboard("{Enter}");
-    await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveFocus();
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
 
     const polarity = page.getByRole("button", { name: /^社員数から売上への関連、極性プラス/ });
@@ -370,7 +370,7 @@ describe("キーボードでの操作", () => {
 });
 
 describe("表示", () => {
-  it("名前の無い出来事は「名称未設定」と表示し、ループを指すと他を薄くする", async () => {
+  it("名前の無い変数は「名称未設定」と表示し、ループを指すと他を薄くする", async () => {
     const diagram = createSampleDiagram();
     await open({
       ...diagram,

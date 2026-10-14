@@ -55,7 +55,7 @@ export const SaveIcon = () => (
   </Icon>
 );
 
-/** 3 つの出来事を線で結んだ、レイアウトを整える印 */
+/** 3 つの変数を線で結んだ、レイアウトを整える印 */
 export const LayoutIcon = () => (
   <Icon>
     <circle cx="10" cy="4.5" r="2" />
