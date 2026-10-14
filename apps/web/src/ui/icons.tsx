@@ -55,6 +55,16 @@ export const SaveIcon = () => (
   </Icon>
 );
 
+/** 3 つの出来事を線で結んだ、レイアウトを整える印 */
+export const LayoutIcon = () => (
+  <Icon>
+    <circle cx="10" cy="4.5" r="2" />
+    <circle cx="4.5" cy="15" r="2" />
+    <circle cx="15.5" cy="15" r="2" />
+    <path d="M9 6.3 5.5 13.2M11 6.3l3.5 6.9M6.5 15h7" />
+  </Icon>
+);
+
 export const ImageIcon = () => (
   <Icon>
     <rect x="3" y="3.75" width="14" height="12.5" rx="1.75" />

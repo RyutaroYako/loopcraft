@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   boxBoundaryPoint,
   curvatureFromHandle,
+  defaultCurvature,
   isClockwise,
   linkGeometry,
   nodeSize,
@@ -26,6 +27,14 @@ describe("geometry", () => {
     // 左（画面上は上）に膨らむ
     expect(geometry.middle.y).toBeLessThan(0);
     expect(curvatureFromHandle(from.center, to.center, geometry.middle)).toBeCloseTo(0.25, 1);
+  });
+
+  it("既定では直線にし、逆向きの関連があるときだけ膨らませる", () => {
+    expect(defaultCurvature(false)).toBe(0);
+    expect(defaultCurvature(true)).toBeGreaterThan(0);
+    const from = { center: { x: 0, y: 0 }, size: { width: 0, height: 0 } };
+    const to = { center: { x: 400, y: 0 }, size: { width: 0, height: 0 } };
+    expect(linkGeometry(from, to).middle.y).toBeCloseTo(0);
   });
 
   it("画面座標で時計回りかを判定する", () => {

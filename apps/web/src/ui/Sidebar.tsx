@@ -484,7 +484,7 @@ function LinkInspector(props: { id: LinkId }) {
             disabled={link()?.curvature === undefined}
             onClick={() => update({ curvature: undefined })}
           >
-            曲がり具合を戻す
+            既定の線に戻す
           </button>
         </div>
         <DeleteButton label="関連を削除" />

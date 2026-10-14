@@ -36,7 +36,7 @@ export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
     if (link.from === link.to) {
       issues.push({ path: ["links", index, "to"], message: "自分自身への関連は作れません" });
     }
-    const pair = JSON.stringify([link.from, link.to]);
+    const pair = linkPairKey(link.from, link.to);
     if (linkPairs.has(pair)) {
       issues.push({
         path: ["links", index],
@@ -67,4 +67,9 @@ export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
   }
 
   return issues;
+}
+
+/** 「原因→結果」の組を表すキー。同じ向きの関連の重複や、逆向きの関連の有無を調べるのに使う */
+export function linkPairKey(from: string, to: string): string {
+  return JSON.stringify([from, to]);
 }

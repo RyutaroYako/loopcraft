@@ -58,6 +58,21 @@ describe("ツールバー", () => {
     await expect.element(node("社員数")).toBeVisible();
   });
 
+  it("整列で出来事を並べ直し、元に戻せる", async () => {
+    mount(browserStartup(createSampleDiagram()));
+    const transform = () => node("社員数").element().getAttribute("transform");
+    const before = transform();
+    await button("整列").click();
+    await expect.poll(transform).not.toBe(before);
+    await button("元に戻す").click();
+    await expect.poll(transform).toBe(before);
+
+    mount(browserStartup(createEmptyDiagram()));
+    await expect.element(button("整列")).toBeDisabled();
+    mount(fileStartup({ status: "ok", diagram: createSampleDiagram(), revision: "r" }));
+    await expect.element(button("整列")).not.toBeInTheDocument();
+  });
+
   it("画像と JSON の書き出しは閲覧モードでも使え、図が空なら画像は作れない", async () => {
     mount(fileStartup({ status: "ok", diagram: createSampleDiagram(), revision: "r" }));
     await expect.element(button("画像")).toBeEnabled();

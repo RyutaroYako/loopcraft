@@ -72,19 +72,44 @@ export function updateVariable(diagram: Diagram, id: VariableId, patch: Patch<Va
   return variables ? { ...diagram, variables } : diagram;
 }
 
+/**
+ * 出来事を動かす。位置を指定したループ記号は、ループの出来事の重心が動いた分だけ一緒に動かし、
+ * ループとの位置関係を保つ
+ */
 export function moveVariables(
   diagram: Diagram,
   positions: ReadonlyMap<VariableId, Point>,
 ): Diagram {
-  let changed = false;
+  const shifts = new Map<VariableId, Point>();
   const variables = diagram.variables.map((variable) => {
     const position = positions.get(variable.id);
     if (!position) return variable;
     if (position.x === variable.position.x && position.y === variable.position.y) return variable;
-    changed = true;
+    shifts.set(variable.id, {
+      x: position.x - variable.position.x,
+      y: position.y - variable.position.y,
+    });
     return { ...variable, position };
   });
-  return changed ? { ...diagram, variables } : diagram;
+  if (shifts.size === 0) return diagram;
+  const fromByLink = new Map(diagram.links.map((link) => [link.id, link.from]));
+  const loops = diagram.loops.map((loop) => {
+    if (!loop.marker) return loop;
+    let dx = 0;
+    let dy = 0;
+    for (const link of loop.links) {
+      const shift = shifts.get(fromByLink.get(link)!);
+      dx += shift?.x ?? 0;
+      dy += shift?.y ?? 0;
+    }
+    const marker = {
+      x: Math.round(loop.marker.x + dx / loop.links.length),
+      y: Math.round(loop.marker.y + dy / loop.links.length),
+    };
+    if (marker.x === loop.marker.x && marker.y === loop.marker.y) return loop;
+    return { ...loop, marker };
+  });
+  return { ...diagram, variables, loops };
 }
 
 /** 出来事を消すと、それに繋がる関連と、その関連を通るループも消える。 */
