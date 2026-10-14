@@ -367,6 +367,10 @@ button.save-status.warning .save-dot {
   }
 }
 
+.mode-badge-short {
+  display: none;
+}
+
 .mode-badge {
   padding: 3px 10px;
   border-radius: 999px;
@@ -517,6 +521,11 @@ button.save-status.warning .save-dot {
 .empty-note {
   max-width: 40ch;
   color: var(--ink-2);
+}
+
+.empty-note code {
+  font-family: var(--font-mono);
+  white-space: nowrap;
 }
 
 .node.dimmed,
@@ -1440,8 +1449,8 @@ button.save-status.warning .save-dot {
 /* loop list */
 
 .loop-list {
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   min-height: 0;
 }
 
@@ -1474,6 +1483,8 @@ button.save-status.warning .save-dot {
 }
 
 .loop-items {
+  flex: 1;
+  min-height: 0;
   display: grid;
   align-content: start;
   gap: 2px;
@@ -1657,8 +1668,13 @@ button.save-status.warning .save-dot {
   .button-label,
   .brand-name,
   .canvas-hint,
-  .save-status.ok .save-label {
+  .save-status.ok .save-label,
+  .mode-badge-long {
     display: none;
+  }
+
+  .mode-badge-short {
+    display: inline;
   }
 }
 

@@ -27,6 +27,9 @@ describe("serve", () => {
     });
     expect(openBrowser).toHaveBeenCalledWith(running.url);
     expect(stderr[0]).toBe("✓ diagram.json を開きました");
+    expect(stderr).toContain(
+      "  変更はこのファイルに自動で保存します。見せるだけなら --readonly を付けてください",
+    );
     expect(stderr[1]).toBe(`ℹ ${running.url}`);
   });
 
@@ -48,6 +51,7 @@ describe("serve", () => {
     });
     expect(openBrowser).not.toHaveBeenCalled();
     expect(second.stderr[0]).toBe("✓ x.json を開きました（読み取り専用）");
+    expect(second.stderr.join("\n")).not.toContain("自動で保存します");
   });
 
   it("--sample は新しいファイルだけに使え、保存するまでファイルを作らない", async () => {

@@ -62,6 +62,13 @@ export function createProgram(dependencies: ProgramDependencies) {
 
   const actions = {
     serve: async (file: string | undefined, options: ServeFlags) => {
+      if (options.edit) {
+        log.warn(
+          options.readonly
+            ? "--edit は不要になりました。--readonly を指定しているので読み取り専用で開きます"
+            : "--edit は不要になりました。serve は常に編集できる状態で開きます",
+        );
+      }
       const target =
         file ??
         (canPrompt()
@@ -152,7 +159,7 @@ export function createProgram(dependencies: ProgramDependencies) {
       parsePort,
     )
     .option("--readonly", "読み取り専用で開く")
-    // 以前は閲覧モードが既定で、編集するときに付けていた。今は常に編集できるので何もしない
+    // 以前は閲覧モードが既定で、編集するときに付けていた。今は常に編集できるので知らせるだけ
     .addOption(new Option("--edit").hideHelp())
     .option("--sample", "新しいファイルをサンプルの図で開く。保存するまでファイルは作らない")
     .option("--no-open", "ブラウザを開かない")
@@ -193,10 +200,10 @@ export function createProgram(dependencies: ProgramDependencies) {
     [
       "",
       "例:",
-      "  loopcraft serve diagram.json        ブラウザで開いて編集する",
+      "  loopcraft serve diagram.json            ブラウザで開いて編集する",
       "  loopcraft serve diagram.json --readonly 読み取り専用で開く",
-      "  loopcraft serve new.json --sample   サンプルの図で試す",
-      "  loopcraft validate *.json           まとめて検証する",
+      "  loopcraft serve new.json --sample       サンプルの図で試す",
+      "  loopcraft validate *.json               まとめて検証する",
       "  loopcraft loops diagram.json --format md",
       "",
       "引数を付けずに実行すると、コマンドやファイルを選んで進められます。",
@@ -225,6 +232,8 @@ export function createProgram(dependencies: ProgramDependencies) {
 
 interface ServeFlags {
   port?: number;
+  /** 以前の既定（閲覧モード）の名残。受け付けて知らせるだけ */
+  edit?: boolean;
   readonly?: boolean;
   sample?: boolean;
   open: boolean;

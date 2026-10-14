@@ -84,7 +84,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   let coalesce: { key: string; at: number } | undefined;
   let activeGesture: { base: Diagram } | undefined;
 
-  /** 読み取り専用では false。編集の操作はすべて何もしない */
+  /** 読み取り専用では false。編集の操作はすべて何もしない。開いた後に変わることは無い */
   const isEditable = options.editable ?? true;
   const editable = () => isEditable;
 

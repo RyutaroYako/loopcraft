@@ -43,7 +43,12 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
       </label>
       <Show when={props.readonly}>
         <span class="mode-badge" title="loopcraft serve --readonly で開いています">
-          読み取り専用
+          <span class="mode-badge-long">読み取り専用</span>
+          {/* 狭い画面ではタイトルを潰さないよう短くする */}
+          <span class="mode-badge-short" aria-hidden="true">
+            閲覧のみ
+          </span>
+          <span class="visually-hidden">。編集も保存もできません</span>
         </span>
       </Show>
       <AutosaveIndicator />

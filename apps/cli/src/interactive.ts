@@ -2,9 +2,9 @@ import { cancel, confirm, isCancel, multiselect, select, text } from "@clack/pro
 import { DEFAULT_FILE } from "./commands/init.ts";
 import { listJsonFiles } from "./files.ts";
 
-export type CommandName = "serve" | "validate" | "loops" | "init" | "schema";
-
 /** 対話で選べるコマンド。init は serve と役割が重なるので出さない（コマンドとしては使える） */
+export type CommandName = "serve" | "validate" | "loops" | "schema";
+
 export const COMMANDS: { value: CommandName; label: string; hint: string }[] = [
   { value: "serve", label: "serve", hint: "ファイルをブラウザのエディタで開く" },
   { value: "validate", label: "validate", hint: "図の JSON を検証する" },

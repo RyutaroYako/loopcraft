@@ -5,6 +5,7 @@ import type { LoopEntry } from "@loopcraft/core/loops";
 import { downloadText } from "../editor/file.ts";
 import { listBackups, readBackup, removeBackup } from "../editor/storage.ts";
 import * as edit from "@loopcraft/core/edit";
+import { defaultCurvature } from "@loopcraft/core/geometry";
 import type { LoopKind } from "@loopcraft/core/loop";
 import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
 import { ArrowRightIcon, PinIcon, TrashIcon } from "./icons.tsx";
@@ -386,6 +387,15 @@ function LinkInspector(props: { id: LinkId }) {
   const link = () => editor.linkById().get(props.id);
   const from = () => labelOf(editor, link()?.from);
   const to = () => labelOf(editor, link()?.to);
+  const reversed = () => {
+    const current = link();
+    return current !== undefined && editor.hasReverse(current);
+  };
+  /** 既定の形（直線、逆向きの関連があれば決まった曲がり）と違う曲がり具合が付いているか */
+  const customCurvature = () => {
+    const curvature = link()?.curvature;
+    return curvature !== undefined && curvature !== defaultCurvature(reversed());
+  };
   const update = (patch: Parameters<typeof edit.updateLink>[2], key?: string) =>
     editor.commit(edit.updateLink(editor.current(), props.id, patch), key);
   const selectEnd = (end: "from" | "to") => {
@@ -459,6 +469,18 @@ function LinkInspector(props: { id: LinkId }) {
         }
       />
       <Show when={editor.editable()}>
+        {/* 以前の版や JSON で付けた曲がり具合は、ここでだけ既定の形に戻せる */}
+        <Show when={customCurvature()}>
+          <div class="inline-actions">
+            <button
+              type="button"
+              class="button ghost small"
+              onClick={() => update({ curvature: undefined })}
+            >
+              {reversed() ? "既定の曲がりに戻す" : "直線に戻す"}
+            </button>
+          </div>
+        </Show>
         <DeleteButton label="関連を削除" />
       </Show>
     </div>

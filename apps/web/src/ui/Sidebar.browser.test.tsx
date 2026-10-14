@@ -141,8 +141,13 @@ describe("出来事", () => {
 });
 
 describe("関連", () => {
-  it("極性・遅れ・説明を変え、削除する", async () => {
-    await open();
+  it("極性・遅れ・説明を変え、付いていた曲がり具合を直線に戻し、削除する", async () => {
+    await open({
+      ...createSampleDiagram(),
+      links: createSampleDiagram().links.map((link) =>
+        link.id === "l_sales" ? { ...link, curvature: 0.4 } : link,
+      ),
+    });
     const polarity = () =>
       page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement;
     polarity().focus();
@@ -159,9 +164,38 @@ describe("関連", () => {
     await writeAndClearDescription(
       (diagram) => diagram.links.find((item) => item.id === "l_sales")?.description,
     );
+    await button("直線に戻す").click();
+    await expect.element(button("直線に戻す")).not.toBeInTheDocument();
     await button(/関連を削除/).click();
     await expect.element(heading("図の概要")).toBeVisible();
     expect(document.querySelector('[aria-label^="社員数から売上への関連"]')).toBeNull();
+  });
+
+  it("既定の形と同じ曲がり具合なら戻すボタンを出さず、逆向きの関連があれば既定の曲がりに戻す", async () => {
+    const sample = createSampleDiagram();
+    const sales = sample.links.find((link) => link.id === "l_sales")!;
+    await open({
+      ...sample,
+      links: sample.links.map((link) => (link.id === "l_sales" ? { ...link, curvature: 0 } : link)),
+    });
+    (
+      page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement
+    ).focus();
+    await expect.element(heading("関連")).toBeVisible();
+    expect(document.querySelector(".inspector .inline-actions")).toBeNull();
+
+    await open({
+      ...sample,
+      links: [
+        ...sample.links,
+        { ...sales, id: "l_back" as LinkId, from: sales.to, to: sales.from, curvature: 0.4 },
+      ],
+    });
+    (
+      page.getByRole("button", { name: /^売上から社員数への関連/ }).element() as SVGGElement
+    ).focus();
+    await button("既定の曲がりに戻す").click();
+    await expect.element(button("既定の曲がりに戻す")).not.toBeInTheDocument();
   });
 
   it("両端の出来事に移れ、名前が無ければ「名称未設定」と示す", async () => {

@@ -364,7 +364,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           when={editor.editable()}
           fallback={
             <p class="canvas-hint">
-              <span>読み取り専用</span>
               <span>ドラッグで移動、Ctrl+ホイールで拡大縮小</span>
             </p>
           }
