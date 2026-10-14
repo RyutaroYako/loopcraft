@@ -57,15 +57,29 @@ describe("refocusWhenLost", () => {
     expect(runFrames).not.toThrow();
     expect(missing).toHaveBeenCalledOnce();
     expect(document.activeElement).toBe(document.body);
+  });
+});
 
-    // 候補は先頭から試し、外れた要素は飛ばして次へ移す
+describe("refocusWhenLost の候補", () => {
+  it("先頭から試し、外れた要素や受け取れない要素は飛ばし、移せたところで止める", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
     const detached = document.createElement("button");
+    const disabled = document.createElement("button");
+    disabled.disabled = true;
+    const target = document.createElement("button");
+    document.body.append(disabled, target);
+    const after = vi.fn(() => document.createElement("button"));
     refocusWhenLost(
       () => null,
       () => detached,
+      () => disabled,
       () => target,
+      after,
     );
-    runFrames();
     expect(document.activeElement).toBe(target);
+    expect(after).not.toHaveBeenCalled();
   });
 });
