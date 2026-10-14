@@ -39,6 +39,8 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   const editor = useContext(EditorContext);
   const [linkDraft, setLinkDraft] = createSignal<LinkDraft | null>(null);
   const [panning, setPanning] = createSignal(false);
+  /** 変数を動かしている間。まわり以外を薄くするのをやめ、行き先を見やすくする */
+  const [moving, setMoving] = createSignal(false);
   let svg: SVGSVGElement | undefined;
   let drag: Drag | undefined;
 
@@ -80,6 +82,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       moved: false,
       ...init(),
     } as Drag;
+    setMoving(drag.kind === "move");
   };
 
   const onBackgroundPointerDown = (event: PointerEvent) => {
@@ -173,6 +176,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     const finished = drag;
     drag = undefined;
     setPanning(false);
+    setMoving(false);
     const cancelled = event.type !== "pointerup";
     switch (finished.kind) {
       case "pan":
@@ -233,7 +237,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     const link = editor.linkById().get(id);
     return [
       {
-        label: link?.polarity === "-" ? "同じ向き（+）にする" : "逆向き（−）にする",
+        label: link?.polarity === "-" ? "極性を +（同じ向き）にする" : "極性を −（逆向き）にする",
         run: () => editor.commit(edit.togglePolarity(editor.current(), id)),
       },
       {
@@ -265,7 +269,11 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       disabled: editor.diagram().variables.length < 2,
       run: () => editor.autoLayout(),
     },
-    { label: "全体を表示", run: () => editor.fitView() },
+    {
+      label: "全体を表示",
+      disabled: editor.diagram().variables.length === 0,
+      run: () => editor.fitView(),
+    },
   ];
 
   const onContextMenu = (event: MouseEvent) => {
@@ -279,13 +287,14 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     const link = target.closest<SVGElement>("[data-link-id]");
     // キーボードのメニューキーで開いたときは位置が無いので、対象の要素の位置に出す
     const origin = node ?? link ?? svg;
+    // 閉じた後のフォーカスの戻し先。矢印の線自体はフォーカスできないので、極性の印に戻す
+    menuOrigin = node ?? link?.querySelector<SVGElement>(".polarity") ?? svg;
     const fromKeyboard = event.clientX === 0 && event.clientY === 0;
     const rect = origin.getBoundingClientRect();
     const at = fromKeyboard
       ? { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }
       : event;
     const position = screenPoint(at);
-    menuOrigin = origin;
     editor.setEditingVariable(null);
     if (node) {
       const id = node.dataset.variableId as VariableId;
@@ -379,7 +388,10 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     <div class="canvas" ref={(element) => (container = element)}>
       <svg
         ref={bindSvg}
-        class={["canvas-svg", { panning: panning(), connecting: linkDraft() !== null }]}
+        class={[
+          "canvas-svg",
+          { panning: panning(), connecting: linkDraft() !== null, moving: moving() },
+        ]}
         onPointerDown={onBackgroundPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

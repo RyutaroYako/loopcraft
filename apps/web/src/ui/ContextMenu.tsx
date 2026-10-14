@@ -84,6 +84,9 @@ export function ContextMenu(props: {
             role="menuitem"
             class={["context-menu-item", { danger: item.danger }]}
             disabled={item.disabled}
+            aria-keyshortcuts={item.shortcut}
+            // 指した項目にフォーカスを移し、マウスとキーボードの強調を 1 つにする
+            onPointerMove={(event) => event.currentTarget.focus()}
             onClick={() => {
               // 先に元の要素へフォーカスを戻す。消える操作なら、消えた後で図がキャンバスへ戻す
               props.onClose(true);
@@ -91,7 +94,7 @@ export function ContextMenu(props: {
             }}
           >
             <span>{item.label}</span>
-            {item.shortcut && <kbd>{item.shortcut}</kbd>}
+            {item.shortcut && <kbd aria-hidden="true">{item.shortcut}</kbd>}
           </button>
         )}
       </For>

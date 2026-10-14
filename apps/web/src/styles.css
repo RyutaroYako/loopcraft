@@ -535,6 +535,18 @@ button.save-status.warning .save-dot {
   opacity: 0.22;
 }
 
+/* 選んだ変数のまわり以外。名前は読める程度に残し、矢印を引くときや動かすときは戻す */
+.node.faded,
+.link.faded,
+.loop-marker.faded {
+  opacity: 0.45;
+}
+
+.canvas-svg.connecting .faded,
+.canvas-svg.moving .faded {
+  opacity: 1;
+}
+
 .node-handle {
   cursor: crosshair;
   opacity: 0;
@@ -756,10 +768,14 @@ button.save-status.warning .save-dot {
   text-align: left;
 }
 
-.context-menu-item:hover:enabled,
-.context-menu-item:focus-visible {
+/* 指した項目にフォーカスを移すので、強調はフォーカスだけで示す（2 つ同時に光らない） */
+.context-menu-item:focus {
   background: var(--surface-2);
   outline: none;
+}
+
+.context-menu-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-ring);
 }
 
 .context-menu-item:disabled {
@@ -772,7 +788,7 @@ button.save-status.warning .save-dot {
 
 .context-menu-item kbd {
   font-size: 11px;
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .zoom-controls {
@@ -846,6 +862,7 @@ button.save-status.warning .save-dot {
 }
 
 .empty-state h2 {
+  word-break: auto-phrase;
   max-width: 19ch;
   font-size: clamp(24px, 3vw, 30px);
   font-weight: 600;
@@ -1512,7 +1529,8 @@ button.save-status.warning .save-dot {
 .browser-tabs {
   display: flex;
   gap: 4px;
-  padding: 12px 16px 8px;
+  /* タブの文字の左端を、下の検索欄や一覧の左端（20px）に揃える */
+  padding: 12px 8px 8px;
 }
 
 .browser-tab {
@@ -1544,7 +1562,7 @@ button.save-status.warning .save-dot {
 .browser-tab-count {
   font-family: var(--font-mono);
   font-size: 11.5px;
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .browser-search {
@@ -1586,7 +1604,8 @@ button.save-status.warning .save-dot {
   overflow-y: auto;
 }
 
-.loop-item {
+.loop-item,
+.variable-item {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1598,11 +1617,14 @@ button.save-status.warning .save-dot {
 }
 
 .loop-item:hover,
-.loop-item.active {
+.loop-item.active,
+.variable-item:hover,
+.variable-item.active {
   background: var(--surface-2);
 }
 
-.loop-item.active::before {
+.loop-item.active::before,
+.variable-item.active::before {
   content: "";
   position: absolute;
   top: 10px;

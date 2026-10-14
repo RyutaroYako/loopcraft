@@ -54,7 +54,10 @@ function Browser() {
               onClick={() => setTab(item.value)}
             >
               {item.label}
-              <span class="browser-tab-count">{item.count()}</span>
+              <span class="browser-tab-count">
+                {item.count()}
+                <span class="visually-hidden">件</span>
+              </span>
             </button>
           )}
         </For>
@@ -100,6 +103,12 @@ function VariableList(props: { hidden: boolean }) {
     editor.select({ kind: "variable", id });
     const variable = editor.variableById().get(id);
     if (variable) editor.centerOn(variable.position);
+    // 狭い画面では一覧がキャンバスの下にあるので、キャンバスが見えていなければ見える所まで動かす
+    const canvas = document.querySelector(".canvas-svg");
+    const rect = canvas?.getBoundingClientRect();
+    if (rect && (rect.bottom < 0 || rect.top > window.innerHeight)) {
+      canvas!.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
   };
   return (
     <div
@@ -109,16 +118,18 @@ function VariableList(props: { hidden: boolean }) {
       id="browser-panel-variables"
       aria-labelledby="browser-tab-variables"
     >
-      <label class="browser-search">
-        <span class="visually-hidden">変数を名前で絞り込む</span>
-        <input
-          type="search"
-          name="variable-search"
-          placeholder="名前で絞り込む"
-          value={query()}
-          onInput={(event) => setQuery(event.currentTarget.value)}
-        />
-      </label>
+      <Show when={editor.diagram().variables.length > 0}>
+        <label class="browser-search">
+          <span class="visually-hidden">変数を名前で絞り込む</span>
+          <input
+            type="search"
+            name="variable-search"
+            placeholder="名前で絞り込む"
+            value={query()}
+            onInput={(event) => setQuery(event.currentTarget.value)}
+          />
+        </label>
+      </Show>
       <Show
         when={visible().length > 0}
         fallback={
@@ -133,7 +144,7 @@ function VariableList(props: { hidden: boolean }) {
           <For each={visible()} keyed={(variable) => variable.id}>
             {(variable, index) => (
               <li
-                class={["loop-item", "variable-item", { active: selectedId() === variable().id }]}
+                class={["variable-item", { active: selectedId() === variable().id }]}
                 style={{ "--index": String(Math.min(index(), 12)) }}
               >
                 <button
@@ -384,7 +395,7 @@ function VariableInspector(props: { id: VariableId }) {
         name="variable-label"
         label="名前"
         value={variable()?.label ?? ""}
-        placeholder="例: 社員数"
+        placeholder="例: 売上"
         onInput={(label) => update({ label }, "label")}
       />
       <Field

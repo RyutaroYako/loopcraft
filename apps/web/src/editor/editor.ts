@@ -161,11 +161,19 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
       variables.add(link.from);
       variables.add(link.to);
     }
-    return linkIds.size > 0 ? { variables, links: linkIds } : undefined;
+    return linkIds.size > 0 ? { center: selected.id, variables, links: linkIds } : undefined;
   });
 
-  /** キャンバスで目立たせる範囲。強調しているループを、選んだ変数のまわりより優先する。外は薄くする */
-  const emphasis = createMemo(() => highlightedLoop() ?? neighborhood());
+  /**
+   * キャンバスで目立たせる範囲と、その理由。強調しているループを、選んだ変数のまわりより優先する。
+   * 範囲の外は、ループなら薄く、変数のまわりなら控えめに薄くする
+   */
+  const emphasis = createMemo(() => {
+    const loop = highlightedLoop();
+    if (loop) return { kind: "loop" as const, variables: loop.variables, links: loop.links };
+    const near = neighborhood();
+    return near && { kind: "neighborhood" as const, ...near };
+  });
 
   function updateHistorySize() {
     setHistorySize({ undo: undoStack.length, redo: redoStack.length });

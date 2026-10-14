@@ -44,7 +44,11 @@ export function LinkView(props: { id: LinkId }) {
     return current?.kind === "link" && current.id === props.id;
   };
   const highlighted = () => editor.highlightedLoop()?.links.has(props.id) ?? false;
-  const dimmed = () => editor.emphasis()?.links.has(props.id) === false;
+  /** 目立たせる範囲の外にあるとき、その理由（ループか、選んだ変数のまわりか） */
+  const outside = () => {
+    const emphasis = editor.emphasis();
+    return emphasis && !emphasis.links.has(props.id) ? emphasis.kind : undefined;
+  };
   const select = (event: PointerEvent) => {
     if (event.button !== 0) return;
     event.stopPropagation();
@@ -63,7 +67,12 @@ export function LinkView(props: { id: LinkId }) {
         class={[
           "link",
           link()?.polarity === "-" ? "negative" : "positive",
-          { selected: selected(), highlighted: highlighted(), dimmed: dimmed() },
+          {
+            selected: selected(),
+            highlighted: highlighted(),
+            dimmed: outside() === "loop",
+            faded: outside() === "neighborhood",
+          },
         ]}
         data-link-id={props.id}
       >
@@ -157,7 +166,10 @@ export function NodeView(props: {
     return current?.kind === "variable" && current.id === props.id;
   };
   const highlighted = () => editor.highlightedLoop()?.variables.has(props.id) ?? false;
-  const dimmed = () => editor.emphasis()?.variables.has(props.id) === false;
+  const outside = () => {
+    const emphasis = editor.emphasis();
+    return emphasis && !emphasis.variables.has(props.id) ? emphasis.kind : undefined;
+  };
   // キーボードだけでも選択・名前の変更・移動ができるようにする
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.shiftKey ? 40 : 8;
@@ -191,7 +203,8 @@ export function NodeView(props: {
           {
             selected: selected(),
             highlighted: highlighted(),
-            dimmed: dimmed(),
+            dimmed: outside() === "loop",
+            faded: outside() === "neighborhood",
             target: props.connectTarget,
             editing: editor.editingVariable() === props.id,
             unnamed: label() === "",
@@ -325,11 +338,20 @@ export function LoopMarkerView(props: {
     const highlighted = editor.highlightedLoop();
     return highlighted !== undefined && highlighted.key !== entry()?.key;
   };
+  /** 選んだ変数を通らないループの記号は、まわりの変数と一緒に控えめに薄くする */
+  const faded = () => {
+    const emphasis = editor.emphasis();
+    return emphasis?.kind === "neighborhood" && !entry()?.variables.includes(emphasis.center);
+  };
   const name = () => entry()?.featured?.loop.name ?? "";
   return (
     <Show when={entry() !== undefined}>
       <g
-        class={["loop-marker", entry()?.kind, { selected: selected(), dimmed: dimmed() }]}
+        class={[
+          "loop-marker",
+          entry()?.kind,
+          { selected: selected(), dimmed: dimmed(), faded: faded() },
+        ]}
         transform={`translate(${position().x} ${position().y})`}
         role="button"
         tabindex="0"

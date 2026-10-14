@@ -415,24 +415,28 @@ describe("選んだ変数のまわり", () => {
   it("変数を選ぶと、直接の原因と結果だけを残してほかを薄くする", async () => {
     await open();
     nodeElement("sales").focus();
-    await expect.poll(() => nodeElement("attrition").classList.contains("dimmed")).toBe(true);
-    expect(nodeElement("staff").classList.contains("dimmed")).toBe(false);
-    expect(nodeElement("profit").classList.contains("dimmed")).toBe(false);
-    expect(document.querySelector('[data-link-id="l_sales"]')!.classList.contains("dimmed")).toBe(
+    await expect.poll(() => nodeElement("attrition").classList.contains("faded")).toBe(true);
+    expect(nodeElement("staff").classList.contains("faded")).toBe(false);
+    expect(nodeElement("profit").classList.contains("faded")).toBe(false);
+    expect(document.querySelector('[data-link-id="l_sales"]')!.classList.contains("faded")).toBe(
       false,
     );
-    expect(document.querySelector('[data-link-id="l_leave"]')!.classList.contains("dimmed")).toBe(
+    expect(document.querySelector('[data-link-id="l_leave"]')!.classList.contains("faded")).toBe(
       true,
     );
+    // 売上を通らないループ（離職の悪循環）の記号も控えめに薄くし、通るループは残す
+    const markers = [...document.querySelectorAll(".loop-marker")];
+    expect(markers.some((marker) => marker.classList.contains("faded"))).toBe(true);
+    expect(markers.some((marker) => !marker.classList.contains("faded"))).toBe(true);
   });
 
   it("矢印の無い変数を選んだときや、名前の入力中は薄くしない", async () => {
     await open();
     await userEvent.dblClick(canvas(), { position: { x: 40, y: 40 } });
     await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
-    expect(document.querySelectorAll(".node.dimmed")).toHaveLength(0);
+    expect(document.querySelectorAll(".node.faded")).toHaveLength(0);
     await userEvent.keyboard("{Escape}");
-    expect(document.querySelectorAll(".node.dimmed")).toHaveLength(0);
+    expect(document.querySelectorAll(".node.faded")).toHaveLength(0);
   });
 });
 
@@ -492,7 +496,7 @@ describe("右クリックのメニュー", () => {
     const link = () => document.querySelector('[data-link-id="l_sales"]')!;
     const hit = () => link().querySelector(".link-hit")!;
     openMenu(hit(), centerOf(link().querySelector(".polarity")!));
-    await menuItem("逆向き（−）にする").click();
+    await menuItem("極性を −（逆向き）にする").click();
     await expect.poll(() => link().classList.contains("negative")).toBe(true);
     openMenu(hit(), centerOf(link().querySelector(".polarity")!));
     await menuItem("遅れを付ける").click();

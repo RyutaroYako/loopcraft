@@ -294,7 +294,7 @@ describe("ループ", () => {
 
 describe("変数の一覧", () => {
   const search = () => page.getByRole("searchbox", { name: "変数を名前で絞り込む" });
-  const rows = () => document.querySelectorAll("#browser-panel-variables .loop-item");
+  const rows = () => document.querySelectorAll(".variable-item");
 
   it("タブで切り替え、原因と結果の数を示し、名前で絞り込み、選ぶと検査パネルに出す", async () => {
     await open();
@@ -312,14 +312,14 @@ describe("変数の一覧", () => {
       .click();
     await expect.element(heading("変数")).toBeVisible();
     await expect.element(field("名前")).toHaveValue("売上");
-    expect(document.querySelector("#browser-panel-variables .loop-item.active")).not.toBeNull();
+    expect(document.querySelector(".variable-item.active")).not.toBeNull();
 
     await userEvent.fill(search(), "存在しない");
     await expect.element(page.getByText("名前が一致する変数はありません")).toBeVisible();
 
     // タブを切り替えても、絞り込みは残る
     await page.getByRole("tab", { name: /ループ/ }).click();
-    await expect.element(search()).not.toBeVisible();
+    await expect.poll(() => document.getElementById("browser-panel-variables")!.hidden).toBe(true);
     await page.getByRole("tab", { name: /変数/ }).click();
     await expect.element(search()).toHaveValue("存在しない");
   });

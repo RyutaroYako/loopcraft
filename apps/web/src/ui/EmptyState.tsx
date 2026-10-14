@@ -27,12 +27,12 @@ export function EmptyState() {
       <section class="empty-state" aria-labelledby="empty-title">
         <p class="eyebrow">Causal Loop Diagram</p>
         <h2 id="empty-title">最初の変数を置いて、つながりを描きはじめる</h2>
+        <p class="empty-note">変数は、売上や社員数のように増えたり減ったりするものです</p>
         <ol class="empty-steps">
           <li>
             <span class="step-index">01</span>
             <span>
-              キャンバスを<strong>ダブルクリック</strong>
-              して変数（売上・社員数のように増減するもの）を追加
+              キャンバスを<strong>ダブルクリック</strong>して変数を追加
             </span>
           </li>
           <li>
