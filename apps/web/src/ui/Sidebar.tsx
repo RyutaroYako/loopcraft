@@ -3,7 +3,7 @@ import { AutosaveContext } from "../editor/autosave.ts";
 import { EditorContext, type Editor } from "../editor/editor.ts";
 import type { LoopEntry } from "@loopcraft/core/loops";
 import { downloadText } from "../editor/file.ts";
-import { isFocusLost } from "../editor/focus.ts";
+import { refocusWhenLost } from "../editor/focus.ts";
 import { listBackups, readBackup, removeBackup } from "../editor/storage.ts";
 import * as edit from "@loopcraft/core/edit";
 import { defaultCurvature } from "@loopcraft/core/geometry";
@@ -166,7 +166,7 @@ function BackupList() {
     setConfirming(null);
     setBackups(listBackups());
     // 押したボタンは行ごと消えるので、残りの項目か検査パネルへフォーカスを移す
-    refocusWhenLost(() => (list?.isConnected ? list.querySelector("button") : null));
+    refocusInInspector(() => (list?.isConnected ? list.querySelector("button") : null));
   };
   return (
     <Show when={backups().length > 0}>
@@ -476,7 +476,7 @@ function LinkInspector(props: { id: LinkId }) {
               onClick={() => {
                 update({ curvature: undefined });
                 // 押したボタンは消えるので、検査パネルへフォーカスを戻す
-                refocusWhenLost();
+                refocusInInspector();
               }}
             >
               {reversed() ? "既定の曲がりに戻す" : "直線に戻す"}
@@ -542,15 +542,9 @@ function LoopInspector(props: { id: LoopId }) {
   );
 }
 
-/**
- * 押したボタンが描画から消えたとき、フォーカスが失われていれば target か検査パネルへ移す。
- * 描画を待ってから確かめるので、その間にほかへ移ったフォーカスは奪わない
- */
-function refocusWhenLost(target: () => HTMLElement | null = () => null) {
-  requestAnimationFrame(() => {
-    if (!isFocusLost()) return;
-    (target() ?? document.querySelector<HTMLElement>(".inspector"))?.focus();
-  });
+/** 押したボタンが消えたとき、target か検査パネルへフォーカスを移す */
+function refocusInInspector(target: () => HTMLElement | null = () => null) {
+  refocusWhenLost(() => target() ?? document.querySelector<HTMLElement>(".inspector"));
 }
 
 function DeleteButton(props: { label: string }) {

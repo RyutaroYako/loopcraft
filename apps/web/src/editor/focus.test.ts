@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { isFocusLost } from "./focus.ts";
+import { isFocusLost, refocusWhenLost } from "./focus.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -20,5 +20,28 @@ describe("isFocusLost", () => {
     document.body.append(button);
     button.focus();
     expect(isFocusLost()).toBe(false);
+  });
+});
+
+describe("refocusWhenLost", () => {
+  it("描画の後でフォーカスを失っていれば移し、ほかへ移っていれば奪わない", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    const target = document.createElement("button");
+    const other = document.createElement("input");
+    document.body.append(target, other);
+
+    const pressed = document.createElement("button");
+    document.body.append(pressed);
+    pressed.focus();
+    pressed.remove();
+    refocusWhenLost(() => target);
+    expect(document.activeElement).toBe(target);
+
+    other.focus();
+    refocusWhenLost(() => target);
+    expect(document.activeElement).toBe(other);
   });
 });
