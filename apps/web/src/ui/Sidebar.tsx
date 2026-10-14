@@ -166,7 +166,7 @@ function BackupList() {
     setConfirming(null);
     setBackups(listBackups());
     // 押したボタンは行ごと消えるので、残りの項目か検査パネルへフォーカスを移す
-    refocusInInspector(() => (list?.isConnected ? list.querySelector("button") : null));
+    refocusInInspector(() => list?.querySelector("button") ?? null);
   };
   return (
     <Show when={backups().length > 0}>
@@ -544,7 +544,10 @@ function LoopInspector(props: { id: LoopId }) {
 
 /** 押したボタンが消えたとき、target か検査パネルへフォーカスを移す */
 function refocusInInspector(target?: () => HTMLElement | null) {
-  refocusWhenLost(() => target?.() ?? document.querySelector<HTMLElement>(".inspector"));
+  refocusWhenLost(() => {
+    const element = target?.();
+    return element?.isConnected ? element : document.querySelector<HTMLElement>(".inspector");
+  });
 }
 
 function DeleteButton(props: { label: string }) {
