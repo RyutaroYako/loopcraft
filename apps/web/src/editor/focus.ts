@@ -12,17 +12,16 @@ type FocusTarget = () => HTMLElement | SVGElement | null | undefined;
 /**
  * 押したボタンなどが描画から消えたときに、キーボード操作を続けられるようフォーカスを移す。
  * 描画を待ってから確かめ、その間にほかへ移ったフォーカスは奪わない。
- * 候補は先頭から順に試し、文書の中に残っている最初の要素へ移す
+ * 候補は先頭から順に試し、実際にフォーカスを受け取れた最初の要素で止める
  */
 export function refocusWhenLost(...candidates: FocusTarget[]) {
   requestAnimationFrame(() => {
     if (!isFocusLost()) return;
     for (const candidate of candidates) {
       const element = candidate();
-      if (element?.isConnected) {
-        element.focus();
-        return;
-      }
+      if (!element?.isConnected) continue;
+      element.focus();
+      if (document.activeElement === element) return;
     }
   });
 }
