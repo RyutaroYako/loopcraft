@@ -15,8 +15,147 @@ export function Sidebar() {
   return (
     <aside class="sidebar">
       <Inspector />
-      <LoopList />
+      <Browser />
     </aside>
+  );
+}
+
+type BrowserTab = "loops" | "variables";
+
+/** 下半分の一覧。ループと変数をタブで切り替える */
+function Browser() {
+  const editor = useContext(EditorContext);
+  const [tab, setTab] = createSignal<BrowserTab>("loops");
+  const tabs: { value: BrowserTab; label: string; count: () => number }[] = [
+    { value: "loops", label: "ループ", count: () => editor.loopEntries().length },
+    { value: "variables", label: "変数", count: () => editor.diagram().variables.length },
+  ];
+  // 左右の矢印キーでタブを移る（WAI-ARIA のタブの作法）
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const next = tab() === "loops" ? "variables" : "loops";
+    setTab(next);
+    document.getElementById(`browser-tab-${next}`)?.focus();
+  };
+  return (
+    <section class="browser">
+      <div class="browser-tabs" role="tablist" aria-label="一覧" onKeyDown={onKeyDown}>
+        <For each={tabs}>
+          {(item) => (
+            <button
+              type="button"
+              role="tab"
+              id={`browser-tab-${item.value}`}
+              aria-controls={`browser-panel-${item.value}`}
+              aria-selected={tab() === item.value ? "true" : "false"}
+              tabindex={tab() === item.value ? 0 : -1}
+              class={["browser-tab", { active: tab() === item.value }]}
+              onClick={() => setTab(item.value)}
+            >
+              {item.label}
+              <span class="browser-tab-count">{item.count()}</span>
+            </button>
+          )}
+        </For>
+      </div>
+      <Show when={tab() === "loops"} fallback={<VariableList />}>
+        <LoopList />
+      </Show>
+    </section>
+  );
+}
+
+/** 変数の一覧。名前で絞り込み、選ぶとキャンバスでその変数を中央に出す */
+function VariableList() {
+  const editor = useContext(EditorContext);
+  const [query, setQuery] = createSignal("");
+  /** 変数ごとの、原因（入ってくる矢印）と結果（出ていく矢印）の数 */
+  const degrees = createMemo(() => {
+    const counts = new Map<VariableId, { causes: number; effects: number }>();
+    const of = (id: VariableId) => {
+      let count = counts.get(id);
+      if (!count) counts.set(id, (count = { causes: 0, effects: 0 }));
+      return count;
+    };
+    for (const link of editor.diagram().links) {
+      of(link.from).effects++;
+      of(link.to).causes++;
+    }
+    return counts;
+  });
+  const visible = createMemo(() => {
+    const words = query().trim().toLowerCase();
+    return editor
+      .diagram()
+      .variables.filter((variable) =>
+        (variable.label || "名称未設定").toLowerCase().includes(words),
+      );
+  });
+  const selectedId = () => {
+    const selection = editor.selection();
+    return selection?.kind === "variable" ? selection.id : undefined;
+  };
+  const choose = (id: VariableId) => {
+    editor.setFocusedLoop(null);
+    editor.select({ kind: "variable", id });
+    const variable = editor.variableById().get(id);
+    if (variable) editor.centerOn(variable.position);
+  };
+  return (
+    <div
+      class="loop-list"
+      role="tabpanel"
+      id="browser-panel-variables"
+      aria-labelledby="browser-tab-variables"
+    >
+      <label class="browser-search">
+        <span class="visually-hidden">変数を名前で絞り込む</span>
+        <input
+          type="search"
+          name="variable-search"
+          placeholder="名前で絞り込む"
+          value={query()}
+          onInput={(event) => setQuery(event.currentTarget.value)}
+        />
+      </label>
+      <Show
+        when={visible().length > 0}
+        fallback={
+          <p class="loop-empty">
+            {editor.diagram().variables.length === 0
+              ? "キャンバスをダブルクリックすると、ここに変数が並びます"
+              : "名前が一致する変数はありません"}
+          </p>
+        }
+      >
+        <ul class="loop-items">
+          <For each={visible()} keyed={(variable) => variable.id}>
+            {(variable, index) => (
+              <li
+                class={["loop-item", "variable-item", { active: selectedId() === variable().id }]}
+                style={{ "--index": String(Math.min(index(), 12)) }}
+              >
+                <button
+                  type="button"
+                  class="loop-item-main"
+                  aria-current={selectedId() === variable().id ? "true" : undefined}
+                  onClick={() => choose(variable().id)}
+                >
+                  <span class="loop-item-text">
+                    <span class="loop-item-title">{variable().label || "名称未設定"}</span>
+                    <span class="loop-item-route">
+                      原因 {degrees().get(variable().id)?.causes ?? 0} ・ 結果{" "}
+                      {degrees().get(variable().id)?.effects ?? 0}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            )}
+          </For>
+        </ul>
+      </Show>
+    </div>
   );
 }
 
@@ -594,16 +733,12 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
 function LoopList() {
   const editor = useContext(EditorContext);
   return (
-    <section class="loop-list" aria-labelledby="loop-list-title">
-      <header class="loop-list-header">
-        <div>
-          <p class="eyebrow">Loops</p>
-          <h2 id="loop-list-title">ループ</h2>
-        </div>
-        <p class="loop-count">
-          <span>{editor.loopEntries().length}</span> 検出
-        </p>
-      </header>
+    <div
+      class="loop-list"
+      role="tabpanel"
+      id="browser-panel-loops"
+      aria-labelledby="browser-tab-loops"
+    >
       <Show when={editor.detection().truncated}>
         <p class="loop-warning">
           ループが多すぎるため、先頭の {editor.detection().loops.length} 件だけを表示しています
@@ -629,7 +764,7 @@ function LoopList() {
           </For>
         </ul>
       </Show>
-    </section>
+    </div>
   );
 }
 

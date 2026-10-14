@@ -10,6 +10,7 @@ import {
   centerOf,
   cleanup,
   dragFrom,
+  fileStartup,
   mount,
   node,
   nodeElement,
@@ -392,5 +393,103 @@ describe("表示", () => {
     item.dispatchEvent(new PointerEvent("pointerleave"));
     flush();
     expect(document.querySelectorAll(".link.dimmed")).toHaveLength(0);
+  });
+});
+
+/** 右クリック（キーボードのメニューキーなら位置なし）でメニューを開く */
+function openMenu(target: Element, point?: { x: number; y: number }) {
+  target.dispatchEvent(
+    new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      button: 2,
+      clientX: point?.x ?? 0,
+      clientY: point?.y ?? 0,
+    }),
+  );
+}
+const menu = (name: string) => page.getByRole("menu", { name });
+const menuItem = (name: string | RegExp) => page.getByRole("menuitem", { name });
+
+describe("選んだ変数のまわり", () => {
+  it("変数を選ぶと、直接の原因と結果だけを残してほかを薄くする", async () => {
+    await open();
+    nodeElement("sales").focus();
+    await expect.poll(() => nodeElement("attrition").classList.contains("dimmed")).toBe(true);
+    expect(nodeElement("staff").classList.contains("dimmed")).toBe(false);
+    expect(nodeElement("profit").classList.contains("dimmed")).toBe(false);
+    expect(document.querySelector('[data-link-id="l_sales"]')!.classList.contains("dimmed")).toBe(
+      false,
+    );
+    expect(document.querySelector('[data-link-id="l_leave"]')!.classList.contains("dimmed")).toBe(
+      true,
+    );
+  });
+});
+
+describe("右クリックのメニュー", () => {
+  it("変数のメニューで名前を変え、削除でき、Escape で閉じると変数へフォーカスを戻す", async () => {
+    await open();
+    const sales = nodeElement("sales");
+    openMenu(sales, centerOf(sales));
+    await expect.element(menu("「売上」の操作")).toBeVisible();
+    await expect.element(menuItem(/名前を変える/)).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.element(menuItem(/変数を削除/)).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.element(menuItem(/名前を変える/)).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(menu("「売上」の操作")).not.toBeInTheDocument();
+    await expect.element(node("売上")).toHaveFocus();
+
+    // キーボードのメニューキー（位置なし）でも、変数の位置に開く
+    openMenu(nodeElement("sales"));
+    await menuItem(/名前を変える/).click();
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+
+    openMenu(nodeElement("sales"), centerOf(nodeElement("sales")));
+    await menuItem(/変数を削除/).click();
+    await expect.element(node("売上")).not.toBeInTheDocument();
+  });
+
+  it("関連のメニューで極性と遅れを切り替え、削除できる", async () => {
+    await open();
+    const link = () => document.querySelector('[data-link-id="l_sales"]')!;
+    const hit = () => link().querySelector(".link-hit")!;
+    openMenu(hit(), centerOf(link().querySelector(".polarity")!));
+    await menuItem("逆向き（−）にする").click();
+    await expect.poll(() => link().classList.contains("negative")).toBe(true);
+    openMenu(hit(), centerOf(link().querySelector(".polarity")!));
+    await menuItem("遅れを付ける").click();
+    await expect.poll(() => link().querySelector(".delay-mark")).not.toBeNull();
+    openMenu(hit(), centerOf(link().querySelector(".polarity")!));
+    await menuItem(/関連を削除/).click();
+    await expect.poll(() => document.querySelector('[data-link-id="l_sales"]')).toBeNull();
+  });
+
+  it("キャンバスのメニューで変数を足し、外側を押すと閉じる。読み取り専用では開かない", async () => {
+    await open();
+    const background = document.querySelector(".grid-bg")!;
+    const point = canvasPoint(40, 40);
+    openMenu(background, point);
+    await expect.element(menuItem("整列")).toBeEnabled();
+    await menuItem("ここに変数を追加").click();
+    await expect.poll(() => document.querySelectorAll(".node").length).toBe(8);
+
+    openMenu(background, point);
+    await expect.element(menu("キャンバスの操作")).toBeVisible();
+    background.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    await expect.element(menu("キャンバスの操作")).not.toBeInTheDocument();
+
+    mount(
+      fileStartup(
+        { status: "ok", diagram: createSampleDiagram(), revision: "r" },
+        { readonly: true },
+      ),
+    );
+    await settle();
+    openMenu(document.querySelector(".grid-bg")!, point);
+    expect(document.querySelector(".context-menu")).toBeNull();
   });
 });

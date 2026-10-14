@@ -292,6 +292,43 @@ describe("ループ", () => {
   });
 });
 
+describe("変数の一覧", () => {
+  const search = () => page.getByRole("searchbox", { name: "変数を名前で絞り込む" });
+  const rows = () => document.querySelectorAll("#browser-panel-variables .loop-item");
+
+  it("タブで切り替え、原因と結果の数を示し、名前で絞り込み、選ぶと検査パネルに出す", async () => {
+    await open();
+    const tab = page.getByRole("tab", { name: /変数/ });
+    await tab.click();
+    await expect.element(tab).toHaveAttribute("aria-selected", "true");
+    await expect.poll(() => rows().length).toBe(7);
+
+    await userEvent.fill(search(), "売上");
+    await expect.poll(() => rows().length).toBe(1);
+    await expect.element(page.getByText("原因 1 ・ 結果 2")).toBeVisible();
+    await page
+      .getByRole("tabpanel")
+      .getByRole("button", { name: /^売上/ })
+      .click();
+    await expect.element(heading("変数")).toBeVisible();
+    await expect.element(field("名前")).toHaveValue("売上");
+    expect(document.querySelector("#browser-panel-variables .loop-item.active")).not.toBeNull();
+
+    await userEvent.fill(search(), "存在しない");
+    await expect.element(page.getByText("名前が一致する変数はありません")).toBeVisible();
+  });
+
+  it("左右の矢印キーでタブを移り、変数が無ければ足し方を案内する", async () => {
+    mount(browserStartup(createEmptyDiagram()));
+    (page.getByRole("tab", { name: /ループ/ }).element() as HTMLElement).focus();
+    await userEvent.keyboard("{ArrowRight}");
+    await expect.element(page.getByRole("tab", { name: /変数/ })).toHaveFocus();
+    await expect.element(page.getByText(/ここに変数が並びます/)).toBeVisible();
+    await userEvent.keyboard("{ArrowLeft}");
+    await expect.element(page.getByRole("tab", { name: /ループ/ })).toHaveFocus();
+  });
+});
+
 describe("読み取り専用", () => {
   it("入力欄は読み取り専用になり、操作のボタンは出さない", async () => {
     mount(

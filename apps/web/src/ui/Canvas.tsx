@@ -1,7 +1,8 @@
 import { For, Show, createSignal, onSettled, useContext } from "solid-js";
 import { EditorContext, type Gesture } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
-import type { LoopId, Point, VariableId } from "@loopcraft/core/schema";
+import type { LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
+import { ContextMenu, type MenuItem, type MenuState } from "./ContextMenu.tsx";
 import {
   InlineLabelEditor,
   LinkDraftView,
@@ -209,6 +210,101 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
   // ドラッグ中はポインタをキャプチャしているので、dblclick の target は常に svg になる。
   // 実際にポインタの下にあるものを調べて振り分ける
+  const [menu, setMenu] = createSignal<MenuState | null>(null);
+  /** メニューを Escape で閉じたときに、フォーカスを戻す先 */
+  let menuOrigin: HTMLElement | SVGElement | undefined;
+
+  const variableMenu = (id: VariableId): MenuItem[] => [
+    {
+      label: "名前を変える",
+      shortcut: "F2",
+      run: () => editor.setEditingVariable(id),
+    },
+    {
+      label: "変数を削除",
+      shortcut: "Delete",
+      danger: true,
+      run: () => {
+        editor.select({ kind: "variable", id });
+        editor.deleteSelection();
+      },
+    },
+  ];
+
+  const linkMenu = (id: LinkId): MenuItem[] => {
+    const link = editor.linkById().get(id);
+    return [
+      {
+        label: link?.polarity === "-" ? "同じ向き（+）にする" : "逆向き（−）にする",
+        run: () => editor.commit(edit.togglePolarity(editor.current(), id)),
+      },
+      {
+        label: link?.delay ? "遅れを外す" : "遅れを付ける",
+        run: () =>
+          editor.commit(
+            edit.updateLink(editor.current(), id, { delay: link?.delay ? undefined : true }),
+          ),
+      },
+      {
+        label: "関連を削除",
+        shortcut: "Delete",
+        danger: true,
+        run: () => {
+          editor.select({ kind: "link", id });
+          editor.deleteSelection();
+        },
+      },
+    ];
+  };
+
+  const canvasMenu = (point: Point): MenuItem[] => [
+    {
+      label: "ここに変数を追加",
+      run: () => editor.addVariableAt({ x: Math.round(point.x), y: Math.round(point.y) }),
+    },
+    {
+      label: "整列",
+      disabled: editor.diagram().variables.length < 2,
+      run: () => editor.autoLayout(),
+    },
+    { label: "全体を表示", run: () => editor.fitView() },
+  ];
+
+  const onContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    if (!editor.editable() || !svg) return;
+    const target = event.target instanceof Element ? event.target : svg;
+    const node = target.closest<SVGElement>("[data-variable-id]");
+    const link = target.closest<SVGElement>("[data-link-id]");
+    // キーボードのメニューキーで開いたときは位置が無いので、対象の要素の位置に出す
+    const origin = node ?? link ?? svg;
+    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+    const rect = origin.getBoundingClientRect();
+    const at = fromKeyboard
+      ? { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }
+      : event;
+    const position = screenPoint(at);
+    menuOrigin = origin;
+    editor.setEditingVariable(null);
+    if (node) {
+      const id = node.dataset.variableId as VariableId;
+      editor.select({ kind: "variable", id });
+      const label = editor.variableById().get(id)?.label || "名称未設定";
+      setMenu({ ...position, label: `「${label}」の操作`, items: variableMenu(id) });
+    } else if (link) {
+      const id = link.dataset.linkId as LinkId;
+      editor.select({ kind: "link", id });
+      setMenu({ ...position, label: "関連の操作", items: linkMenu(id) });
+    } else {
+      setMenu({ ...position, label: "キャンバスの操作", items: canvasMenu(worldPoint(at)) });
+    }
+  };
+
+  const closeMenu = (restoreFocus: boolean) => {
+    setMenu(null);
+    if (restoreFocus) menuOrigin?.focus();
+  };
+
   const onDoubleClick = (event: MouseEvent) => {
     const point = worldPoint(event);
     const node = nodeAt(point);
@@ -271,6 +367,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         onPointerCancel={onPointerUp}
         onLostPointerCapture={onPointerUp}
         onDblClick={onDoubleClick}
+        onContextMenu={onContextMenu}
         role="group"
         aria-label="システム図のキャンバス"
         tabindex="-1"
@@ -332,6 +429,16 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
       <Show when={isEmpty()}>
         <EmptyState />
+      </Show>
+
+      <Show when={menu()} keyed>
+        {(current) => (
+          <ContextMenu
+            menu={current}
+            bounds={{ width: container?.clientWidth ?? 0, height: container?.clientHeight ?? 0 }}
+            onClose={closeMenu}
+          />
+        )}
       </Show>
 
       <div class="zoom-controls" role="toolbar" aria-label="表示倍率">

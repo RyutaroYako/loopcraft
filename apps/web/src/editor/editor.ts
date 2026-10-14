@@ -146,6 +146,24 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     return { key, links: new Set(entry.links), variables: new Set(entry.variables) };
   });
 
+  /**
+   * 選んだ変数と、その直接の原因・結果。ループを強調しているときは、そちらを優先して作らない。
+   * キャンバスでは、ここに含まれない変数と矢印を薄くする
+   */
+  const neighborhood = createMemo(() => {
+    const selected = selection();
+    if (selected?.kind !== "variable" || highlightedLoop() !== undefined) return undefined;
+    const variables = new Set<VariableId>([selected.id]);
+    const linkIds = new Set<LinkId>();
+    for (const link of links()) {
+      if (link.from !== selected.id && link.to !== selected.id) continue;
+      linkIds.add(link.id);
+      variables.add(link.from);
+      variables.add(link.to);
+    }
+    return { variables, links: linkIds };
+  });
+
   function updateHistorySize() {
     setHistorySize({ undo: undoStack.length, redo: redoStack.length });
   }
@@ -465,6 +483,16 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     });
   }
 
+  /** 倍率はそのままで、point が表示範囲の中央に来るように動かす */
+  function centerOn(point: Point) {
+    const size = currentSize;
+    setViewport((current) => ({
+      ...current,
+      x: size.width / 2 - point.x * current.zoom,
+      y: size.height / 2 - point.y * current.zoom,
+    }));
+  }
+
   function viewCenter(): Point {
     const size = currentSize;
     return screenToWorld({ x: size.width / 2, y: size.height / 2 });
@@ -482,6 +510,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     loopEntries,
     loopEntryByLoopId,
     highlightedLoop,
+    neighborhood,
     historySize,
     editable,
     selection,
@@ -519,6 +548,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     zoomBy,
     panBy,
     fitView,
+    centerOn,
     viewCenter,
   };
 }

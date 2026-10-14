@@ -44,7 +44,9 @@ export function LinkView(props: { id: LinkId }) {
     return current?.kind === "link" && current.id === props.id;
   };
   const highlighted = () => editor.highlightedLoop()?.links.has(props.id) ?? false;
-  const dimmed = () => editor.highlightedLoop() !== undefined && !highlighted();
+  const dimmed = () =>
+    (editor.highlightedLoop() !== undefined && !highlighted()) ||
+    editor.neighborhood()?.links.has(props.id) === false;
   const select = (event: PointerEvent) => {
     if (event.button !== 0) return;
     event.stopPropagation();
@@ -65,6 +67,7 @@ export function LinkView(props: { id: LinkId }) {
           link()?.polarity === "-" ? "negative" : "positive",
           { selected: selected(), highlighted: highlighted(), dimmed: dimmed() },
         ]}
+        data-link-id={props.id}
       >
         <path class="link-hit" d={geometry()?.path} onPointerDown={select} />
         <path class="link-path" d={geometry()?.path} marker-end="url(#arrowhead)" />
@@ -156,7 +159,9 @@ export function NodeView(props: {
     return current?.kind === "variable" && current.id === props.id;
   };
   const highlighted = () => editor.highlightedLoop()?.variables.has(props.id) ?? false;
-  const dimmed = () => editor.highlightedLoop() !== undefined && !highlighted();
+  const dimmed = () =>
+    (editor.highlightedLoop() !== undefined && !highlighted()) ||
+    editor.neighborhood()?.variables.has(props.id) === false;
   // キーボードだけでも選択・名前の変更・移動ができるようにする
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.shiftKey ? 40 : 8;
