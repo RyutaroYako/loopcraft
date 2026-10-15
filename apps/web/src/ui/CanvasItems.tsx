@@ -44,7 +44,6 @@ export function LinkView(props: { id: LinkId }) {
     return current?.kind === "link" && current.id === props.id;
   };
   const highlighted = () => editor.highlightedLoop()?.links.has(props.id) ?? false;
-  /** 目立たせる範囲の外にあるとき、その理由（ループか、選んだ変数のまわりか） */
   const outside = () => {
     const emphasis = editor.emphasis();
     return emphasis && !emphasis.links.has(props.id) ? emphasis.kind : undefined;
@@ -338,7 +337,7 @@ export function LoopMarkerView(props: {
     const highlighted = editor.highlightedLoop();
     return highlighted !== undefined && highlighted.key !== entry()?.key;
   };
-  /** 選んだ変数を通らないループの記号は、まわりの変数と一緒に控えめに薄くする */
+  // 記号だけ元の濃さで残すと、薄くしたまわりの変数より目立ってしまう
   const faded = () => {
     const emphasis = editor.emphasis();
     return emphasis?.kind === "neighborhood" && !entry()?.variables.includes(emphasis.center);

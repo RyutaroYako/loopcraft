@@ -22,7 +22,6 @@ export function Sidebar() {
 
 type BrowserTab = "loops" | "variables";
 
-/** 下半分の一覧。ループと変数をタブで切り替える */
 function Browser() {
   const editor = useContext(EditorContext);
   const [tab, setTab] = createSignal<BrowserTab>("loops");
@@ -30,7 +29,7 @@ function Browser() {
     { value: "loops", label: "ループ", count: () => editor.loopEntries().length },
     { value: "variables", label: "変数", count: () => editor.diagram().variables.length },
   ];
-  // 左右の矢印キーでタブを移る（WAI-ARIA のタブの作法）
+  // Tab キーでタブを巡らせないのは、WAI-ARIA のタブの作法に従うため（Tab は一覧へ進む）
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
@@ -62,20 +61,18 @@ function Browser() {
           )}
         </For>
       </div>
-      {/* 切り替えても絞り込みやスクロール位置が消えないよう、両方を描いたまま隠す */}
+      {/* Show で切り替えないのは、絞り込みやスクロール位置が消えるため */}
       <LoopList hidden={tab() !== "loops"} />
       <VariableList hidden={tab() !== "variables"} />
     </section>
   );
 }
 
-/** 変数の一覧。名前で絞り込み、選ぶとキャンバスでその変数を中央に出す */
 function VariableList(props: { hidden: boolean }) {
   const editor = useContext(EditorContext);
   const [query, setQuery] = createSignal("");
-  /** 変数ごとの、原因（入ってくる矢印）と結果（出ていく矢印）の数 */
   const degrees = createMemo(() => {
-    // 隠れている間は数えない（ドラッグ中の途中経過のたびに数え直さないように）
+    // 隠れている間も数えると、ドラッグの途中経過のたびに数え直してしまう
     if (props.hidden) return new Map<VariableId, { causes: number; effects: number }>();
     const counts = new Map<VariableId, { causes: number; effects: number }>();
     const of = (id: VariableId) => {
@@ -106,8 +103,8 @@ function VariableList(props: { hidden: boolean }) {
     editor.select({ kind: "variable", id });
     const variable = editor.variableById().get(id);
     if (variable) editor.centerOn(variable.position);
-    // 狭い画面では一覧がキャンバスの下にある。変数を出したキャンバスの中央が見えていなければ、
-    // キャンバスが見える所まで動かす
+    // 常にスクロールしないのは、広い画面では一覧とキャンバスが並んでいて要らないため。
+    // 完全に隠れたときだけにしないのは、少し見えていても中央が外れると変化が見えないため
     const canvas = canvasElement();
     const rect = canvas?.getBoundingClientRect();
     const middle = rect && rect.top + rect.height / 2;

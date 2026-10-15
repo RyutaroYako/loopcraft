@@ -69,7 +69,6 @@ function keepFocusInCanvas() {
   refocusWhenLost(canvasElement);
 }
 
-/** 描画中のキャンバスの svg */
 export function canvasElement() {
   return document.querySelector<SVGSVGElement>(".canvas-svg");
 }
@@ -151,10 +150,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     return { key, links: new Set(entry.links), variables: new Set(entry.variables) };
   });
 
-  /**
-   * 選んだ変数と、その直接の原因・結果。名前の入力中や、まだ矢印の無い変数では作らない
-   * （足したばかりの変数で、ほかがすべて薄くなるのを避ける）
-   */
+  // 矢印の無い変数や名前の入力中にも作ると、足したばかりの変数でほかがすべて薄くなる
   const neighborhood = createMemo(() => {
     const selected = selection();
     if (selected?.kind !== "variable" || editingVariable() !== null) return undefined;
@@ -169,10 +165,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     return linkIds.size > 0 ? { center: selected.id, variables, links: linkIds } : undefined;
   });
 
-  /**
-   * キャンバスで目立たせる範囲と、その理由。強調しているループを、選んだ変数のまわりより優先する。
-   * 範囲の外は、ループなら薄く、変数のまわりなら控えめに薄くする
-   */
+  // ループと変数のまわりを別々に描き分けないのは、どちらを優先するかを 1 か所で決めるため
   const emphasis = createMemo(() => {
     const loop = highlightedLoop();
     if (loop) return { kind: "loop" as const, variables: loop.variables, links: loop.links };
@@ -499,7 +492,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     });
   }
 
-  /** 倍率はそのままで、point が表示範囲の中央に来るように動かす */
   function centerOn(point: Point) {
     const size = currentSize;
     setViewport((current) => ({

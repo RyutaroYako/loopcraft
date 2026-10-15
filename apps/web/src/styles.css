@@ -536,7 +536,8 @@ button.save-status.warning .save-dot {
   opacity: 0.22;
 }
 
-/* 選んだ変数のまわり以外。名前は読める程度に残し、矢印を引くときや動かすときは戻す */
+/* ループの強調と同じ 0.22 にしないのは、選ぶたびに名前が読めなくなるため。
+   矢印を引く間や動かす間も薄いままにしないのは、行き先が見えなくなるため */
 .node.faded,
 .link.faded,
 .loop-marker.faded {
@@ -769,7 +770,7 @@ button.save-status.warning .save-dot {
   text-align: left;
 }
 
-/* 指した項目にフォーカスを移すので、強調はフォーカスだけで示す（2 つ同時に光らない） */
+/* hover を別に光らせないのは、指した項目へフォーカスを移すので 2 つ同時に光るため */
 .context-menu-item:focus {
   background: var(--surface-2);
   outline: none;
@@ -1530,7 +1531,7 @@ button.save-status.warning .save-dot {
 .browser-tabs {
   display: flex;
   gap: 4px;
-  /* タブの文字の左端を、下の検索欄や一覧の左端（20px）に揃える */
+  /* 他と同じ 20px にしないのは、タブ自体の内側の余白があり、文字が下の一覧より右にずれるため */
   padding: 12px 8px 8px;
 }
 
@@ -1746,7 +1747,7 @@ button.save-status.warning .save-dot {
 
 /* ---------- small screens ---------- */
 
-/* 狭くて低い画面では、手順の説明を省いてボタンだけを残し、拡大縮小の操作と重ならないようにする */
+/* 詰めるだけで済ませないのは、低い画面ではそれでもボタンが拡大縮小の操作と重なるため */
 @media (max-width: 767px) and (max-height: 760px) {
   .empty-state .empty-steps,
   .empty-state .empty-note {
@@ -1755,7 +1756,7 @@ button.save-status.warning .save-dot {
 }
 
 @media (max-width: 767px) {
-  /* 狭い画面では案内を詰め、下の拡大縮小の操作とボタンが重ならないようにする */
+  /* 広い画面と同じ余白では、ボタンが下の拡大縮小の操作と重なる */
   .empty-state {
     top: 16px;
     gap: 14px;

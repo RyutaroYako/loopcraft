@@ -39,7 +39,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   const editor = useContext(EditorContext);
   const [linkDraft, setLinkDraft] = createSignal<LinkDraft | null>(null);
   const [panning, setPanning] = createSignal(false);
-  /** 変数を動かしている間。まわり以外を薄くするのをやめ、行き先を見やすくする */
   const [moving, setMoving] = createSignal(false);
   let svg: SVGSVGElement | undefined;
   let drag: Drag | undefined;
@@ -132,7 +131,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     if (!drag.moved) {
       if (Math.hypot(screen.x - drag.start.x, screen.y - drag.start.y) < DRAG_THRESHOLD) return;
       drag.moved = true;
-      // 押しただけで薄さが切り替わってちらつかないよう、実際に動き出してから立てる
+      // 押した時点で立てないのは、クリックのたびに薄さが切り替わってちらつくため
       if (drag.kind === "move") setMoving(true);
     }
     const point = editor.screenToWorld(screen);
@@ -229,7 +228,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   };
 
   const [menu, setMenu] = createSignal<MenuState | null>(null);
-  /** メニューを Escape で閉じたときに、フォーカスを戻す先 */
   let menuOrigin: HTMLElement | SVGElement | undefined;
 
   const variableMenu = (id: VariableId): MenuItem[] => [
@@ -293,22 +291,22 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   ];
 
   const onContextMenu = (event: MouseEvent) => {
-    // 読み取り専用では、ブラウザ自身のメニューをそのまま使えるようにする
+    // 読み取り専用で preventDefault しないのは、ブラウザ自身のメニューを残すため
     if (!editor.editable() || !svg) return;
     event.preventDefault();
     if (drag !== undefined) {
-      // ドラッグ中はキャプチャで target が常に svg になり、狙いと違うメニューになるので開かない
+      // 動かしている途中で開かないのは、キャプチャで target が常に svg になり、狙いと違うメニューになるため
       if (drag.moved) return;
-      // macOS の Ctrl+クリックやタッチの長押しは、左ボタンの押下に続いてメニューを開く。
-      // まだ動いていなければ、そのドラッグはやめてメニューを優先する
+      // ドラッグ中でも一律に断らないのは、macOS の Ctrl+クリックやタッチの長押しが
+      // 左ボタンの押下に続いて contextmenu を送るため
       cancelDrag();
     }
     const target = event.target instanceof Element ? event.target : svg;
     const node = target.closest<SVGElement>("[data-variable-id]");
     const link = target.closest<SVGElement>("[data-link-id]");
-    // キーボードのメニューキーで開いたときは位置が無いので、対象の要素の位置に出す
+    // 届いた位置をそのまま使わないのは、メニューキーで開くと 0, 0 で届くため
     const origin = node ?? link ?? svg;
-    // 閉じた後のフォーカスの戻し先。矢印の線自体はフォーカスできないので、極性の印に戻す
+    // 矢印の線（g 要素）に戻さないのは、フォーカスを受け取れないため
     menuOrigin = node ?? link?.querySelector<SVGElement>(".polarity") ?? svg;
     const fromKeyboard = event.clientX === 0 && event.clientY === 0;
     const rect = origin.getBoundingClientRect();
@@ -340,7 +338,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     if (restoreFocus) menuOrigin?.focus();
   };
 
-  // 図や表示範囲が変わったら、項目や位置が古くなるので閉じる。メニューの中にあったフォーカスは元へ戻す
+  // 古くなったメニューを隠すだけにしないのは、元に戻すで同じ図に戻ると、古い項目のまま復活するため
   createEffect(
     () => [editor.diagram(), editor.viewport()],
     () => {

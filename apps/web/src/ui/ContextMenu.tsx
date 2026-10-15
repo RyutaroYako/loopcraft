@@ -2,7 +2,7 @@ import { For, onCleanup } from "solid-js";
 
 export interface MenuItem {
   label: string;
-  /** 同じ操作のキーボードショートカット。表示するだけ */
+  /** 表示するだけでキーを割り当てないのは、同じショートカットが App に既にあるため */
   shortcut?: string;
   danger?: boolean;
   disabled?: boolean;
@@ -10,10 +10,8 @@ export interface MenuItem {
 }
 
 export interface MenuState {
-  /** キャンバスの左上からの位置 */
   x: number;
   y: number;
-  /** 読み上げ用のメニュー名（例: 「売上」の操作） */
   label: string;
   items: MenuItem[];
 }
@@ -21,17 +19,12 @@ export interface MenuState {
 const MENU_WIDTH = 220;
 const ITEM_HEIGHT = 34;
 
-/**
- * 右クリックで開くメニュー。開くと最初の項目にフォーカスし、上下の矢印で移り、
- * Escape・Tab・外側のクリックで閉じる（WAI-ARIA のメニューの作法）
- */
 export function ContextMenu(props: {
   menu: MenuState;
   bounds: { width: number; height: number };
   onClose: (restoreFocus: boolean) => void;
 }) {
   let element: HTMLDivElement | undefined;
-  // 端で開いても、はみ出さないよう内側へ寄せる
   const left = () => Math.max(8, Math.min(props.menu.x, props.bounds.width - MENU_WIDTH - 8));
   const top = () =>
     Math.max(
@@ -69,9 +62,9 @@ export function ContextMenu(props: {
         else if (event.key === "Home") buttons()[0]?.focus();
         else if (event.key === "End") buttons().at(-1)?.focus();
         else if (event.key === "Escape") props.onClose(true);
-        // Tab でも閉じて元の要素へ戻す。消えたボタンの位置から無関係な所へ移らないようにする
+        // Tab を既定の動きに任せないのは、消えたボタンの位置から無関係な所へ移るため
         else if (event.key === "Tab") props.onClose(true);
-        // メニューを開いている間は、Delete や元に戻すなどのショートカットを図に届けない
+        // 伝播を止めないと、Delete や元に戻すが window のショートカットに届いて図が変わる
         event.stopPropagation();
         if (["ArrowDown", "ArrowUp", "Home", "End", "Escape", "Tab"].includes(event.key)) {
           event.preventDefault();
@@ -86,10 +79,10 @@ export function ContextMenu(props: {
             class={["context-menu-item", { danger: item.danger }]}
             disabled={item.disabled}
             aria-keyshortcuts={item.shortcut}
-            // 指した項目にフォーカスを移し、マウスとキーボードの強調を 1 つにする
+            // hover だけで光らせないのは、キーボードのフォーカスと 2 つ同時に光るため
             onPointerMove={(event) => event.currentTarget.focus()}
             onClick={() => {
-              // 先に元の要素へフォーカスを戻す。消える操作なら、消えた後で図がキャンバスへ戻す
+              // run の後で戻さないのは、消える操作では戻し先が既に無いため
               props.onClose(true);
               item.run();
             }}
