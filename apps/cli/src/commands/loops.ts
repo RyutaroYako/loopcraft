@@ -9,7 +9,6 @@ import { readDiagramFile } from "../files.ts";
 export type LoopsFormat = "text" | "json" | "md";
 export type LoopKindFilter = "r" | "b";
 
-/** 図に含まれるループを一覧する。見出したループを先に、R1 / B2 のような番号付きで出す */
 export async function loops(
   file: string,
   options: { format: LoopsFormat; kind?: LoopKindFilter },

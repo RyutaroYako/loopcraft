@@ -13,7 +13,7 @@ export default defineConfig({
     banner: { js: "#!/usr/bin/env node" },
     clean: true,
     hooks: {
-      // serve で配るため、ビルド済みのエディタをパッケージに同梱する
+      // apps/web/dist を参照するだけにしないのは、公開したパッケージには含まれないため
       "build:done": async () => {
         await cp(webDist, bundledWeb, { recursive: true });
       },

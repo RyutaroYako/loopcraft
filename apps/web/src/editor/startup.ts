@@ -13,7 +13,6 @@ export type Startup =
   | { kind: "browser"; stored: StoredDiagram; sessionInvalid?: boolean }
   | { kind: "file"; session: Session; loaded: LoadResult; store: DocumentStore };
 
-/** 描画の前に、どこから図を開くかを決めて読み込む */
 export async function prepareStartup(doc: Document = document): Promise<Startup> {
   const session = readSession(doc);
   if (session === undefined) return { kind: "browser", stored: loadStoredDiagram() };
@@ -28,9 +27,8 @@ export async function prepareStartup(doc: Document = document): Promise<Startup>
 export interface ResolvedStartup {
   initial: Diagram;
   store: DocumentStore;
-  /** true なら編集できない（serve --readonly） */
+  /** serve --readonly */
   readonly: boolean;
-  /** 自動保存を問題のある状態から始めるとき */
   initialStatus: AutosaveStatus | undefined;
 }
 
@@ -41,8 +39,8 @@ export function resolveStartup(startup: Startup): ResolvedStartup {
       initial: stored.status === "ok" ? stored.diagram : createEmptyDiagram(),
       store: createBrowserStore(),
       readonly: false,
-      // 保存先が使えないときと、開けなかった前回の図を退避できなかったとき（書き出してもらうまで
-      // 上書きしない）は、最初から問題のある状態として始めてツールバーにも出す
+      // 保存先が使えないときと、開けなかった前回の図を退避できなかったときに ok で始めないのは、
+      // ツールバーに最初から問題を出し、書き出してもらうまで上書きしないため
       initialStatus:
         stored.status === "unavailable"
           ? { kind: "failing", error: stored.error }
@@ -61,7 +59,7 @@ export function resolveStartup(startup: Startup): ResolvedStartup {
           : createEmptyDiagram(titleOf(session.file)),
     store,
     readonly: session.readonly,
-    // 読めなかったファイルを、空の図で上書きしてしまわないよう止めておく
+    // ok で始めると、読めなかったファイルを空の図で上書きしてしまう
     initialStatus:
       loaded.status === "invalid" || loaded.status === "error"
         ? { kind: "suspended", reason: "unreadable" }

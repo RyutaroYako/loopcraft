@@ -2,12 +2,11 @@ import type { JSX } from "@solidjs/web";
 import { createSignal, onCleanup, onSettled } from "solid-js";
 import { CheckIcon, CloseIcon, CopyIcon } from "./icons.tsx";
 
-/** 開いている間はほかの操作を受け付けないダイアログ。描かれたら開き、閉じたら onClose を呼ぶ */
 export function Dialog(props: {
   title: string;
   class?: string;
   onClose: () => void;
-  /** 中のボタンから閉じるときに使う。close() で閉じると onClose も呼ばれる */
+  /** 中のボタンから props.onClose を直接呼ばないのは、close() で閉じれば onClose も呼ばれるため */
   dialogRef?: (element: HTMLDialogElement) => void;
   children: JSX.Element;
   footer: JSX.Element;
@@ -26,7 +25,7 @@ export function Dialog(props: {
       aria-label={props.title}
       onClose={() => props.onClose()}
       onClick={(event) => {
-        // 枠の外（背景）を押したら閉じる
+        // 座標で枠の外かを測らないのは、背景のクリックは dialog 自身に当たるため
         if (event.target === event.currentTarget) event.currentTarget.close();
       }}
     >
@@ -49,7 +48,6 @@ export function Dialog(props: {
 
 const COPIED_MS = 2000;
 
-/** クリップボードへコピーし、しばらく結果をボタンに出す */
 export function CopyButton(props: {
   copy: () => Promise<void>;
   disabled?: boolean;

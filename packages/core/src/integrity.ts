@@ -8,7 +8,6 @@ export interface IntegrityIssue {
   message: string;
 }
 
-/** スキーマの形だけでは表せない、要素間の整合性の違反をすべて列挙する。 */
 export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
   const issues: IntegrityIssue[] = [];
 
@@ -29,7 +28,7 @@ export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
       if (!variableIds.has(link[end])) {
         issues.push({
           path: ["links", index, end],
-          message: `出来事 "${link[end]}" は存在しません`,
+          message: `変数 "${link[end]}" は存在しません`,
         });
       }
     }
@@ -54,7 +53,7 @@ export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
       const message = {
         "unknown-link": `関連 "${loop.links[error.index]}" は存在しません`,
         disconnected: "前の関連の行き先と次の関連の出発点が一致しません",
-        "revisits-variable": "同じ出来事を 2 回通っています",
+        "revisits-variable": "同じ変数を 2 回通っています",
       }[error.kind];
       issues.push({ path: ["loops", index, "links", error.index], message });
       continue;
@@ -69,7 +68,7 @@ export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
   return issues;
 }
 
-/** 「原因→結果」の組を表すキー。同じ向きの関連の重複や、逆向きの関連の有無を調べるのに使う */
+/** 区切り文字で繋がないのは、ID に区切り文字が含まれると別の組と同じキーになるため */
 export function linkPairKey(from: string, to: string): string {
   return JSON.stringify([from, to]);
 }

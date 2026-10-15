@@ -2,7 +2,7 @@ import { cancel, confirm, isCancel, multiselect, select, text } from "@clack/pro
 import { DEFAULT_FILE } from "./commands/init.ts";
 import { listJsonFiles } from "./files.ts";
 
-/** 対話で選べるコマンド。init は serve と役割が重なるので出さない（コマンドとしては使える） */
+/** init を入れないのは、serve と役割が重なるため（コマンドとしては使える） */
 export type CommandName = "serve" | "validate" | "loops" | "schema";
 
 export const COMMANDS: { value: CommandName; label: string; hint: string }[] = [
@@ -12,22 +12,20 @@ export const COMMANDS: { value: CommandName; label: string; hint: string }[] = [
   { value: "schema", label: "schema", hint: "JSON Schema を出力する" },
 ];
 
-/** 対話で引数を補う。キャンセルされたら undefined を返す */
+/** キャンセルされたら undefined */
 export interface Prompts {
   chooseCommand(): Promise<CommandName | undefined>;
   /** 選べるファイルが無く、新しく作ることもできないときは null */
   chooseFile(
     cwd: string,
-    /** newOnly なら一覧から選ばせず、新しいファイル名を聞く */
     options: { message: string; allowNew: boolean; newOnly?: boolean },
   ): Promise<string | null | undefined>;
   chooseFiles(cwd: string): Promise<string[] | undefined>;
-  /** オプションで決まっている項目は聞かない */
   askInit(known: { sample?: boolean }): Promise<{ file: string; sample: boolean } | undefined>;
   cancelled(): void;
 }
 
-/** 「新しいファイルを作る」を選んだ印。ファイル名とは重ならない */
+/** \u0000 を付けないと、同じ名前のファイルと区別できない */
 const NEW_FILE = "\u0000new-file";
 
 export const clackPrompts: Prompts = {

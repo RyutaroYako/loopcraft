@@ -30,26 +30,26 @@ const ok = (diagram = createSampleDiagram()) => ({
 });
 
 describe("エディタ", () => {
-  it("サンプルを開くと、出来事とループが並ぶ", async () => {
+  it("サンプルを開くと、変数とループが並ぶ", async () => {
     mount(browserStartup());
-    await expect.element(page.getByRole("heading", { name: /最初の出来事を置いて/ })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: /最初の変数を置いて/ })).toBeVisible();
     await page.getByRole("button", { name: "サンプルを開く" }).click();
     await expect.element(node("社員数")).toBeVisible();
     await expect.element(page.getByRole("button", { name: /成長エンジン/ }).first()).toBeVisible();
     expect(loopItems()).toHaveLength(4);
   });
 
-  it("キャンバスをダブルクリックして出来事を足し、名前を付ける", async () => {
+  it("キャンバスをダブルクリックして変数を足し、名前を付ける", async () => {
     mount(browserStartup(createEmptyDiagram()));
     await userEvent.dblClick(canvas(), { position: { x: 400, y: 300 } });
-    const input = page.getByRole("textbox", { name: "出来事の名前" });
+    const input = page.getByRole("textbox", { name: "変数の名前" });
     await expect.element(input).toHaveFocus();
     await userEvent.fill(input, "顧客満足度");
     await userEvent.keyboard("{Enter}");
     await expect.element(node("顧客満足度")).toBeVisible();
   });
 
-  it("出来事の右端の点をドラッグして関連を引くと、ループが見つかる", async () => {
+  it("変数の右端の点をドラッグして関連を引くと、ループが見つかる", async () => {
     const diagram = edit.removeLinks(createSampleDiagram(), new Set(["l_join" as LinkId]));
     mount(browserStartup(diagram));
     await expect.element(node("採用数")).toBeVisible();
@@ -61,7 +61,7 @@ describe("エディタ", () => {
     await expect.element(page.getByText("関連", { exact: true })).toBeVisible();
   });
 
-  it("フォーカスした出来事を Delete で消す", async () => {
+  it("フォーカスした変数を Delete で消す", async () => {
     mount(browserStartup(createSampleDiagram()));
     const target = node("離職数");
     await expect.element(target).toBeVisible();
@@ -86,7 +86,7 @@ describe("キーボード", () => {
     await userEvent.keyboard("{Control>}y{/Control}");
     await expect.element(node("離職数")).not.toBeInTheDocument();
 
-    // 出来事を選んだまま入力欄で打っても、図の操作にはならない
+    // 変数にフォーカスを残してから入力欄へ移るのは、選択が残っていても入力欄の操作が図に効かないことを確かめるため
     nodeElement("sales").focus();
     const title = page.getByRole("textbox", { name: "図のタイトル" });
     await userEvent.click(title);
@@ -95,14 +95,14 @@ describe("キーボード", () => {
     await expect.element(node("売上")).toBeVisible();
   });
 
-  it("Escape で選択を外し、Enter で選んだ出来事の名前を編集する", async () => {
+  it("Escape で選択を外し、Enter で選んだ変数の名前を編集する", async () => {
     mount(browserStartup(createSampleDiagram()));
     await expect.element(node("売上")).toBeVisible();
     nodeElement("sales").focus();
-    await expect.element(page.getByRole("heading", { name: "出来事" })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "変数" })).toBeVisible();
     (document.activeElement as HTMLElement).blur();
     await userEvent.keyboard("{Enter}");
-    await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveFocus();
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
     await userEvent.keyboard("{Escape}");
     await expect.element(page.getByRole("heading", { name: "図の概要" })).toBeVisible();
@@ -202,11 +202,11 @@ describe("serve で開いたとき", () => {
     mount(fileStartup(ok()));
     await expect.element(page.getByText("growth.json")).toBeVisible();
     await userEvent.dblClick(canvas(), { position: { x: 300, y: 120 } });
-    await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveFocus();
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
 
     mount(fileStartup(ok(), { readonly: true }));
     await expect.element(page.getByText("読み取り専用", { exact: true })).toBeVisible();
-    // 読み上げは画面の幅によらず、読み取り専用であることと、その意味を伝える
+    // toBeVisible で確かめないのは、読み上げ用の文は画面には出さないため
     await expect
       .element(page.getByText("読み取り専用。編集も保存もできません"))
       .toBeInTheDocument();

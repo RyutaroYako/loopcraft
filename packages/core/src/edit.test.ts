@@ -17,13 +17,12 @@ import { createSample } from "./testing/sample.ts";
 const vid = (id: string) => id as VariableId;
 const lid = (id: string) => id as LinkId;
 
-/** 編集結果が常にスキーマの整合性を満たすことを確かめる */
 function expectValid(diagram: unknown) {
   expect(v.safeParse(DiagramSchema, diagram).issues).toBeUndefined();
 }
 
 describe("edit", () => {
-  it("出来事を追加すると重複しない ID が振られる", () => {
+  it("変数を追加すると重複しない ID が振られる", () => {
     const sample = createSample();
     const { diagram, id } = addVariable(sample, { label: "離職率", position: { x: 1, y: 2 } });
     expect(diagram.variables.at(-1)).toEqual({ id, label: "離職率", position: { x: 1, y: 2 } });
@@ -45,7 +44,7 @@ describe("edit", () => {
     expect(cleared.variables[0]).not.toHaveProperty("description");
   });
 
-  it("出来事を消すと繋がる関連とループも消える", () => {
+  it("変数を消すと繋がる関連とループも消える", () => {
     const diagram = removeVariable(createSample(), vid("sales"));
     expect(diagram.links.map((link) => link.id)).toEqual(["l1", "l2", "l3", "l4"]);
     expect(diagram.loops.map((loop) => loop.id)).toEqual(["b1"]);

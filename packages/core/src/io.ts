@@ -1,4 +1,4 @@
-// 型の不一致など、スキーマ自体が出す検証メッセージを日本語にする
+// 副作用だけの import。消すと、型の不一致などスキーマ自体が出す検証メッセージが英語に戻る
 import "@valibot/i18n/ja/schema";
 import * as v from "valibot";
 import { DIAGRAM_FORMAT_VERSION, DiagramSchema, type Diagram } from "./schema.ts";
@@ -17,7 +17,6 @@ export function createEmptyDiagram(title = "無題のシステム図"): Diagram 
   });
 }
 
-/** 読み込んだ JSON 文字列を検証し、エラーは「どこが・なぜ」の形で返す。 */
 export function parseDiagramJson(text: string): ParseDiagramResult {
   let input: unknown;
   try {

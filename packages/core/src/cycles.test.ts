@@ -32,7 +32,7 @@ describe("findLoops", () => {
     );
   });
 
-  it("出来事の並びは関連の出発点と対応する", () => {
+  it("変数の並びは関連の出発点と対応する", () => {
     const { loops } = findLoops(
       linksOf([
         ["a", "b", "+"],
@@ -95,7 +95,6 @@ describe("findLoops", () => {
 
 describe("findLoops（入り組んだ閉路）", () => {
   it("閉路を作らない枝が多くても、閉路だけを数える", () => {
-    // a→b→c→a の閉路に、閉路へ戻らない枝 b→d, d→e, c→d を足す
     const edges: [string, string, "+" | "-"][] = [
       ["a", "b", "+"],
       ["b", "c", "+"],

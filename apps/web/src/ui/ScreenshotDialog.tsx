@@ -9,7 +9,6 @@ type Shot =
   | { status: "ready"; blob: Blob; url: string }
   | { status: "failed"; error: string };
 
-/** 図全体を画像にしてプレビューし、コピーか PNG の保存で持ち出せるようにする */
 export function ScreenshotDialog(props: { capture: () => Promise<Blob>; onClose: () => void }) {
   const editor = useContext(EditorContext);
   const [shot, setShot] = createSignal<Shot>({ status: "capturing" });
@@ -19,7 +18,7 @@ export function ScreenshotDialog(props: { capture: () => Promise<Blob>; onClose:
   });
 
   onSettled(() => {
-    // 選択中の枠や名前の入力欄を写さないよう、外して描き直されてから写す
+    // 選択を外してすぐ写さないのは、描き直される前の選択の枠や名前の入力欄が写るため
     editor.select(null);
     editor.setEditingVariable(null);
     requestAnimationFrame(() => {

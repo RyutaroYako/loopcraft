@@ -144,7 +144,7 @@ describe("loops", () => {
     expect(stderr).toEqual(["ℹ ループはありません"]);
   });
 
-  it("名前の無い出来事は名称未設定と出す", async () => {
+  it("名前の無い変数は名称未設定と出す", async () => {
     const { context, stdout } = await createWorkspace();
     const diagram = createSampleDiagram();
     diagram.variables[0]!.label = "";

@@ -12,8 +12,8 @@ import type {
 } from "./schema.ts";
 
 /**
- * 図を編集する純粋関数群。引数の図は変更せず、変わった部分だけを差し替えた新しい図を返す。
- * 変更が無い（対象が見つからない・既に同じ値）ときは元の図をそのまま返す。
+ * どの関数も引数の図を変更しない。
+ * 変更が無い（対象が見つからない・既に同じ値）ときは、新しい図を作らず元の図をそのまま返す。
  */
 
 type Patch<T> = Partial<Omit<T, "id">>;
@@ -73,8 +73,8 @@ export function updateVariable(diagram: Diagram, id: VariableId, patch: Patch<Va
 }
 
 /**
- * 出来事を動かす。位置を指定したループ記号は、ループの出来事の重心が動いた分だけ一緒に動かし、
- * ループとの位置関係を保つ
+ * 位置を指定したループ記号も、ループの変数の重心が動いた分だけ動かす。
+ * 止めたままにすると、ループとの位置関係が崩れる
  */
 export function moveVariables(
   diagram: Diagram,
@@ -112,7 +112,7 @@ export function moveVariables(
   return { ...diagram, variables, loops };
 }
 
-/** 出来事を消すと、それに繋がる関連と、その関連を通るループも消える。 */
+/** 繋がる関連とそれを通るループを残さないのは、参照先の無い関連・ループになるため */
 export function removeVariable(diagram: Diagram, id: VariableId): Diagram {
   if (!diagram.variables.some((variable) => variable.id === id)) return diagram;
   const removedLinks = diagram.links.filter((link) => link.from === id || link.to === id);
@@ -157,7 +157,7 @@ export function togglePolarity(diagram: Diagram, id: LinkId): Diagram {
   return updateLink(diagram, id, { polarity: link.polarity === "+" ? "-" : "+" });
 }
 
-/** 関連を消すと、それを通るループも消える。 */
+/** それを通るループを残さないのは、閉路でなくなるため */
 export function removeLinks(diagram: Diagram, ids: ReadonlySet<LinkId>): Diagram {
   if (ids.size === 0) return diagram;
   return {
@@ -167,7 +167,6 @@ export function removeLinks(diagram: Diagram, ids: ReadonlySet<LinkId>): Diagram
   };
 }
 
-/** 検出されたループを図の主張として登録する。既に登録済みならその ID を返す。 */
 export function featureLoop(
   diagram: Diagram,
   links: LinkId[],

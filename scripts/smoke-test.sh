@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# 固めた CLI のパッケージを空のプロジェクトに入れ、主なコマンドが動くことを確かめる
 set -euo pipefail
 
 tarball=$(realpath "$1")
@@ -18,7 +17,6 @@ server=$!
 finish() {
   local status=$?
   kill "$server" 2> /dev/null || true
-  # 失敗したら、serve が何を出していたかを見せる
   if [ "$status" -ne 0 ]; then
     echo "--- serve.log"
     cat serve.log

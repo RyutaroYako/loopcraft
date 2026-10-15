@@ -176,7 +176,7 @@ describe("読み取り専用", () => {
 });
 
 describe("編集の操作", () => {
-  it("出来事を足して名前の入力を始める", () => {
+  it("変数を足して名前の入力を始める", () => {
     const editor = setup();
     const id = editor.addVariableAt({ x: 1, y: 2 })!;
     flush();
@@ -198,7 +198,7 @@ describe("編集の操作", () => {
     expect(editor.selection()).toEqual({ kind: "link", id: "l_sales" });
   });
 
-  it("関連を引いた先に新しい出来事を作る", () => {
+  it("関連を引いた先に新しい変数を作る", () => {
     const editor = setup();
     editor.connectToNewVariable(vid("staff"), { x: 9, y: 9 });
     flush();
@@ -389,10 +389,10 @@ describe("表示範囲", () => {
     expect(zoom).toBeLessThanOrEqual(1.25);
   });
 
-  it("出来事の大きさはラベルの幅で決まり、名前が無ければ仮の名前で測る", () => {
+  it("変数の大きさはラベルの幅で決まり、名前が無ければ仮の名前で測る", () => {
     const boxes = computeBoxes([
       { id: vid("a"), label: "", position: { x: 0, y: 0 } },
-      { id: vid("b"), label: "とても長い出来事の名前", position: { x: 0, y: 0 } },
+      { id: vid("b"), label: "とても長い変数の名前", position: { x: 0, y: 0 } },
     ]);
     expect(boxes.get(vid("a"))!.size.width).toBeLessThan(boxes.get(vid("b"))!.size.width);
   });

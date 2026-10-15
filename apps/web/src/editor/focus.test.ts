@@ -36,21 +36,19 @@ describe("refocusWhenLost", () => {
     const pressed = document.createElement("button");
     document.body.append(target, other, pressed);
 
-    // 押した時点ではまだ消えていない。描画で消えてから確かめる
+    // 呼んだ後で消すのは、押した時点ではまだ消えていないため
     pressed.focus();
     refocusWhenLost(() => target);
     pressed.remove();
     runFrames();
     expect(document.activeElement).toBe(target);
 
-    // 描画を待つ間にほかへ移ったフォーカスは奪わない
     target.blur();
     refocusWhenLost(() => target);
     other.focus();
     runFrames();
     expect(document.activeElement).toBe(other);
 
-    // 移す先が無ければ何もしない
     other.blur();
     const missing = vi.fn(() => null);
     refocusWhenLost(missing);

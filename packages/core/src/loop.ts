@@ -3,7 +3,6 @@ import type { Link, LinkId, Polarity } from "./schema.ts";
 /** reinforcing: 自己強化ループ（R） / balancing: バランスループ（B） */
 export type LoopKind = "reinforcing" | "balancing";
 
-/** 負の関連が奇数本ならバランスループ、偶数本（0 を含む）なら自己強化ループ。 */
 export function classifyLoop(polarities: Iterable<Polarity>): LoopKind {
   let negatives = 0;
   for (const polarity of polarities) {
@@ -12,10 +11,7 @@ export function classifyLoop(polarities: Iterable<Polarity>): LoopKind {
   return negatives % 2 === 1 ? "balancing" : "reinforcing";
 }
 
-/**
- * 回転だけが違う同じ閉路が同じ値になるキー。
- * 最小の ID が先頭に来るよう回転させてから連結する。
- */
+/** 回転だけが違う同じ閉路は同じ値になる */
 export function cycleKey(links: readonly LinkId[]): string {
   if (links.length === 0) return "";
   let start = 0;
@@ -30,10 +26,7 @@ export type CycleError =
   | { kind: "disconnected"; index: number }
   | { kind: "revisits-variable"; index: number };
 
-/**
- * links が「前の関連の to = 次の関連の from」で繋がり、最後が最初に戻る単純閉路かを調べる。
- * 問題があれば最初に見つかった箇所を返す。
- */
+/** links は「前の関連の to = 次の関連の from」の順で並び、最後が最初に戻る */
 export function findCycleError(
   links: readonly LinkId[],
   linksById: ReadonlyMap<LinkId, Link>,

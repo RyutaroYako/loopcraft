@@ -1,6 +1,6 @@
 import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
-import { EditorContext, type Editor } from "../editor/editor.ts";
+import { canvasElement, EditorContext, type Editor } from "../editor/editor.ts";
 import type { LoopEntry } from "@loopcraft/core/loops";
 import { downloadText } from "../editor/file.ts";
 import { refocusWhenLost } from "../editor/focus.ts";
@@ -15,18 +15,168 @@ export function Sidebar() {
   return (
     <aside class="sidebar">
       <Inspector />
-      <LoopList />
+      <Browser />
     </aside>
   );
 }
 
-/*
- * 検査パネルは選択中の ID ごとに作り直し、中身は ID から最新の図を引き直す。
- * 削除と同じ更新の中で子の計算が先に走っても落ちないよう、見つからないときは空で描く。
- */
+type BrowserTab = "loops" | "variables";
+
+function Browser() {
+  const editor = useContext(EditorContext);
+  const [tab, setTab] = createSignal<BrowserTab>("loops");
+  const tabs: { value: BrowserTab; label: string; count: () => number }[] = [
+    { value: "loops", label: "ループ", count: () => editor.loopEntries().length },
+    { value: "variables", label: "変数", count: () => editor.diagram().variables.length },
+  ];
+  // Tab キーでタブを巡らせないのは、WAI-ARIA のタブの作法に従うため（Tab は一覧へ進む）
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const next = tab() === "loops" ? "variables" : "loops";
+    setTab(next);
+    document.getElementById(`browser-tab-${next}`)?.focus();
+  };
+  return (
+    <section class="browser">
+      <div class="browser-tabs" role="tablist" aria-label="一覧" onKeyDown={onKeyDown}>
+        <For each={tabs}>
+          {(item) => (
+            <button
+              type="button"
+              role="tab"
+              id={`browser-tab-${item.value}`}
+              aria-controls={`browser-panel-${item.value}`}
+              aria-selected={tab() === item.value ? "true" : "false"}
+              tabindex={tab() === item.value ? 0 : -1}
+              class={["browser-tab", { active: tab() === item.value }]}
+              onClick={() => setTab(item.value)}
+            >
+              {item.label}
+              <span class="browser-tab-count">
+                {item.count()}
+                <span class="visually-hidden">件</span>
+              </span>
+            </button>
+          )}
+        </For>
+      </div>
+      {/* Show で切り替えないのは、絞り込みやスクロール位置が消えるため */}
+      <LoopList hidden={tab() !== "loops"} />
+      <VariableList hidden={tab() !== "variables"} />
+    </section>
+  );
+}
+
+function VariableList(props: { hidden: boolean }) {
+  const editor = useContext(EditorContext);
+  const [query, setQuery] = createSignal("");
+  const degrees = createMemo(() => {
+    // 隠れている間も数えると、ドラッグの途中経過のたびに数え直してしまう
+    if (props.hidden) return new Map<VariableId, { causes: number; effects: number }>();
+    const counts = new Map<VariableId, { causes: number; effects: number }>();
+    const of = (id: VariableId) => {
+      let count = counts.get(id);
+      if (!count) counts.set(id, (count = { causes: 0, effects: 0 }));
+      return count;
+    };
+    for (const link of editor.diagram().links) {
+      of(link.from).effects++;
+      of(link.to).causes++;
+    }
+    return counts;
+  });
+  const visible = createMemo(() => {
+    if (props.hidden) return [];
+    const words = query().trim().toLowerCase();
+    return editor
+      .diagram()
+      .variables.filter((variable) =>
+        (variable.label || "名称未設定").toLowerCase().includes(words),
+      );
+  });
+  const selectedId = () => {
+    const selection = editor.selection();
+    return selection?.kind === "variable" ? selection.id : undefined;
+  };
+  const choose = (id: VariableId) => {
+    editor.select({ kind: "variable", id });
+    const variable = editor.variableById().get(id);
+    if (variable) editor.centerOn(variable.position);
+    // 常にスクロールしないのは、広い画面では一覧とキャンバスが並んでいて要らないため。
+    // 完全に隠れたときだけにしないのは、少し見えていても中央が外れると変化が見えないため
+    const canvas = canvasElement();
+    const rect = canvas?.getBoundingClientRect();
+    const middle = rect && rect.top + rect.height / 2;
+    if (canvas && middle !== undefined && (middle < 0 || middle > window.innerHeight)) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      canvas.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+    }
+  };
+  return (
+    <div
+      class="loop-list"
+      role="tabpanel"
+      hidden={props.hidden}
+      id="browser-panel-variables"
+      aria-labelledby="browser-tab-variables"
+    >
+      <Show when={editor.diagram().variables.length > 0}>
+        <label class="browser-search">
+          <span class="visually-hidden">変数を名前で絞り込む</span>
+          <input
+            type="search"
+            name="variable-search"
+            placeholder="名前で絞り込む"
+            value={query()}
+            onInput={(event) => setQuery(event.currentTarget.value)}
+          />
+        </label>
+      </Show>
+      <Show
+        when={visible().length > 0}
+        fallback={
+          <p class="loop-empty">
+            {editor.diagram().variables.length === 0
+              ? "キャンバスをダブルクリックすると、ここに変数が並びます"
+              : "名前が一致する変数はありません"}
+          </p>
+        }
+      >
+        <ul class="loop-items">
+          <For each={visible()} keyed={(variable) => variable.id}>
+            {(variable, index) => (
+              <li
+                class={["variable-item", { active: selectedId() === variable().id }]}
+                style={{ "--index": String(Math.min(index(), 12)) }}
+              >
+                <button
+                  type="button"
+                  class="loop-item-main"
+                  aria-current={selectedId() === variable().id ? "true" : undefined}
+                  onClick={() => choose(variable().id)}
+                >
+                  <span class="loop-item-text">
+                    <span class="loop-item-title">{variable().label || "名称未設定"}</span>
+                    <span class="loop-item-route">
+                      原因 {degrees().get(variable().id)?.causes ?? 0} ・ 結果{" "}
+                      {degrees().get(variable().id)?.effects ?? 0}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            )}
+          </For>
+        </ul>
+      </Show>
+    </div>
+  );
+}
+
+// 見つからない ID で落とさず空で描くのは、削除と同じ更新の中で子の計算が先に走ることがあるため
 function Inspector() {
   const editor = useContext(EditorContext);
-  // 型を絞り込むため、種類ごとに選択中の ID を取り出す
+  // selection() を 1 つの Match で使わないのは、種類ごとに型を絞り込めないため
   const selectedVariable = () => {
     const selection = editor.selection();
     return selection?.kind === "variable" ? selection.id : undefined;
@@ -126,8 +276,8 @@ function DiagramInspector() {
         multiline
         hint={
           editor.editable()
-            ? "出来事・矢印・ループを選ぶと、ここで編集できます"
-            : "出来事・矢印・ループを選ぶと、ここで詳しく見られます"
+            ? "変数・矢印・ループを選ぶと、ここで編集できます"
+            : "変数・矢印・ループを選ぶと、ここで詳しく見られます"
         }
         onInput={(value) =>
           editor.commit(edit.setDescription(editor.current(), value), "diagram-description")
@@ -140,11 +290,10 @@ function DiagramInspector() {
   );
 }
 
-/** 読み込めなかったときに退避したデータ。あるときだけ表示し、書き出しと削除ができる */
 function BackupList() {
   const editor = useContext(EditorContext);
   const [backups, setBackups] = createSignal(listBackups());
-  /** 削除の確認中の項目。唯一の写しを消すので、一度確かめてから消す */
+  // 押してすぐ消さないのは、唯一の写しで元に戻せないため
   const [confirming, setConfirming] = createSignal<string | null>(null);
   const download = (key: string, savedAt: Date) => {
     const text = readBackup(key);
@@ -165,7 +314,7 @@ function BackupList() {
     removeBackup(key);
     setConfirming(null);
     setBackups(listBackups());
-    // 押したボタンは行ごと消えるので、残りの項目か検査パネルへフォーカスを移す
+    // 移さないと、押したボタンが行ごと消えてフォーカスが失われる
     refocusWhenLost(() => list?.querySelector("button"), inspectorElement);
   };
   return (
@@ -182,9 +331,8 @@ function BackupList() {
               <li>
                 <span class="backup-date">{backup().savedAt.toLocaleString("ja-JP")}</span>
                 {/*
-                  確認中もボタン自体は差し替えず、表示と働きだけを切り替える。
-                  押したボタンにフォーカスが残るので、キーボードでもそのまま選べる
-                  （「削除」を押すと同じ位置の「やめる」にフォーカスが乗る）
+                  確認用のボタンに差し替えないのは、押したボタンのフォーカスが失われるため。
+                  差し替えなければ、「削除」を押すと同じ位置の「やめる」にフォーカスが乗る
                 */}
                 <button
                   type="button"
@@ -228,7 +376,6 @@ function VariableInspector(props: { id: VariableId }) {
       effects: links.filter((link) => link.from === props.id),
     };
   });
-  /** 自分自身と、既に同じ向きで繋がっている出来事を除いた候補 */
   const candidates = (linked: VariableId[]) => {
     const excluded = new Set<VariableId>([props.id, ...linked]);
     return editor
@@ -240,12 +387,12 @@ function VariableInspector(props: { id: VariableId }) {
     editor.commit(edit.updateVariable(editor.current(), props.id, patch), `${key}:${props.id}`);
   return (
     <div class="inspector-body">
-      <SectionHeading kicker="Variable" title="出来事" />
+      <SectionHeading kicker="Variable" title="変数" />
       <Field
         name="variable-label"
         label="名前"
         value={variable()?.label ?? ""}
-        placeholder="例: 社員数"
+        placeholder="例: 売上"
         onInput={(label) => update({ label }, "label")}
       />
       <Field
@@ -259,7 +406,7 @@ function VariableInspector(props: { id: VariableId }) {
       <div class="relations">
         <RelationList
           title="原因"
-          empty="この出来事に影響する矢印はありません"
+          empty="この変数に影響する矢印はありません"
           links={related().causes}
           labelOf={(link) => labelOf(editor, link.from)}
           addLabel="原因を追加"
@@ -268,7 +415,7 @@ function VariableInspector(props: { id: VariableId }) {
         />
         <RelationList
           title="結果"
-          empty="この出来事から出る矢印はありません"
+          empty="この変数から出る矢印はありません"
           links={related().effects}
           labelOf={(link) => labelOf(editor, link.to)}
           addLabel="結果を追加"
@@ -277,7 +424,7 @@ function VariableInspector(props: { id: VariableId }) {
         />
       </div>
       <Show when={editor.editable()}>
-        <DeleteButton label="出来事を削除" />
+        <DeleteButton label="変数を削除" />
       </Show>
     </div>
   );
@@ -326,8 +473,7 @@ function RelationList(props: {
 }
 
 /**
- * 候補を選んでから「追加」で確定する。閉じた select は矢印キーだけで値が変わる
- * ブラウザがあるので、選んだ時点では関連を作らない
+ * 選んだ時点で関連を作らないのは、閉じた select が矢印キーだけで値を変えるブラウザがあるため
  */
 function RelationPicker(props: {
   label: string;
@@ -389,7 +535,7 @@ function LinkInspector(props: { id: LinkId }) {
     const current = link();
     return current !== undefined && editor.hasReverse(current);
   };
-  /** 既定の形（直線、逆向きの関連があれば決まった曲がり）と違う曲がり具合が付いているか */
+  // undefined かどうかだけで見ないのは、既定と同じ値が明示されていることがあるため
   const customCurvature = () => {
     const curvature = link()?.curvature;
     return curvature !== undefined && curvature !== defaultCurvature(reversed());
@@ -467,7 +613,7 @@ function LinkInspector(props: { id: LinkId }) {
         }
       />
       <Show when={editor.editable()}>
-        {/* 以前の版や JSON で付けた曲がり具合は、ここでだけ既定の形に戻せる */}
+        {/* 曲がり具合を付ける操作が無いのに戻す操作を置くのは、以前の版や JSON で付いたものを戻す手段がここしか無いため */}
         <Show when={customCurvature()}>
           <div class="inline-actions">
             <button
@@ -475,7 +621,7 @@ function LinkInspector(props: { id: LinkId }) {
               class="button ghost small"
               onClick={() => {
                 update({ curvature: undefined });
-                // 押したボタンは消えるので、検査パネルへフォーカスを戻す
+                // 戻さないと、押したボタンが消えてフォーカスが失われる
                 refocusWhenLost(inspectorElement);
               }}
             >
@@ -591,19 +737,16 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
   );
 }
 
-function LoopList() {
+function LoopList(props: { hidden: boolean }) {
   const editor = useContext(EditorContext);
   return (
-    <section class="loop-list" aria-labelledby="loop-list-title">
-      <header class="loop-list-header">
-        <div>
-          <p class="eyebrow">Loops</p>
-          <h2 id="loop-list-title">ループ</h2>
-        </div>
-        <p class="loop-count">
-          <span>{editor.loopEntries().length}</span> 検出
-        </p>
-      </header>
+    <div
+      class="loop-list"
+      role="tabpanel"
+      hidden={props.hidden}
+      id="browser-panel-loops"
+      aria-labelledby="browser-tab-loops"
+    >
       <Show when={editor.detection().truncated}>
         <p class="loop-warning">
           ループが多すぎるため、先頭の {editor.detection().loops.length} 件だけを表示しています
@@ -629,7 +772,7 @@ function LoopList() {
           </For>
         </ul>
       </Show>
-    </section>
+    </div>
   );
 }
 

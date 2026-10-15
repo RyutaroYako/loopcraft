@@ -5,7 +5,6 @@ import { pickJsonFile } from "../editor/file.ts";
 import { CopyButton, Dialog } from "./Dialog.tsx";
 import { OpenIcon, SaveIcon } from "./icons.tsx";
 
-/** 貼り付けた JSON か、選んだファイルから図を読み込む */
 export function ImportDialog(props: { onClose: () => void }) {
   const editor = useContext(EditorContext);
   const [text, setText] = createSignal("");
@@ -95,10 +94,9 @@ export function ImportDialog(props: { onClose: () => void }) {
   );
 }
 
-/** 図の JSON を表示し、コピーかファイルへの保存で持ち出せるようにする */
 export function ExportDialog(props: { onClose: () => void }) {
   const editor = useContext(EditorContext);
-  // 開いた時点の図を見せる。開いている間は図を編集できない
+  // 図に追従させないのは、開いている間は図を編集できず変わらないため
   const text = untrack(() => stringifyDiagram(editor.current()));
   return (
     <Dialog

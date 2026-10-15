@@ -10,7 +10,6 @@ function sizesOf(diagram: Diagram): Map<VariableId, Size> {
   );
 }
 
-/** すべての出来事を同じ位置に重ねた図 */
 function stacked(): Diagram {
   const sample = createSampleDiagram();
   return {
@@ -20,7 +19,7 @@ function stacked(): Diagram {
 }
 
 describe("autoLayout", () => {
-  it("出来事の枠が重ならないように配置する", () => {
+  it("変数の枠が重ならないように配置する", () => {
     const diagram = stacked();
     const sizes = sizesOf(diagram);
     const result = autoLayout(diagram, sizes);
@@ -54,7 +53,7 @@ describe("autoLayout", () => {
     expect(center(first).y).toBeCloseTo(center(diagram).y, 0);
   });
 
-  it("手で付けた曲がり具合を既定に戻し、ループ記号を出来事から離して置き直す", () => {
+  it("手で付けた曲がり具合を既定に戻し、ループ記号を変数から離して置き直す", () => {
     const sample = createSampleDiagram();
     const diagram: Diagram = {
       ...sample,
@@ -84,7 +83,7 @@ describe("autoLayout", () => {
     expect(autoLayout(once, sizes)).toBe(once);
   });
 
-  it("大きさの分からない出来事は名前が空のときの大きさとみなし、出来事が 1 つなら重心に置く", () => {
+  it("大きさの分からない変数は名前が空のときの大きさとみなし、変数が 1 つなら重心に置く", () => {
     const sample = createSampleDiagram();
     const single = { ...sample, variables: sample.variables.slice(0, 1), links: [], loops: [] };
     const result = autoLayout(single, new Map());
@@ -92,7 +91,7 @@ describe("autoLayout", () => {
     expect(autoLayout(stacked(), new Map()).variables).toHaveLength(sample.variables.length);
   });
 
-  it("ばねだけでは離しきれない大きな出来事も、縦横どちらへも押し広げて重ならないようにする", () => {
+  it("ばねだけでは離しきれない大きな変数も、縦横どちらへも押し広げて重ならないようにする", () => {
     const diagram = createSampleDiagram();
     for (const size of [
       { width: 900, height: 36 },

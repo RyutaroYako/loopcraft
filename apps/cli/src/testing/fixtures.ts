@@ -5,7 +5,6 @@ import { stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import { createMemoryLogger } from "../log.ts";
 
-/** テストごとに作る作業ディレクトリと、出力を記録するロガー */
 export async function createWorkspace() {
   const cwd = await mkdtemp(join(tmpdir(), "loopcraft-"));
   const memory = createMemoryLogger();
@@ -18,7 +17,6 @@ export async function writeSample(cwd: string, name = "diagram.json") {
   return path;
 }
 
-/** index.html と CSS だけを置いた、ビルド済みエディタの代わり */
 export async function createWebDir() {
   const dir = await mkdtemp(join(tmpdir(), "loopcraft-web-"));
   await writeFile(

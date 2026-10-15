@@ -2,7 +2,7 @@ import solid from "@solidjs/vite-plugin";
 import { defineConfig, lazyPlugins } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
 
-/** 画面の描画と操作を、実際の Chromium の上で確かめる */
+/** jsdom で済ませないのは、描画と操作を実際の Chromium で確かめるため */
 export default defineConfig({
   plugins: lazyPlugins(() => [solid()]),
   test: {

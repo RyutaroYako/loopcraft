@@ -20,7 +20,7 @@ export type DiagramFile =
   | { status: "missing" }
   | { status: "invalid"; revision: Revision; errors: string[] };
 
-/** 中身から計算する版。同じ内容なら同じ値になる */
+/** 更新時刻を使わないのは、同じ内容を同じ版として扱うため */
 export function revisionOf(text: string): Revision {
   return createHash("sha256").update(text).digest("hex").slice(0, 16);
 }
@@ -46,8 +46,8 @@ export async function readDiagramFile(path: string): Promise<DiagramFile> {
 }
 
 /**
- * 書き込み中に止まってもファイルが壊れないよう、一時ファイルに書いてから置き換える。
- * シンボリックリンクはリンク先を書き換え、元の権限を引き継ぐ
+ * 直接書き込まないのは、途中で止まるとファイルが壊れるため。
+ * 素直に rename で置き換えると、シンボリックリンクと元の権限が失われる
  */
 export async function writeDiagramFile(path: string, diagram: Diagram): Promise<Revision> {
   const text = stringifyDiagram(diagram);
@@ -74,7 +74,6 @@ export async function writeDiagramFile(path: string, diagram: Diagram): Promise<
   return revisionOf(text);
 }
 
-/** ディレクトリ直下の JSON ファイル。対話的にファイルを選ぶときの候補 */
 export async function listJsonFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
   return entries
@@ -93,7 +92,7 @@ export function isNotFound(error: unknown) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
-/** 無ければ false。権限などほかの理由で調べられなければ投げる */
+/** 権限などで調べられないときは false にせず投げる */
 export async function exists(path: string) {
   try {
     await access(path);
@@ -104,7 +103,7 @@ export async function exists(path: string) {
   }
 }
 
-/** 無ければ false。権限などほかの理由で調べられなければ投げる */
+/** 権限などで調べられないときは false にせず投げる */
 export async function isDirectory(path: string) {
   try {
     return (await stat(path)).isDirectory();

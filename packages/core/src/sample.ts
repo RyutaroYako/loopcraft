@@ -1,7 +1,6 @@
 import * as v from "valibot";
 import { DiagramSchema, type Diagram } from "./schema.ts";
 
-/** 空の状態から開けるサンプル。組織の成長をめぐる 4 つのループを含む */
 export function createSampleDiagram(): Diagram {
   return v.parse(DiagramSchema, {
     version: 1,

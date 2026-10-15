@@ -11,7 +11,6 @@ interface FileResult {
   errors: string[];
 }
 
-/** 図の JSON をスキーマと整合性で検証する。1 つでも問題があれば終了コード 1 */
 export async function validate(
   files: string[],
   options: { format: OutputFormat },

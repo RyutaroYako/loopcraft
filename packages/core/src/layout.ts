@@ -12,19 +12,16 @@ import { linkPairKey } from "./integrity.ts";
 import type { Diagram, LoopId, Point, VariableId } from "./schema.ts";
 
 /*
- * 自動レイアウト。力学モデル（関連はばね、出来事同士は反発）で配置し、最後に枠の重なりを解く。
- * 毎回同じ結果になるよう乱数は使わず、関連を辿った順に円周へ並べた状態から始める。
- * ループを構成する出来事が円周上で隣り合うので、交差の少ない形に落ち着きやすい。
+ * 初期配置に乱数を使わないのは、毎回同じ結果にするため。
+ * 円周へ元の並び順で並べないのは、関連を辿った順ならループの変数が隣り合い、交差の少ない形に落ち着きやすいため。
  */
 
-/** 関連で結ばれた出来事の中心同士の理想的な距離 */
+/** 枠の間ではなく中心同士の距離 */
 const IDEAL_LENGTH = 170;
 const ITERATIONS = 400;
-/** 枠同士の最小の隙間 */
 const GAP_X = 40;
 const GAP_Y = 56;
 const GRAVITY = 0.04;
-/** 大きさが分からない出来事は、名前が空のときの大きさとみなす */
 const FALLBACK_SIZE: Size = { width: NODE_MIN_WIDTH, height: NODE_HEIGHT };
 
 export function autoLayout(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>): Diagram {
@@ -41,7 +38,7 @@ export function autoLayout(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size
   simulate(positions, edges, sizeOf);
   removeOverlaps(positions, sizeOf);
 
-  // 元の図の重心に合わせて、表示位置が大きく飛ばないようにする
+  // 元の図の重心に合わせ直さないと、整列のたびに表示位置が大きく飛ぶ
   const before = centroid(variables.map((variable) => variable.position));
   const after = centroid(positions);
   const moved = new Map<VariableId, Point>(
@@ -54,13 +51,13 @@ export function autoLayout(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size
     ]),
   );
 
-  // 位置が変わると手で付けた曲がり具合は意味を失うので既定に戻し、ループ記号は空いた所へ置き直す
+  // 手で付けた曲がり具合を残さないのは、位置が変わると意味を失うため
   let next = moveVariables(diagram, moved);
   for (const link of diagram.links) next = updateLink(next, link.id, { curvature: undefined });
   const markers = placeMarkers(next, sizes);
   for (const loop of next.loops) {
     const marker = markers.get(loop.id);
-    // 同じ位置なら差し替えず、整列を繰り返しても変化の無い編集にならないようにする
+    // 同じ位置でも差し替えると、整列を繰り返したときに変化の無い編集が生まれる
     if (marker?.x === loop.marker?.x && marker?.y === loop.marker?.y) continue;
     next = updateLoop(next, loop.id, { marker });
   }
@@ -82,7 +79,6 @@ function undirectedEdges(diagram: Diagram, index: ReadonlyMap<VariableId, number
   return edges;
 }
 
-/** 関連を深さ優先で辿った順。繋がっていない出来事は元の並び順で後に続ける */
 function traversalOrder(count: number, edges: readonly [number, number][]) {
   const neighbors: number[][] = Array.from({ length: count }, () => []);
   for (const [a, b] of edges) {
@@ -91,7 +87,7 @@ function traversalOrder(count: number, edges: readonly [number, number][]) {
   }
   const visited = new Set<number>();
   const order: number[] = [];
-  // 繋がりの多い出来事から始めると、中心的なループがまとまって並ぶ
+  // 先頭の変数から始めないのは、繋がりの多い変数からの方が中心的なループがまとまって並ぶため
   const starts = [...neighbors.keys()].sort(
     (a, b) => neighbors[b]!.length - neighbors[a]!.length || a - b,
   );
@@ -123,7 +119,7 @@ function initialCircle(order: readonly number[], widthOf: (at: number) => number
   return positions;
 }
 
-/** Fruchterman–Reingold。出来事の横幅の分だけ反発を強めて、長い名前同士が詰まらないようにする */
+/** Fruchterman–Reingold。素のままでは変数を点として扱い長い名前同士が詰まるので、横幅の分だけ反発を強める */
 function simulate(
   positions: Point[],
   edges: readonly [number, number][],
@@ -165,7 +161,6 @@ function simulate(
   }
 }
 
-/** 枠（隙間込み）が重なっている組を、重なりの小さい軸の方向へ押し広げる */
 function removeOverlaps(positions: Point[], sizeOf: (at: number) => Size) {
   const count = positions.length;
   for (let round = 0; round < 100; round++) {
@@ -193,21 +188,16 @@ function removeOverlaps(positions: Point[], sizeOf: (at: number) => Size) {
   }
 }
 
-/** ループ記号（名前を含む）がほかの要素から離れていてほしい距離 */
+/** 記号だけでなく、添える名前の分も含む */
 const MARKER_CLEARANCE = 64;
 const MARKER_GRID = 8;
 
-/** 曲線の関連を折れ線で近似するときの分割数 */
 const CURVE_STEPS = 8;
 /** 極性の印の半径（11）に余白を足したもの */
 const POLARITY_RADIUS = 28;
 /** ほかのループ記号の半径（26）に余白を足したもの */
 const MARKER_RADIUS = 40;
 
-/**
- * 各ループの記号を、ループの内側で出来事・関連・極性の印・ほかの記号から最も離れた点に置く。
- * 十分に離れた点がいくつもあるときは重心に近いものを選ぶ。内側に点が無いときは重心に置く
- */
 function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {
   const variableById = new Map(diagram.variables.map((variable) => [variable.id, variable]));
   const boxOf = (id: VariableId) => ({
@@ -215,7 +205,7 @@ function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {
     size: sizes.get(id) ?? FALLBACK_SIZE,
   });
   const boxes = diagram.variables.map((variable) => boxOf(variable.id));
-  // 関連は画面と同じ形（逆向きの関連があれば曲線）で、折れ線と極性の印の位置に分解しておく
+  // 関連を直線とみなさないのは、画面では逆向きの関連があると曲線で描かれ、記号がその曲線に重なりうるため
   const pairs = new Set(diagram.links.map((link) => linkPairKey(link.from, link.to)));
   const segments: [Point, Point][] = [];
   const labels: Point[] = [];
@@ -306,7 +296,7 @@ function insidePolygon(point: Point, polygon: readonly Point[]) {
   return inside;
 }
 
-/** b から a へのずれ。円周上の異なる点から始めるので重なることはまず無いが、0 で割らないようにする */
+/** 円周上の異なる点から始めるので重なることはまず無いが、0 で割らないよう守る */
 function delta(pa: Point, pb: Point) {
   const dx = pa.x - pb.x;
   const dy = pa.y - pb.y;

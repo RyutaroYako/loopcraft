@@ -170,7 +170,7 @@ describe("createFileClient", () => {
     vi.stubGlobal("fetch", fetch);
     const { store } = createFileClient(session);
     const big = createSampleDiagram();
-    // 文字数では上限より少なくても、UTF-8 のバイト数では超える
+    // 日本語にするのは、文字数では上限より少なくても、UTF-8 のバイト数では超えるため
     big.description = "あ".repeat(25_000);
     await store.save(big, { keepalive: true });
     expect(fetch.mock.calls[0]![1].keepalive).toBe(false);
@@ -249,7 +249,6 @@ describe("createFileClient", () => {
     expect(handlers.lost).toHaveBeenNthCalledWith(1, "unwatched", "ENOENT");
     expect(handlers.lost).toHaveBeenNthCalledWith(2, "unwatched", "");
 
-    // 一時的な切断は、しばらく戻らなければ切れたとみなし、戻れば知らせる
     emit("error");
     emit("open");
     vi.advanceTimersByTime(10_000);
@@ -262,12 +261,11 @@ describe("createFileClient", () => {
     emit("open");
     expect(handlers.restored).toHaveBeenCalledOnce();
 
-    // スリープから戻った直後は、タイマーの遅れを見て待ち直す
+    // 時刻だけ先へ進めるのは、スリープでタイマーが遅れた状態を作るため
     vi.setSystemTime(Date.now() + 120_000);
     vi.advanceTimersByTime(15_000);
     expect(handlers.lost).toHaveBeenCalledTimes(3);
 
-    // つながったまま応答しなくなったら、ping が途絶えたことで切れたとみなし、届けば戻す
     vi.advanceTimersByTime(80_000);
     expect(handlers.lost).toHaveBeenCalledTimes(4);
     expect(handlers.lost).toHaveBeenLastCalledWith("disconnected");

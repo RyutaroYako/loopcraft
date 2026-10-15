@@ -2,7 +2,7 @@ import { classifyLoop, cycleKey, type LoopKind } from "./loop.ts";
 import type { Link, LinkId, VariableId } from "./schema.ts";
 
 export interface DetectedLoop {
-  /** cycleKey(links)。保存済みの Loop との対応付けに使う */
+  /** cycleKey(links) */
   key: string;
   links: LinkId[];
   /** links[i] の出発点。最後の関連は variables[0] に戻る */
@@ -12,7 +12,6 @@ export interface DetectedLoop {
 
 export interface CycleSearchResult {
   loops: DetectedLoop[];
-  /** 上限に達して打ち切ったか */
   truncated: boolean;
 }
 
@@ -26,9 +25,8 @@ interface Edge {
 class LimitReached extends Error {}
 
 /**
- * 関連が作る単純閉路（同じ出来事を 2 度通らないループ）をすべて列挙する。
- * 出来事の位置には依存しないので、関連の配列だけを受け取る。
- * Johnson のアルゴリズムを使うので、閉路数に比例した時間で終わる。
+ * 図全体を受け取らないのは、閉路が変数の位置に依存しないため。
+ * 素直に深さ優先で辿ると閉路にならない経路の数だけ遅くなるので、閉路数に比例する Johnson のアルゴリズムを使う。
  */
 export function findLoops(links: readonly Link[], limit = DEFAULT_CYCLE_LIMIT): CycleSearchResult {
   const ids = [...new Set(links.flatMap((link) => [link.from, link.to]))];
@@ -131,10 +129,6 @@ function searchCircuits(
   circuit(start);
 }
 
-/**
- * 番号が from 以上の頂点だけからなる部分グラフで、2 頂点以上の強連結成分のうち
- * 最小の頂点を含むものを返す（Tarjan のアルゴリズム）。
- */
 function leastStronglyConnectedComponent(
   adjacency: readonly Edge[][],
   from: number,

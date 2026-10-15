@@ -1,7 +1,8 @@
-import { For, Show, createSignal, onSettled, useContext } from "solid-js";
+import { For, Show, createEffect, createSignal, onSettled, useContext } from "solid-js";
 import { EditorContext, type Gesture } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
-import type { LoopId, Point, VariableId } from "@loopcraft/core/schema";
+import type { LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
+import { ContextMenu, type MenuItem, type MenuState } from "./ContextMenu.tsx";
 import {
   InlineLabelEditor,
   LinkDraftView,
@@ -13,10 +14,9 @@ import {
 import { EmptyState } from "./EmptyState.tsx";
 import { FitIcon, MinusIcon, PlusIcon } from "./icons.tsx";
 
-/** 一度に追跡するポインタは 1 本だけ。2 本目の指などは無視する */
 interface DragBase {
   pointerId: number;
-  /** 押した位置（画面座標）。しきい値を超えるまではクリック扱い */
+  // ワールド座標で持たないのは、パン中はポインタの下のワールド座標が動かず、しきい値を超えないため
   start: Point;
   moved: boolean;
 }
@@ -31,13 +31,13 @@ type Drag = DragBase &
 
 type DragInit = Drag extends infer D ? (D extends Drag ? Omit<D, keyof DragBase> : never) : never;
 
-/** これ以下の移動はクリックとみなす（画面上の px） */
 const DRAG_THRESHOLD = 3;
 
 export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   const editor = useContext(EditorContext);
   const [linkDraft, setLinkDraft] = createSignal<LinkDraft | null>(null);
   const [panning, setPanning] = createSignal(false);
+  const [moving, setMoving] = createSignal(false);
   let svg: SVGSVGElement | undefined;
   let drag: Drag | undefined;
 
@@ -60,7 +60,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     return undefined;
   };
 
-  /** ドラッグを始められたら true。別のポインタでドラッグ中なら何もしない */
   const canStartDrag = (event: PointerEvent) => {
     if (event.button !== 0) return false;
     event.stopPropagation();
@@ -129,6 +128,8 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     if (!drag.moved) {
       if (Math.hypot(screen.x - drag.start.x, screen.y - drag.start.y) < DRAG_THRESHOLD) return;
       drag.moved = true;
+      // 押した時点で立てないのは、クリックのたびに薄さが切り替わってちらつくため
+      if (drag.kind === "move") setMoving(true);
     }
     const point = editor.screenToWorld(screen);
     switch (drag.kind) {
@@ -167,11 +168,27 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     }
   };
 
+  const cancelDrag = () => {
+    const finished = drag;
+    if (!finished) return;
+    drag = undefined;
+    setPanning(false);
+    setMoving(false);
+    setLinkDraft(null);
+    if ("gesture" in finished) finished.gesture.cancel();
+    try {
+      svg?.releasePointerCapture(finished.pointerId);
+    } catch {
+      // 既に離されたポインタは解放できないが、ドラッグはもう終わっている
+    }
+  };
+
   const onPointerUp = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     const finished = drag;
     drag = undefined;
     setPanning(false);
+    setMoving(false);
     const cancelled = event.type !== "pointerup";
     switch (finished.kind) {
       case "pan":
@@ -207,8 +224,128 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     }
   };
 
-  // ドラッグ中はポインタをキャプチャしているので、dblclick の target は常に svg になる。
-  // 実際にポインタの下にあるものを調べて振り分ける
+  const [menu, setMenu] = createSignal<MenuState | null>(null);
+  let menuOrigin: HTMLElement | SVGElement | undefined;
+
+  const variableMenu = (id: VariableId): MenuItem[] => [
+    {
+      label: "名前を変える",
+      shortcut: "F2",
+      run: () => editor.setEditingVariable(id),
+    },
+    {
+      label: "変数を削除",
+      shortcut: "Delete",
+      danger: true,
+      run: () => {
+        editor.select({ kind: "variable", id });
+        editor.deleteSelection();
+      },
+    },
+  ];
+
+  const linkMenu = (id: LinkId): MenuItem[] => {
+    const link = editor.linkById().get(id);
+    return [
+      {
+        label: link?.polarity === "-" ? "極性を +（同じ向き）にする" : "極性を −（逆向き）にする",
+        run: () => editor.commit(edit.togglePolarity(editor.current(), id)),
+      },
+      {
+        label: link?.delay ? "遅れを外す" : "遅れを付ける",
+        run: () =>
+          editor.commit(
+            edit.updateLink(editor.current(), id, { delay: link?.delay ? undefined : true }),
+          ),
+      },
+      {
+        label: "関連を削除",
+        shortcut: "Delete",
+        danger: true,
+        run: () => {
+          editor.select({ kind: "link", id });
+          editor.deleteSelection();
+        },
+      },
+    ];
+  };
+
+  const canvasMenu = (point: Point): MenuItem[] => [
+    {
+      label: "ここに変数を追加",
+      run: () => editor.addVariableAt({ x: Math.round(point.x), y: Math.round(point.y) }),
+    },
+    {
+      label: "整列",
+      disabled: editor.diagram().variables.length < 2,
+      run: () => editor.autoLayout(),
+    },
+    {
+      label: "全体を表示",
+      disabled: editor.diagram().variables.length === 0,
+      run: () => editor.fitView(),
+    },
+  ];
+
+  const onContextMenu = (event: MouseEvent) => {
+    // 読み取り専用で preventDefault しないのは、ブラウザ自身のメニューを残すため
+    if (!editor.editable() || !svg) return;
+    event.preventDefault();
+    if (drag !== undefined) {
+      // 動かしている途中で開かないのは、キャプチャで target が常に svg になり、狙いと違うメニューになるため
+      if (drag.moved) return;
+      // ドラッグ中でも一律に断らないのは、macOS の Ctrl+クリックやタッチの長押しが
+      // 左ボタンの押下に続いて contextmenu を送るため
+      cancelDrag();
+    }
+    const target = event.target instanceof Element ? event.target : svg;
+    const node = target.closest<SVGElement>("[data-variable-id]");
+    const link = target.closest<SVGElement>("[data-link-id]");
+    // 届いた位置をそのまま使わないのは、メニューキーで開くと 0, 0 で届くため
+    const origin = node ?? link ?? svg;
+    // 矢印の線（g 要素）に戻さないのは、フォーカスを受け取れないため
+    menuOrigin = node ?? link?.querySelector<SVGElement>(".polarity") ?? svg;
+    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+    const rect = origin.getBoundingClientRect();
+    const at = fromKeyboard
+      ? { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }
+      : event;
+    const position = screenPoint(at);
+    editor.setEditingVariable(null);
+    if (node) {
+      const id = node.dataset.variableId as VariableId;
+      editor.select({ kind: "variable", id });
+      const label = editor.variableById().get(id)?.label || "名称未設定";
+      setMenu({ ...position, label: `「${label}」の操作`, items: variableMenu(id) });
+    } else if (link) {
+      const id = link.dataset.linkId as LinkId;
+      editor.select({ kind: "link", id });
+      setMenu({ ...position, label: "関連の操作", items: linkMenu(id) });
+    } else {
+      setMenu({
+        ...position,
+        label: "キャンバスの操作",
+        items: canvasMenu(worldPoint(at)),
+      });
+    }
+  };
+
+  const closeMenu = (restoreFocus: boolean) => {
+    setMenu(null);
+    if (restoreFocus) menuOrigin?.focus();
+  };
+
+  // 古くなったメニューを隠すだけにしないのは、元に戻すで同じ図に戻ると、古い項目のまま復活するため
+  createEffect(
+    () => [editor.diagram(), editor.viewport()],
+    () => {
+      if (!menu()) return;
+      closeMenu(document.activeElement?.closest(".context-menu") != null);
+    },
+    { defer: true },
+  );
+
+  // event.target で振り分けないのは、ドラッグ中のキャプチャで dblclick の target が常に svg になるため
   const onDoubleClick = (event: MouseEvent) => {
     const point = worldPoint(event);
     const node = nodeAt(point);
@@ -264,13 +401,17 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     <div class="canvas" ref={(element) => (container = element)}>
       <svg
         ref={bindSvg}
-        class={["canvas-svg", { panning: panning(), connecting: linkDraft() !== null }]}
+        class={[
+          "canvas-svg",
+          { panning: panning(), connecting: linkDraft() !== null, moving: moving() },
+        ]}
         onPointerDown={onBackgroundPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onLostPointerCapture={onPointerUp}
         onDblClick={onDoubleClick}
+        onContextMenu={onContextMenu}
         role="group"
         aria-label="システム図のキャンバス"
         tabindex="-1"
@@ -334,6 +475,16 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         <EmptyState />
       </Show>
 
+      <Show when={menu()} keyed>
+        {(current) => (
+          <ContextMenu
+            menu={current}
+            bounds={{ width: container?.clientWidth ?? 0, height: container?.clientHeight ?? 0 }}
+            onClose={closeMenu}
+          />
+        )}
+      </Show>
+
       <div class="zoom-controls" role="toolbar" aria-label="表示倍率">
         <button
           type="button"
@@ -369,7 +520,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           }
         >
           <p class="canvas-hint">
-            <span>ダブルクリックで出来事を追加</span>
+            <span>ダブルクリックで変数を追加</span>
             <span>右端の点をドラッグで関連</span>
             <span>
               <kbd>Delete</kbd> で削除

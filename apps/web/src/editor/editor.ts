@@ -18,16 +18,16 @@ export type Selection =
   | { kind: "loop"; id: LoopId };
 
 export interface Gesture {
-  /** 履歴に残さずに途中経過を表示する */
+  /** 履歴には残さない */
   preview(next: Diagram): void;
-  /** 開始時からの変化を 1 回の編集として履歴に残す */
+  /** 開始時からの変化を 1 回の編集として残す */
   end(): void;
-  /** 開始時の図に戻し、履歴にも残さない */
+  /** 開始時の図に戻す。履歴にも残さない */
   cancel(): void;
 }
 
 export interface Viewport {
-  /** 画面上での原点の位置 */
+  /** 図の原点が来る画面上の位置 */
   x: number;
   y: number;
   zoom: number;
@@ -48,7 +48,6 @@ export interface NodeBox {
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 3;
 const HISTORY_LIMIT = 200;
-/** 同じ項目への連続した文字入力を 1 回の編集として扱う間隔 */
 const COALESCE_MS = 1200;
 const NOTICE_MS = 3200;
 
@@ -61,17 +60,18 @@ export function computeBoxes(variables: readonly Variable[]): Map<VariableId, No
   );
 }
 
-/**
- * フォーカスしていた要素が消えた（削除・元に戻す）ときに、キーボード操作を続けられるよう
- * 描画が追いついた後でキャンバスへフォーカスを移す
- */
+/** フォーカスしていた要素が消えたまま放っておくと、キーボード操作を続けられない */
 function keepFocusInCanvas() {
-  refocusWhenLost(() => document.querySelector<SVGSVGElement>(".canvas-svg"));
+  refocusWhenLost(canvasElement);
+}
+
+export function canvasElement() {
+  return document.querySelector<SVGSVGElement>(".canvas-svg");
 }
 
 export function createEditor(initial: Diagram, options: { editable?: boolean } = {}) {
-  // 直前の編集をすぐ次の編集に使えるよう、最新の図はシグナルとは別に持つ
-  // （シグナルの読み取りは次のマイクロタスクまで更新されない）
+  // 最新の図を diagram() から読まないのは、シグナルの読み取りが次のマイクロタスクまで
+  // 更新されず、直前の編集をすぐ次の編集に使えないため
   let present = initial;
   const [diagram, setDiagram] = createSignal(initial);
 
@@ -81,17 +81,17 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   let coalesce: { key: string; at: number } | undefined;
   let activeGesture: { base: Diagram } | undefined;
 
-  /** 読み取り専用では false。編集の操作はすべて何もしない。開いた後に変わることは無い */
+  /** シグナルにしないのは、開いた後に変わることが無いため */
   const isEditable = options.editable ?? true;
   const editable = () => isEditable;
 
   const [selection, setSelection] = createSignal<Selection | null>(null);
   const [editingVariable, setEditingVariableSignal] = createSignal<VariableId | null>(null);
   const [hoveredLoop, setHoveredLoop] = createSignal<string | null>(null);
-  /** 見出していないループを一覧で選んだときの強調表示 */
+  /** selection で表さないのは、見出していないループには LoopId が無いため */
   const [focusedLoop, setFocusedLoop] = createSignal<string | null>(null);
   const [viewport, setViewport] = createSignal<Viewport>({ x: 0, y: 0, zoom: 1 });
-  /** キャンバスの表示領域の大きさ。描画には使わないのでシグナルにしない */
+  /** シグナルにしないのは、描画には使わないため */
   let currentSize: Size = { width: 0, height: 0 };
   const [notice, setNotice] = createSignal<Notice | null>(null);
   let currentNotice: Notice | null = null;
@@ -109,7 +109,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     () => new Map(diagram().variables.map((variable) => [variable.id, variable])),
   );
   const linkById = createMemo(() => new Map(links().map((link) => [link.id, link])));
-  /** 逆向きの関連があるかを引くための「原因→結果」の組 */
   const linkPairs = createMemo(
     () => new Set(links().map((link) => linkPairKey(link.from, link.to))),
   );
@@ -121,7 +120,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   });
   const detection = createMemo(() => findLoops(links()));
 
-  /** 見出したループを先に、残りの検出されたループを後に並べる */
   const loopEntries = createMemo(() => listLoopEntries(loops(), links(), detection().loops));
 
   const loopEntryByLoopId = createMemo(
@@ -133,7 +131,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
       ),
   );
 
-  /** キャンバス上で強調するループ。一覧のホバー > 選択中の見出し > 一覧で選んだもの */
   const highlightedLoop = createMemo(() => {
     const selected = selection();
     const key =
@@ -146,6 +143,29 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     return { key, links: new Set(entry.links), variables: new Set(entry.variables) };
   });
 
+  // 矢印の無い変数や名前の入力中にも作ると、足したばかりの変数でほかがすべて薄くなる
+  const neighborhood = createMemo(() => {
+    const selected = selection();
+    if (selected?.kind !== "variable" || editingVariable() !== null) return undefined;
+    const variables = new Set<VariableId>([selected.id]);
+    const linkIds = new Set<LinkId>();
+    for (const link of links()) {
+      if (link.from !== selected.id && link.to !== selected.id) continue;
+      linkIds.add(link.id);
+      variables.add(link.from);
+      variables.add(link.to);
+    }
+    return linkIds.size > 0 ? { center: selected.id, variables, links: linkIds } : undefined;
+  });
+
+  // ループと変数のまわりを別々に描き分けないのは、どちらを優先するかを 1 か所で決めるため
+  const emphasis = createMemo(() => {
+    const loop = highlightedLoop();
+    if (loop) return { kind: "loop" as const, variables: loop.variables, links: loop.links };
+    const near = neighborhood();
+    return near && { kind: "neighborhood" as const, ...near };
+  });
+
   function updateHistorySize() {
     setHistorySize({ undo: undoStack.length, redo: redoStack.length });
   }
@@ -155,7 +175,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     setDiagram(next);
   }
 
-  /** 履歴に残る編集。coalesceKey が直前と同じなら 1 回の編集にまとめる */
   function commit(next: Diagram, coalesceKey?: string) {
     finishGesture();
     if (!isEditable || next === present) return;
@@ -170,9 +189,8 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   }
 
   /**
-   * ドラッグや名前の入力のように途中経過を見せつつ、終わったときに 1 回の編集として残す。
-   * 返したハンドルは自分のジェスチャーにしか効かないので、別のジェスチャーや編集が
-   * 割り込んだ後に古いハンドルを呼んでも履歴は壊れない。
+   * ハンドルが自分のジェスチャーかを確かめるのは、別のジェスチャーや編集が割り込んだ後に
+   * 古いハンドルを呼んでも履歴を壊さないため
    */
   function beginGesture(): Gesture {
     finishGesture();
@@ -194,7 +212,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     };
   }
 
-  /** 進行中のジェスチャーがあれば、そこまでを 1 回の編集として履歴に残す */
   function finishGesture() {
     const state = activeGesture;
     activeGesture = undefined;
@@ -246,7 +263,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   }
 
   function notify(next: Notice) {
-    // 操作を求めるエラーを、すぐ消える案内で押し流さない
+    // 案内で上書きしないのは、操作を求めるエラーをすぐ消える案内で押し流さないため
     const shown = currentNotice;
     if (next.tone === "info" && shown?.tone === "error" && shown.actions?.length) return;
     currentNotice = next;
@@ -255,7 +272,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     if (next.tone === "info") noticeTimer = setTimeout(() => dismissNotice(), NOTICE_MS);
   }
 
-  /** notice を渡したときは、それがまだ表示されている場合だけ閉じる */
+  /** only を渡すのは、閉じるまでに別の通知へ替わっていたら、それを閉じないため */
   function dismissNotice(only?: Notice) {
     if (only !== undefined && currentNotice !== only) return;
     clearTimeout(noticeTimer);
@@ -291,7 +308,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     }
   }
 
-  /** 関連を引いた先に新しい出来事を作り、すぐ名前を入力できるようにする */
   function connectToNewVariable(from: VariableId, position: Point) {
     if (!isEditable) return;
     const added = edit.addVariable(present, { label: "", position });
@@ -329,8 +345,8 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   }
 
   /**
-   * 保存先が外部で書き換えられたときに、その内容を取り込む。読み取り専用でも行い、
-   * 表示位置や選択はできるだけそのままにする。取り消し履歴には 1 回の変更として残す
+   * replaceDiagram を使わないのは、表示位置や選択をできるだけ残すため。
+   * 読み取り専用でも止めないのは、外部の変更は表示に反映するため
    */
   function applyExternal(next: Diagram) {
     finishGesture();
@@ -351,7 +367,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     setEditingVariableSignal(id);
   }
 
-  /** 図を丸ごと差し替える。元に戻せる */
   function replaceDiagram(next: Diagram) {
     if (!isEditable) return;
     commit(next);
@@ -396,7 +411,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     downloadDiagram(present);
   }
 
-  /** 出来事の配置を自動で整える。元に戻せる */
   function autoLayout() {
     if (!isEditable) return;
     const next = layoutDiagram(present, new Map([...boxes()].map(([id, box]) => [id, box.size])));
@@ -438,7 +452,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     setViewport((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
   }
 
-  /** 図全体が収まるように表示範囲を合わせる。target を省くと現在の図 */
   function fitView(target: Diagram = present) {
     const size = currentSize;
     if (size.width === 0 || size.height === 0) return;
@@ -465,6 +478,15 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     });
   }
 
+  function centerOn(point: Point) {
+    const size = currentSize;
+    setViewport((current) => ({
+      ...current,
+      x: size.width / 2 - point.x * current.zoom,
+      y: size.height / 2 - point.y * current.zoom,
+    }));
+  }
+
   function viewCenter(): Point {
     const size = currentSize;
     return screenToWorld({ x: size.width / 2, y: size.height / 2 });
@@ -472,7 +494,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
 
   return {
     diagram,
-    /** イベントハンドラ内で、直前の編集を反映した図を読む */
+    /** diagram() と違い、イベントハンドラ内でも直前の編集を反映している */
     current: () => present,
     variableById,
     linkById,
@@ -482,6 +504,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     loopEntries,
     loopEntryByLoopId,
     highlightedLoop,
+    emphasis,
     historySize,
     editable,
     selection,
@@ -519,6 +542,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     zoomBy,
     panBy,
     fitView,
+    centerOn,
     viewCenter,
   };
 }

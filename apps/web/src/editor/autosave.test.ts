@@ -61,7 +61,6 @@ function setup(store: DocumentStore, options: { initialStatus?: AutosaveStatus }
   return { ...result, onProblem, onReload, onUnwatched, onRecovered };
 }
 
-/** 保存の待ち時間を進め、保存の完了まで待つ */
 async function settle() {
   flush();
   await vi.advanceTimersByTimeAsync(400);

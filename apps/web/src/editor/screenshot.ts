@@ -1,14 +1,11 @@
 import { domToBlob } from "modern-screenshot";
 
-/** 図の周りに空ける余白（図の座標） */
+/** 図の座標 */
 const PADDING = 32;
-/** 書き出す画像の解像度の倍率。高解像度の画面でも粗く見えないようにする */
+/** 等倍だと高解像度の画面で粗く見える */
 const SCALE = 2;
 
-/**
- * キャンバスの図全体を PNG にする。表示中の拡大率やスクロール位置にかかわらず、図全体を等倍で写す。
- * 図の中身は `.canvas-content` の <g> に、背景の方眼は `.grid-bg` にある前提
- */
+/** 図の中身は `.canvas-content` の <g> に、背景の方眼は `.grid-bg` にある前提 */
 export async function captureDiagram(svg: SVGSVGElement): Promise<Blob> {
   const content = svg.querySelector<SVGGElement>(".canvas-content");
   // modern-screenshot は <svg> を直接渡すとスタイルを写さずにそのまま使うので、親の要素ごと写す
@@ -23,7 +20,6 @@ export async function captureDiagram(svg: SVGSVGElement): Promise<Blob> {
     height,
     scale: SCALE,
     backgroundColor: getComputedStyle(container).backgroundColor,
-    // ズームなどの操作部品と、背景の方眼は写さない
     filter: (node) =>
       !(node instanceof Element) ||
       ((node.parentElement !== container || node === svg) && !node.classList.contains("grid-bg")),

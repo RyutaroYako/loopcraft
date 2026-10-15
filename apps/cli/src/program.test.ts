@@ -41,7 +41,6 @@ describe("runCli", () => {
     expect(exitCode).toBe(0);
     const help = stdout.join("\n");
     expect(help).toContain("Usage: loopcraft");
-    // serve と役割が重なる init は案内しない（コマンドとしては使える）
     expect(help).not.toMatch(/^\s+init\b/m);
   });
 
@@ -99,7 +98,7 @@ describe("runCli", () => {
     const result = await run(["serve", "diagram.json", "--port", "0", "--edit"]);
     expect(result.exitCode).toBe(0);
     expect(result.openBrowser).toHaveBeenCalledOnce();
-    // --edit は以前の既定（閲覧モード）の名残で、受け付けて不要になったことを知らせる
+    // --edit を付けるのは、廃止したフラグでも失敗せず知らせるだけなのを確かめるため
     expect(result.stderr).toContain(
       "⚠ --edit は不要になりました。serve は常に編集できる状態で開きます",
     );

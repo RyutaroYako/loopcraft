@@ -25,3 +25,9 @@ release. Add a tool name to select part of the graph. For example, run
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+# コード規約
+
+- **コード**には what を書く。何をしているかは、名前と構造で読めるようにする
+- **コミットメッセージ**には why を書く。なぜこの変更が必要だったか（何が困っていたか）
+- **コメント**には why not を書く。素直な書き方や他の選択肢を、なぜ採らなかったか。コードを読めば分かる what や、コミットに書くべき why はコメントにしない

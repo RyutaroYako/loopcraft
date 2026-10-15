@@ -84,7 +84,7 @@
         "position"
       ],
       "title": "Variable",
-      "description": "出来事（システムを構成する変数）"
+      "description": "変数（売上や社員数のように増えたり減ったりする、システムを構成する要素）"
     },
     "Link": {
       "type": "object",
@@ -96,12 +96,12 @@
         "from": {
           "type": "string",
           "minLength": 1,
-          "description": "原因側の出来事の ID"
+          "description": "原因側の変数の ID"
         },
         "to": {
           "type": "string",
           "minLength": 1,
-          "description": "結果側の出来事の ID"
+          "description": "結果側の変数の ID"
         },
         "polarity": {
           "enum": [
@@ -131,7 +131,7 @@
         "polarity"
       ],
       "title": "Link",
-      "description": "出来事同士の因果関係（有向辺）"
+      "description": "変数同士の因果関係（有向辺）"
     },
     "Loop": {
       "type": "object",

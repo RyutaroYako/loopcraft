@@ -17,17 +17,16 @@ export function downloadBlob(blob: Blob, fileName: string) {
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
-  // すぐに解放するとダウンロードが始まる前に失敗するブラウザがあるので、少し待つ
+  // すぐに解放しないのは、ダウンロードが始まる前に失敗するブラウザがあるため
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
-/** 図のタイトルから、拡張子を除いたファイル名を作る */
+/** 拡張子は付けない */
 export function fileNameOf(title: string) {
   const name = title.trim().replace(/[\\/:*?"<>|]+/g, "_");
   return name || "system-diagram";
 }
 
-/** ファイル選択ダイアログを開き、選ばれたファイルを返す。キャンセル時は undefined */
 export function pickJsonFile(): Promise<File | undefined> {
   return new Promise((resolve) => {
     const input = document.createElement("input");

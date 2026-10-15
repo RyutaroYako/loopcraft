@@ -17,39 +17,30 @@ export type AutosaveStatus =
   | { kind: "suspended"; reason: "external"; problems?: string[] }
   | { kind: "suspended"; reason: "unreadable" | "disconnected" };
 
-/**
- * 図の変更を保存先へ自動保存する。コンポーネント本体から呼ぶ。
- * - 開いただけでは保存しない（開けなかった前回の図を空の図で上書きしないため）
- * - 保存先が外部で書き換えられたら、未保存の変更が無ければ取り込み、あれば保存を止める
- * - タブを隠すときは待たずに保存し、未保存の変更があるまま閉じようとしたら確かめる
- * - initialStatus で、使えない・止めている状態から始められる
- * 状態は status で常に読めるようにし、悪くなったときだけ onProblem で知らせる。
- */
+/** コンポーネント本体から呼ぶ */
 export function setupAutosave(
   editor: Editor,
   store: DocumentStore,
   options: {
     initialStatus?: AutosaveStatus;
     onProblem?: (status: AutosaveStatus) => void;
-    /** 外部での変更を取り込んだとき */
     onReload?: () => void;
     /** 外部での変更を見張れなくなったとき。保存は続ける */
     onUnwatched?: (detail: string | undefined) => void;
-    /** 問題のある状態から戻ったとき */
     onRecovered?: () => void;
   } = {},
 ) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let dirty = false;
   let saving: Promise<void> | undefined;
-  /** 取り込んだ内容をそのまま保存し直さないよう、次の 1 回の変更を無視する */
+  /** 取り込み（applyExternal）も変更として届くので、それを保存し直さないため */
   let ignoreNextChange = false;
-  // シグナルは書き込み直後に読んでも古い値を返すので、判定用に最新の状態を別に持つ
+  // 判定に status() を使わないのは、書き込み直後に読むと古い値を返すため
   let current: AutosaveStatus = options.initialStatus ?? { kind: "ok" };
   const [status, setStatus] = createSignal<AutosaveStatus>(current);
   /**
-   * つながりが切れる前の状態。切れても戻っても、それまでの「上書きしない」判断は変えない
-   * （戻ったからといって、開けなかったファイルや外部の変更を上書きしないため）
+   * 戻ったときに素直に ok にすると、切れる前に止めていた判断（開けなかったファイルや
+   * 外部の変更を上書きしない）が消える
    */
   let beforeDisconnect: AutosaveStatus | undefined;
   const disconnect = () => {
@@ -57,7 +48,7 @@ export function setupAutosave(
     beforeDisconnect = current;
     update({ kind: "suspended", reason: "disconnected" });
   };
-  /** 外部での変更を見張れなくなった理由。見張れていれば undefined */
+  /** 見張れていれば undefined */
   const [unwatched, setUnwatched] = createSignal<string | undefined>(undefined);
 
   const update = (next: AutosaveStatus) => {
@@ -75,7 +66,7 @@ export function setupAutosave(
     clearTimeout(timer);
     timer = undefined;
     if (saving) {
-      // 保存中の変更は、その保存が終わってから改めて保存する
+      // 重ねて保存しないのは、保存の終わる順が入れ替わらないようにするため
       await saving;
       return save(force, keepalive);
     }
@@ -96,7 +87,6 @@ export function setupAutosave(
     saving = undefined;
   };
 
-  /** 保存先の最新の内容を、取り消し履歴に残る 1 回の変更として取り込む */
   const reload = async (): Promise<ReloadResult> => apply(await store.reload());
 
   const apply = (result: ReloadResult): ReloadResult => {
@@ -104,7 +94,7 @@ export function setupAutosave(
       update({ kind: "suspended", reason: "external", problems: result.problems });
       return result;
     }
-    // 同じ内容なら取り込まない。取り消し履歴を増やしたり、やり直しを消したりしないため
+    // 同じ内容でも取り込むと、取り消し履歴が増え、やり直しも消える
     if (stringifyDiagram(result.diagram) === stringifyDiagram(editor.current())) {
       dirty = false;
       update({ kind: "ok" });
@@ -119,7 +109,7 @@ export function setupAutosave(
   };
 
   const onExternalChange = async () => {
-    // 取り込めずに止めていても、この画面に守る変更が無ければ追い続ける（直したファイルを取り込む）
+    // 取り込めずに止めた後も追うのは、守る変更が無ければ、直したファイルを取り込めるようにするため
     const following =
       current.kind !== "suspended" || (current.reason !== "disconnected" && !unsaved());
     if (!following) return;
@@ -128,7 +118,7 @@ export function setupAutosave(
       return;
     }
     const result = await store.reload();
-    // 読み直している間に編集されていたら、その編集を捨てずに競合として知らせる
+    // そのまま適用すると、読み直している間の編集を捨ててしまう
     if (unsaved()) {
       update({ kind: "suspended", reason: "external" });
       return;
@@ -147,6 +137,7 @@ export function setupAutosave(
       clearTimeout(timer);
       timer = setTimeout(() => void save(), SAVE_DELAY_MS);
     },
+    // 初回を保存しないのは、開けなかった前回の図を空の図で上書きしないため
     { defer: true },
   );
 
@@ -160,7 +151,7 @@ export function setupAutosave(
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!unsaved()) return;
       flush();
-      // ブラウザへの保存はその場で終わるが、ファイルへの保存は閉じる間際だと届かないことがあるので確かめる
+      // ブラウザへの保存で確かめないのは、その場で終わるため。ファイルへの保存は閉じる間際だと届かないことがある
       if (store.kind === "file") event.preventDefault();
     };
     const stopWatching = store.watch({
@@ -178,11 +169,10 @@ export function setupAutosave(
         const previous = beforeDisconnect ?? { kind: "ok" };
         beforeDisconnect = undefined;
         if (previous.kind === "suspended") {
-          // 切れる前に止めていた理由はそのまま残し、改めて知らせる
           update(previous);
           return;
         }
-        // 同じサーバーにつなぎ直せたので、溜まっていた変更を保存し直す
+        // 確かめずに保存し直してよいのは、つなぎ直せた相手が同じサーバーのため
         update({ kind: "ok" });
         if (dirty) void save();
       },
@@ -202,17 +192,17 @@ export function setupAutosave(
   return {
     status,
     unwatched,
-    /** 失敗した保存をやり直す。外部で書き換えられていたら、上書きせずに知らせる */
+    /** 外部で書き換えられていたら上書きしない */
     retry: () => {
       dirty = true;
       return save();
     },
-    /** 止めていた自動保存を再開し、この画面の内容で上書きする */
+    /** 外部で書き換えられていても、この画面の内容で上書きする */
     resume: () => {
       dirty = true;
       return save(true);
     },
-    /** 保存先の内容を読み直して、この画面の変更を捨てる */
+    /** この画面の変更は捨てる */
     reload,
   };
 }
@@ -221,7 +211,6 @@ function keyOf(status: AutosaveStatus) {
   return status.kind === "suspended" ? `suspended:${status.reason}` : status.kind;
 }
 
-/** ツールバーに自動保存の状態を出し、押すと詳しい案内と操作を表示する */
 export const AutosaveContext = createContext<{
   status: Accessor<AutosaveStatus>;
   unwatched: Accessor<string | undefined>;

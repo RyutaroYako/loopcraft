@@ -10,10 +10,7 @@ import {
 } from "@loopcraft/core/geometry";
 import type { Link, LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
 
-/*
- * キャンバス上の各要素。どれも ID だけを受け取り、描画のたびに最新の図から引き直す。
- * 削除と同じ更新の中で子の計算が先に走っても落ちないよう、見つからないときは何も描かない。
- */
+// 見つからない ID で落とさず何も描かないのは、削除と同じ更新の中で子の計算が先に走ることがあるため
 
 const ORIGIN: Point = { x: 0, y: 0 };
 const ARROW_OFFSETS: Partial<Record<string, Point>> = {
@@ -44,7 +41,10 @@ export function LinkView(props: { id: LinkId }) {
     return current?.kind === "link" && current.id === props.id;
   };
   const highlighted = () => editor.highlightedLoop()?.links.has(props.id) ?? false;
-  const dimmed = () => editor.highlightedLoop() !== undefined && !highlighted();
+  const outside = () => {
+    const emphasis = editor.emphasis();
+    return emphasis && !emphasis.links.has(props.id) ? emphasis.kind : undefined;
+  };
   const select = (event: PointerEvent) => {
     if (event.button !== 0) return;
     event.stopPropagation();
@@ -63,8 +63,14 @@ export function LinkView(props: { id: LinkId }) {
         class={[
           "link",
           link()?.polarity === "-" ? "negative" : "positive",
-          { selected: selected(), highlighted: highlighted(), dimmed: dimmed() },
+          {
+            selected: selected(),
+            highlighted: highlighted(),
+            dimmed: outside() === "loop",
+            faded: outside() === "neighborhood",
+          },
         ]}
+        data-link-id={props.id}
       >
         <path class="link-hit" d={geometry()?.path} onPointerDown={select} />
         <path class="link-path" d={geometry()?.path} marker-end="url(#arrowhead)" />
@@ -156,8 +162,10 @@ export function NodeView(props: {
     return current?.kind === "variable" && current.id === props.id;
   };
   const highlighted = () => editor.highlightedLoop()?.variables.has(props.id) ?? false;
-  const dimmed = () => editor.highlightedLoop() !== undefined && !highlighted();
-  // キーボードだけでも選択・名前の変更・移動ができるようにする
+  const outside = () => {
+    const emphasis = editor.emphasis();
+    return emphasis && !emphasis.variables.has(props.id) ? emphasis.kind : undefined;
+  };
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.shiftKey ? 40 : 8;
     const offset = ARROW_OFFSETS[event.key];
@@ -190,7 +198,8 @@ export function NodeView(props: {
           {
             selected: selected(),
             highlighted: highlighted(),
-            dimmed: dimmed(),
+            dimmed: outside() === "loop",
+            faded: outside() === "neighborhood",
             target: props.connectTarget,
             editing: editor.editingVariable() === props.id,
             unnamed: label() === "",
@@ -205,7 +214,7 @@ export function NodeView(props: {
         data-variable-id={props.id}
         onPointerDown={(event) => props.onPointerDown(event, props.id)}
         onFocus={() => {
-          // フォーカスした要素を選択して、Delete や検査パネルがその要素に効くようにする
+          // フォーカスと選択を別々にしないと、Delete や検査パネルがフォーカスしていない要素に効く
           if (!selected()) editor.select({ kind: "variable", id: props.id });
         }}
         onKeyDown={onKeyDown}
@@ -221,7 +230,7 @@ export function NodeView(props: {
         <text class="node-label" text-anchor="middle" dominant-baseline="central">
           {label() || "名称未設定"}
         </text>
-        {/* ポインタ専用の操作。キーボードでは検査パネルから関連を追加する */}
+        {/* キーボードで操作できなくてよいのは、検査パネルから関連を追加できるため */}
         <g
           class="node-handle"
           aria-hidden="true"
@@ -237,7 +246,7 @@ export function NodeView(props: {
   );
 }
 
-/** 描画が追いついた後に、出来事の要素へフォーカスを移す */
+// すぐに focus しないのは、描画が追いつく前だとフォーカスが入らないことがあるため
 function focusVariable(id: VariableId) {
   requestAnimationFrame(() => {
     document.querySelector<SVGGElement>(`[data-variable-id="${CSS.escape(id)}"]`)?.focus();
@@ -250,8 +259,8 @@ export function InlineLabelEditor(props: { id: VariableId }) {
   const width = () => Math.max(180, (box()?.size.width ?? 0) + 24);
   const center = () => box()?.center ?? ORIGIN;
   const original = editor.current().variables.find((item) => item.id === props.id)?.label ?? "";
-  // 入力中の変化は 1 つのジェスチャーにまとめ、確定で 1 回の編集、Escape で無かったことにする。
-  // 別の操作が割り込むとジェスチャーは自動で確定されるので、ここで後始末をしなくても履歴は壊れない
+  // 入力のたびに commit しないのは、元に戻すが 1 文字ずつになり、Escape で取り消せないため。
+  // onCleanup で後始末しないのは、別の操作が割り込むとジェスチャーは自動で確定されるため
   let gesture: Gesture | undefined;
   let done = false;
   const preview = (label: string) => {
@@ -268,7 +277,7 @@ export function InlineLabelEditor(props: { id: VariableId }) {
       gesture?.end();
     }
     editor.setEditingVariable(null);
-    // キーボードで閉じたときは、入力欄が消えても出来事にフォーカスを戻して操作を続けられるようにする
+    // 戻さないと入力欄と一緒にフォーカスが消える。blur で戻さないのは、移った先から奪うため
     if (how !== "blur") focusVariable(props.id);
   };
   return (
@@ -276,8 +285,8 @@ export function InlineLabelEditor(props: { id: VariableId }) {
       <input
         class="inline-label"
         name="variable-label-inline"
-        aria-label="出来事の名前"
-        placeholder="出来事の名前"
+        aria-label="変数の名前"
+        placeholder="例: 売上"
         value={original}
         ref={(element) => {
           queueMicrotask(() => {
@@ -324,11 +333,20 @@ export function LoopMarkerView(props: {
     const highlighted = editor.highlightedLoop();
     return highlighted !== undefined && highlighted.key !== entry()?.key;
   };
+  // 記号だけ元の濃さで残すと、薄くしたまわりの変数より目立ってしまう
+  const faded = () => {
+    const emphasis = editor.emphasis();
+    return emphasis?.kind === "neighborhood" && !entry()?.variables.includes(emphasis.center);
+  };
   const name = () => entry()?.featured?.loop.name ?? "";
   return (
     <Show when={entry() !== undefined}>
       <g
-        class={["loop-marker", entry()?.kind, { selected: selected(), dimmed: dimmed() }]}
+        class={[
+          "loop-marker",
+          entry()?.kind,
+          { selected: selected(), dimmed: dimmed(), faded: faded() },
+        ]}
         transform={`translate(${position().x} ${position().y})`}
         role="button"
         tabindex="0"
@@ -363,7 +381,6 @@ export function LoopMarkerView(props: {
   );
 }
 
-/** 半径 18 の円弧（-60° から 240° まで時計回り）と、その終端の矢じり */
 const LOOP_ARC = arcPath(18, -60, 240);
 const LOOP_ARROW_HEAD = arrowHeadPath(18, 240);
 

@@ -20,7 +20,7 @@ afterEach(cleanup);
 const title = () => page.getByRole("textbox", { name: "図のタイトル" });
 const button = (name: string) => page.getByRole("button", { name, exact: true });
 
-/** IME で変換中の入力と、その確定を送る */
+// userEvent で打たないのは、IME の変換中の入力を送れないため
 function compose(input: HTMLInputElement | HTMLTextAreaElement, value: string) {
   input.value = value;
   input.dispatchEvent(new InputEvent("input", { bubbles: true, isComposing: true }));
@@ -58,7 +58,7 @@ describe("ツールバー", () => {
     await expect.element(node("社員数")).toBeVisible();
   });
 
-  it("整列で出来事を並べ直し、元に戻せる", async () => {
+  it("整列で変数を並べ直し、元に戻せる", async () => {
     mount(browserStartup(createSampleDiagram()));
     const transform = () => node("社員数").element().getAttribute("transform");
     const before = transform();
@@ -106,7 +106,6 @@ describe("JSON の読み込み", () => {
     await button("読み込む").click();
     await expect.element(dialog().getByRole("alert")).toBeVisible();
     expect(dialog().getByRole("alert").element().textContent).toContain("title: 無効な型");
-    // 書き直したら誤りの表示は消える
     await userEvent.fill(textarea(), JSON.stringify(createSampleDiagram()));
     await expect.element(dialog().getByRole("alert")).not.toBeInTheDocument();
     await button("読み込む").click();
@@ -140,7 +139,7 @@ describe("JSON の読み込み", () => {
       new KeyboardEvent("keydown", { key: "Delete", bubbles: true }),
     );
     await expect.element(node("社員数")).toBeVisible();
-    // 枠の外（背景）のクリックは dialog 要素そのものに当たる
+    // 背景の位置を狙わずに dialog 自身を押すのは、背景のクリックが dialog に当たるため
     (dialog().element() as HTMLDialogElement).click();
     await expect.element(dialog()).not.toBeInTheDocument();
     await expect.element(node("社員数")).toBeVisible();
@@ -193,7 +192,7 @@ describe("画像の書き出し", () => {
       expect(document.querySelector(".node.selected")).toBeNull();
       const { naturalWidth, naturalHeight } = image.element() as HTMLImageElement;
       const box = document.querySelector<SVGGElement>(".canvas-content")!.getBBox();
-      // 余白を付けて、表示の倍率にかかわらず等倍の 2 倍の解像度で写す
+      // + 64 は四辺 32px ずつの余白、* 2 は高解像度の画面でもぼやけないよう 2 倍で写す分
       expect(naturalWidth).toBe(Math.ceil(box.width + 64) * 2);
       expect(naturalHeight).toBe(Math.ceil(box.height + 64) * 2);
 
@@ -223,10 +222,10 @@ describe("画像の書き出し", () => {
 });
 
 describe("最初の画面", () => {
-  it("出来事を追加し、JSON を読み込める", async () => {
+  it("変数を追加し、JSON を読み込める", async () => {
     mount(browserStartup(createEmptyDiagram()));
-    await button("出来事を追加").click();
-    await expect.element(page.getByRole("textbox", { name: "出来事の名前" })).toHaveFocus();
+    await button("変数を追加").click();
+    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
 
     mount(browserStartup(createEmptyDiagram()));
@@ -244,15 +243,13 @@ describe("最初の画面", () => {
         { readonly: true },
       ),
     );
-    await expect
-      .element(page.getByRole("heading", { name: "まだ出来事がありません" }))
-      .toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "まだ変数がありません" })).toBeVisible();
     await expect.element(button("全体を表示")).toBeDisabled();
   });
 });
 
 describe("入力欄", () => {
-  it("検査パネルと出来事の名前も、変換中は確定するまで反映しない", async () => {
+  it("検査パネルと変数の名前も、変換中は確定するまで反映しない", async () => {
     mount(browserStartup(createSampleDiagram()));
     await expect.element(node("売上")).toBeVisible();
     const description = page.getByRole("textbox", { name: /^この図で伝えたいこと/ });
@@ -266,12 +263,11 @@ describe("入力欄", () => {
     await expect.element(node("売上高")).toBeVisible();
 
     await userEvent.keyboard("{F2}");
-    const inline = page.getByRole("textbox", { name: "出来事の名前" });
+    const inline = page.getByRole("textbox", { name: "変数の名前" });
     await expect.element(inline).toHaveFocus();
     const element = inline.element() as HTMLInputElement;
     element.value = "へんかん";
     element.dispatchEvent(new InputEvent("input", { bubbles: true, isComposing: true }));
-    // 変換を確定する Enter では閉じない
     element.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true }),
     );

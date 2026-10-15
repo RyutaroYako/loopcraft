@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { findIntegrityIssues, type IntegrityPath } from "./integrity.ts";
 
-/** 現在のファイル形式のバージョン。破壊的変更のたびに上げ、読み込み時にマイグレーションする。 */
+/** 破壊的変更のたびに上げ、読み込み時にマイグレーションする */
 export const DIAGRAM_FORMAT_VERSION = 1;
 
 const IdSchema = v.pipe(v.string(), v.nonEmpty("ID は空にできません"));
@@ -27,7 +27,7 @@ export const VariableSchema = v.pipe(
     position: PointSchema,
   }),
   v.title("Variable"),
-  v.description("出来事（システムを構成する変数）"),
+  v.description("変数（売上や社員数のように増えたり減ったりする、システムを構成する要素）"),
 );
 
 export const PolaritySchema = v.pipe(
@@ -41,8 +41,8 @@ export const PolaritySchema = v.pipe(
 export const LinkSchema = v.pipe(
   v.object({
     id: LinkIdSchema,
-    from: v.pipe(VariableIdSchema, v.description("原因側の出来事の ID")),
-    to: v.pipe(VariableIdSchema, v.description("結果側の出来事の ID")),
+    from: v.pipe(VariableIdSchema, v.description("原因側の変数の ID")),
+    to: v.pipe(VariableIdSchema, v.description("結果側の変数の ID")),
     polarity: PolaritySchema,
     delay: v.optional(v.pipe(v.boolean(), v.description("影響が現れるまでに遅れがあるか"))),
     curvature: v.optional(
@@ -54,7 +54,7 @@ export const LinkSchema = v.pipe(
     description: v.optional(v.string()),
   }),
   v.title("Link"),
-  v.description("出来事同士の因果関係（有向辺）"),
+  v.description("変数同士の因果関係（有向辺）"),
 );
 
 export const LoopSchema = v.pipe(
@@ -69,7 +69,6 @@ export const LoopSchema = v.pipe(
       ),
     ),
     description: v.optional(v.string()),
-    /** ループ記号（R/B）の表示位置 */
     marker: v.optional(PointSchema),
   }),
   v.title("Loop"),
@@ -78,7 +77,7 @@ export const LoopSchema = v.pipe(
   ),
 );
 
-/** 参照整合性を含まない、JSON の形だけを表すスキーマ。JSON Schema の生成元。 */
+/** 参照整合性をここに含めないのは、JSON Schema の生成元として形だけを残すため */
 export const DiagramShapeSchema = v.pipe(
   v.object({
     $schema: v.optional(v.string()),
@@ -93,7 +92,6 @@ export const DiagramShapeSchema = v.pipe(
   v.description("システム思考のシステム図（因果ループ図）"),
 );
 
-/** 形に加えて ID の一意性・参照先の存在・ループの閉路性まで検証するスキーマ。 */
 export const DiagramSchema = v.pipe(
   DiagramShapeSchema,
   v.rawCheck(({ dataset, addIssue }) => {

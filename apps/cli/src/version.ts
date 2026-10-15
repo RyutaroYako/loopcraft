@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-/** パッケージのバージョン。ソースから動かしても、ビルド後の dist から動かしても 1 つ上に package.json がある */
+/** ソースから動かしても、ビルド後の dist から動かしても 1 つ上に package.json がある */
 export function readVersion(base: URL = new URL("../package.json", import.meta.url)): string {
   const pkg: unknown = JSON.parse(readFileSync(base, "utf8"));
   if (

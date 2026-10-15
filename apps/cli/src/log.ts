@@ -1,14 +1,11 @@
-/** 人に向けたメッセージは stderr、データは stdout に出す。パイプで結果だけを受け取れるようにするため */
+/** メッセージを stdout に出さないのは、パイプで結果だけを受け取れるようにするため */
 export interface Logger {
   info(message: string): void;
   success(message: string): void;
   warn(message: string): void;
   error(message: string): void;
-  /** 補足。薄い色で出す */
   note(message: string): void;
-  /** 装飾せずに stderr へ */
   plain(message: string): void;
-  /** コマンドの結果として stdout へ */
   output(message: string): void;
   readonly color: boolean;
 }
@@ -48,7 +45,6 @@ export function createLogger(
   };
 }
 
-/** テスト用。出力を行ごとに記録する */
 export function createMemoryLogger() {
   const stdout: string[] = [];
   const stderr: string[] = [];
