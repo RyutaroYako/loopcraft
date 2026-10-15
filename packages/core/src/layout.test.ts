@@ -10,7 +10,6 @@ function sizesOf(diagram: Diagram): Map<VariableId, Size> {
   );
 }
 
-/** すべての変数を同じ位置に重ねた図 */
 function stacked(): Diagram {
   const sample = createSampleDiagram();
   return {

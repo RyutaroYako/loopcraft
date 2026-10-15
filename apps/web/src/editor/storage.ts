@@ -6,9 +6,9 @@ const STORAGE_KEY = "loopcraft:document";
 export type StoredDiagram =
   | { status: "empty" }
   | { status: "ok"; diagram: Diagram }
-  /** 保存されていたが読み込めなかった。元の文字列は backupKey に退避してある */
+  /** 元の文字列は backupKey に退避してある */
   | { status: "invalid"; raw: string; errors: string[]; backupKey: string | undefined }
-  /** ブラウザの設定などで localStorage 自体が使えない */
+  /** ブラウザの設定などで、localStorage に触れること自体が例外になる */
   | { status: "unavailable"; error: unknown };
 
 export function loadStoredDiagram(): StoredDiagram {
@@ -27,7 +27,7 @@ export function loadStoredDiagram(): StoredDiagram {
     errors: result.errors.map((error) =>
       error.path ? `${error.path}: ${error.message}` : error.message,
     ),
-    // 次の自動保存で上書きされる前に、読み込めなかった内容を別のキーへ残す
+    // 退避しないと、読み込めなかった内容が次の自動保存で上書きされる
     backupKey: backup(text),
   };
 }
@@ -37,7 +37,7 @@ const BACKUP_PREFIX = `${STORAGE_KEY}:backup:`;
 function backup(text: string) {
   const prefix = BACKUP_PREFIX;
   try {
-    // 読み込めないまま何度開き直しても、同じ内容の退避が増え続けないようにする
+    // 探さずに退避すると、読み込めないまま開き直すたびに同じ内容の退避が増え続ける
     for (let index = 0; index < localStorage.length; index++) {
       const existing = localStorage.key(index);
       if (existing?.startsWith(prefix) && localStorage.getItem(existing) === text) return existing;
@@ -61,7 +61,6 @@ export function storeDiagram(diagram: Diagram): StoreResult {
   }
 }
 
-/** 別のタブが同じ図を保存したときに呼ばれる。戻り値で購読を解除する */
 export function watchOtherTabs(listener: () => void) {
   const onStorage = (event: StorageEvent) => {
     if (event.key === STORAGE_KEY) listener();
@@ -75,7 +74,6 @@ export interface Backup {
   savedAt: Date;
 }
 
-/** 読み込めなかったときに退避したデータの一覧。新しい順 */
 export function listBackups(): Backup[] {
   try {
     const backups: Backup[] = [];

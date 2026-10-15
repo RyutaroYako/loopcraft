@@ -20,7 +20,7 @@ afterEach(cleanup);
 const title = () => page.getByRole("textbox", { name: "図のタイトル" });
 const button = (name: string) => page.getByRole("button", { name, exact: true });
 
-/** IME で変換中の入力と、その確定を送る */
+// userEvent で打たないのは、IME の変換中の入力を送れないため
 function compose(input: HTMLInputElement | HTMLTextAreaElement, value: string) {
   input.value = value;
   input.dispatchEvent(new InputEvent("input", { bubbles: true, isComposing: true }));
@@ -106,7 +106,6 @@ describe("JSON の読み込み", () => {
     await button("読み込む").click();
     await expect.element(dialog().getByRole("alert")).toBeVisible();
     expect(dialog().getByRole("alert").element().textContent).toContain("title: 無効な型");
-    // 書き直したら誤りの表示は消える
     await userEvent.fill(textarea(), JSON.stringify(createSampleDiagram()));
     await expect.element(dialog().getByRole("alert")).not.toBeInTheDocument();
     await button("読み込む").click();
@@ -140,7 +139,7 @@ describe("JSON の読み込み", () => {
       new KeyboardEvent("keydown", { key: "Delete", bubbles: true }),
     );
     await expect.element(node("社員数")).toBeVisible();
-    // 枠の外（背景）のクリックは dialog 要素そのものに当たる
+    // 背景の位置を狙わずに dialog 自身を押すのは、背景のクリックが dialog に当たるため
     (dialog().element() as HTMLDialogElement).click();
     await expect.element(dialog()).not.toBeInTheDocument();
     await expect.element(node("社員数")).toBeVisible();
@@ -193,7 +192,7 @@ describe("画像の書き出し", () => {
       expect(document.querySelector(".node.selected")).toBeNull();
       const { naturalWidth, naturalHeight } = image.element() as HTMLImageElement;
       const box = document.querySelector<SVGGElement>(".canvas-content")!.getBBox();
-      // 余白を付けて、表示の倍率にかかわらず等倍の 2 倍の解像度で写す
+      // + 64 は四辺 32px ずつの余白、* 2 は高解像度の画面でもぼやけないよう 2 倍で写す分
       expect(naturalWidth).toBe(Math.ceil(box.width + 64) * 2);
       expect(naturalHeight).toBe(Math.ceil(box.height + 64) * 2);
 
@@ -269,7 +268,6 @@ describe("入力欄", () => {
     const element = inline.element() as HTMLInputElement;
     element.value = "へんかん";
     element.dispatchEvent(new InputEvent("input", { bubbles: true, isComposing: true }));
-    // 変換を確定する Enter では閉じない
     element.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true }),
     );

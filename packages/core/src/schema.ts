@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { findIntegrityIssues, type IntegrityPath } from "./integrity.ts";
 
-/** 現在のファイル形式のバージョン。破壊的変更のたびに上げ、読み込み時にマイグレーションする。 */
+/** 破壊的変更のたびに上げ、読み込み時にマイグレーションする */
 export const DIAGRAM_FORMAT_VERSION = 1;
 
 const IdSchema = v.pipe(v.string(), v.nonEmpty("ID は空にできません"));
@@ -69,7 +69,6 @@ export const LoopSchema = v.pipe(
       ),
     ),
     description: v.optional(v.string()),
-    /** ループ記号（R/B）の表示位置 */
     marker: v.optional(PointSchema),
   }),
   v.title("Loop"),
@@ -78,7 +77,7 @@ export const LoopSchema = v.pipe(
   ),
 );
 
-/** 参照整合性を含まない、JSON の形だけを表すスキーマ。JSON Schema の生成元。 */
+/** 参照整合性をここに含めないのは、JSON Schema の生成元として形だけを残すため */
 export const DiagramShapeSchema = v.pipe(
   v.object({
     $schema: v.optional(v.string()),
@@ -93,7 +92,6 @@ export const DiagramShapeSchema = v.pipe(
   v.description("システム思考のシステム図（因果ループ図）"),
 );
 
-/** 形に加えて ID の一意性・参照先の存在・ループの閉路性まで検証するスキーマ。 */
 export const DiagramSchema = v.pipe(
   DiagramShapeSchema,
   v.rawCheck(({ dataset, addIssue }) => {

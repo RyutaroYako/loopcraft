@@ -1,6 +1,6 @@
 /**
- * フォーカスがどこにも無いか。消えた要素のフォーカスはふつう body に戻るが、環境によっては
- * null になったり、外れた要素を指したまま残ったりするので、どれも失ったとみなす
+ * body だけで判定しないのは、消えた要素のフォーカスが環境によって null になったり、
+ * 外れた要素を指したまま残ったりするため
  */
 export function isFocusLost(): boolean {
   const active = document.activeElement;
@@ -10,9 +10,8 @@ export function isFocusLost(): boolean {
 type FocusTarget = () => HTMLElement | SVGElement | null | undefined;
 
 /**
- * 押したボタンなどが描画から消えたときに、キーボード操作を続けられるようフォーカスを移す。
- * 描画を待ってから確かめ、その間にほかへ移ったフォーカスは奪わない。
- * 候補は先頭から順に試し、実際にフォーカスを受け取れた最初の要素で止める
+ * すぐ確かめないのは、押したボタンなどがまだ描画から消えていないため。待つ間にほかへ移った
+ * フォーカスは奪わない。focus() の後に確かめるのは、受け取れない要素もあるため
  */
 export function refocusWhenLost(...candidates: FocusTarget[]) {
   requestAnimationFrame(() => {

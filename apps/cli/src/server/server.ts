@@ -20,15 +20,13 @@ import { isNotFound, readDiagramFile, revisionOf, writeDiagramFile } from "../fi
 import type { Logger } from "../log.ts";
 
 export interface ServerOptions {
-  /** 編集するファイルの絶対パス */
+  /** 絶対パス */
   file: string;
-  /** ビルド済みエディタのディレクトリ */
   webDir: string;
   host?: string;
   /** 0 なら空いているポートを使う */
   port: number;
   readonly: boolean;
-  /** ファイルが無いとき、エディタをサンプルの図で始める */
   sample?: boolean;
   log: Logger;
   token?: string;
@@ -55,8 +53,8 @@ const CONTENT_TYPES: Record<string, string> = {
   ".json": "application/json; charset=utf-8",
 };
 
-/** 1 つのファイルを編集するためのローカルサーバー。127.0.0.1 だけで待ち受ける */
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
+  // 0.0.0.0 で待ち受けないのは、同じネットワークの他の端末からファイルを書き換えられてしまうため
   const host = options.host ?? "127.0.0.1";
   const token = options.token ?? randomBytes(24).toString("base64url");
   const session: Session = {
@@ -66,19 +64,18 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     ...(options.sample ? { sample: true } : {}),
   };
   const { log } = options;
-  /** 最後に読んだ・書いたファイルの版。外部での変更と自分の書き込みを見分ける */
+  /** 最後に読んだか書いた版。外部での変更と自分の書き込みを見分ける */
   let knownRevision: Revision | null = null;
   try {
     knownRevision = await currentRevision(options.file);
   } catch (error) {
-    // 読めない理由は、画面が開いたときに /api/document の応答で伝える
+    // ここで止めないのは、読めない理由を画面が開いたときに /api/document で伝えるため
     log.warn(`${basename(options.file)} を読めません: ${describeError(error)}`);
   }
   const listeners = new Set<ServerResponse>();
   let port = options.port;
-  /** 版を確かめてから書き込むまでの間に、別の保存が割り込まないよう 1 つずつ処理する */
+  /** 並行に処理しないのは、版を確かめてから書き込むまでの間に別の保存が割り込むため */
   let saveQueue: Promise<void> = Promise.resolve();
-  /** 見張りが止まった理由。止まっていなければ undefined */
   let unwatchedReason: string | undefined;
   /** knownRevision の内容を書いた画面。エディタ以外が書き換えたら null */
   let lastWriter: string | null = null;
@@ -137,7 +134,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   }
 
   async function documentResponse(): Promise<DocumentResponse> {
-    // 読んだだけでは knownRevision を進めない。見張りが外部の変更をほかの画面へ知らせる前に
+    // 読んだだけで knownRevision を進めないのは、見張りが外部の変更をほかの画面へ知らせる前に
     // 読み込みが割り込むと、その変更を知らせ損ねるため
     const loaded = await readDiagramFile(options.file);
     if (loaded.status === "ok") {
@@ -152,7 +149,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     writer: string | null,
   ) {
     if (options.readonly) {
-      // トークンの不一致（403）と区別できるよう、別の状態で返す
+      // 403 にしないのは、トークンの不一致と区別するため
       sendJson(response, 405, { error: "読み取り専用で開いているため保存できません" });
       return;
     }
@@ -185,7 +182,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     lastWriter = writer;
     log.success(`${session.file} に保存しました`);
     sendJson(response, 200, { status: "saved", revision } satisfies SaveResponse);
-    // 同じファイルを開いているほかの画面に知らせる。保存した画面は writer で自分の保存と分かる
+    // writer を付けないと、保存した画面が自分の保存をほかからの変更と取り違える
     broadcast("change", { revision, writer });
   }
 
@@ -195,9 +192,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       "cache-control": "no-cache",
       connection: "keep-alive",
     });
-    // 一時的に切れたときにすぐつなぎ直すよう、再接続の間隔を短くする（ブラウザの既定は 3〜5 秒）
+    // ブラウザの既定（3〜5 秒）に任せないのは、一時的に切れたときにすぐつなぎ直すため
     response.write("retry: 1000\n: connected\n\n");
-    // つないだ時点の版を知らせる。切れている間の変更や、見張りが止まっていることを、
+    // change を待たずに版を送るのは、切れている間の変更や見張りの停止を、
     // 後から開いた画面やつなぎ直した画面にも伝えるため
     response.write(
       `event: revision\ndata: ${JSON.stringify({ revision: knownRevision, writer: lastWriter })}\n\n`,
@@ -232,8 +229,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       return;
     }
     const isIndex = path === join(options.webDir, "index.html");
-    // トークンを埋め込んだ画面は、起動時に表示した URL（トークン付き）でしか開けない。
-    // 同じマシンのほかの利用者がトークンを読み取って、ファイルを書き換えられないようにするため
+    // トークン無しで画面を返さないのは、同じマシンのほかの利用者が埋め込まれたトークンを読み取って、
+    // ファイルを書き換えられるため
     if (isIndex && !sameToken(url.searchParams.get("token"), token)) {
       sendText(
         response,
@@ -268,10 +265,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   });
   port = (server.address() as AddressInfo).port;
 
-  // エディタ以外（git pull やほかのエディタ）がファイルを書き換えたら、開いている画面に知らせる。
-  // 置き換え保存ではファイル自体が作り直されるので、ファイルではなくディレクトリを見る。
-  // 待ち受けに失敗したときに監視が残らないよう、待ち受けを始めてから作る
-  // シンボリックリンクなら、実際に書き換わるリンク先を見る
+  // ファイルではなくディレクトリを見るのは、置き換え保存でファイル自体が作り直されるため。
+  // 待ち受けより先に作らないのは、待ち受けに失敗したときに監視が残るため。
+  // シンボリックリンクはリンク自体ではなく、実際に書き換わるリンク先を見る
   const watched = await realpath(options.file).catch(() => options.file);
   const directory = dirname(watched);
   let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -313,7 +309,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   }
   watcher.on("error", (error) => stopWatching(describeError(error)));
 
-  // コメント行は EventSource のイベントにならないので、画面が生存を確かめられるよう名前付きで送る
+  // コメント行で済ませないのは、EventSource のイベントにならず、画面が生存を確かめられないため
   const heartbeat = setInterval(() => broadcast("ping", {}), HEARTBEAT_MS);
 
   return {
@@ -330,7 +326,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   };
 }
 
-/** ファイルが無ければ null。読めない理由がほかにあれば、上書きしてしまわないよう投げる */
+/** ほかの理由で読めないときに null にしないのは、上書きしてしまうため */
 async function currentRevision(file: string): Promise<Revision | null> {
   try {
     return revisionOf(await readFile(file, "utf8"));
@@ -363,7 +359,7 @@ function headerValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-/** セッションを meta タグとして埋め込む。エディタはこれを見てファイルへ保存する */
+/** エディタはこの meta タグを読んで保存先を知る */
 export function injectSession(html: string, session: Session) {
   const content = JSON.stringify(session)
     .replaceAll("&", "&amp;")

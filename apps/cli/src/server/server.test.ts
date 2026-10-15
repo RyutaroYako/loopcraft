@@ -39,7 +39,7 @@ async function start(options: { readonly?: boolean; existing?: boolean; sample?:
   return { ...workspace, file, server: running };
 }
 
-/** Host ヘッダーを自由に付けたいので fetch ではなく http.request を使う */
+/** fetch を使わないのは、Host ヘッダーを自由に付けられないため */
 function send(
   server: RunningServer,
   path: string,

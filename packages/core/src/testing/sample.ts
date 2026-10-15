@@ -1,7 +1,6 @@
 import * as v from "valibot";
 import { DiagramSchema, type Diagram } from "../schema.ts";
 
-/** 社員数を軸にした、自己強化ループ 1 つとバランスループ 1 つを含む図 */
 export function createSampleInput() {
   return {
     version: 1,

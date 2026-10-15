@@ -2,8 +2,8 @@ import { SESSION_META_NAME, SessionSchema, type Session } from "@loopcraft/core/
 import * as v from "valibot";
 
 /**
- * `loopcraft serve` が埋め込んだセッションを読む。ブラウザだけで開いたときは undefined、
- * 埋め込まれているのに読めないときは "invalid"（黙ってブラウザに保存してしまわないよう区別する）
+ * 埋め込まれているのに読めないときを undefined（ブラウザだけで開いたとき）と区別するのは、
+ * 黙ってブラウザに保存してしまわないため
  */
 export function readSession(doc: Document = document): Session | "invalid" | undefined {
   const content = doc.querySelector<HTMLMetaElement>(`meta[name="${SESSION_META_NAME}"]`)?.content;

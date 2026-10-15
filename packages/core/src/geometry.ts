@@ -8,11 +8,9 @@ export interface Size {
 export const NODE_HEIGHT = 36;
 export const NODE_PADDING_X = 16;
 export const NODE_MIN_WIDTH = 72;
-/** 曲がり具合の既定値。関連は直線で描く */
 export const DEFAULT_CURVATURE = 0;
-/** 逆向きの関連と重ならないよう、対になった関連に付ける曲がり具合 */
+/** 対になった関連を直線で描くと逆向きの関連と重なるので、この分だけ曲げる */
 export const PAIRED_CURVATURE = 0.18;
-/** 矢印の先端と変数の枠の間に空ける隙間 */
 const LINK_GAP = 6;
 
 export function nodeSize(labelWidth: number): Size {
@@ -22,7 +20,7 @@ export function nodeSize(labelWidth: number): Size {
   };
 }
 
-/** 中心 center・大きさ size の矩形の枠と、中心から toward へ向かう半直線との交点 */
+/** center は矩形の左上ではなく中心 */
 export function boxBoundaryPoint(center: Point, size: Size, toward: Point): Point {
   const dx = toward.x - center.x;
   const dy = toward.y - center.y;
@@ -40,15 +38,12 @@ export interface LinkGeometry {
   end: Point;
   /** SVG の path d 属性 */
   path: string;
-  /** 曲線の中点。遅れの印を置く */
   middle: Point;
   /** 中点での進行方向の単位ベクトル */
   tangent: Point;
-  /** 極性ラベルの位置 */
   label: Point;
 }
 
-/** 曲線上 t の位置（二次ベジェ） */
 export function quadraticPoint(start: Point, control: Point, end: Point, t: number): Point {
   const u = 1 - t;
   return {
@@ -64,19 +59,18 @@ function quadraticTangent(start: Point, control: Point, end: Point, t: number): 
   return { x: x / length, y: y / length };
 }
 
-/** 進行方向 (dx, dy) に対して画面上で左側を向く単位法線（y 軸は下向き） */
+/** 左は画面上（y 軸下向き）で見た向き */
 function leftNormal(dx: number, dy: number): Point {
   const length = Math.hypot(dx, dy) || 1;
   return { x: dy / length, y: -dx / length };
 }
 
-/** 中心同士を結ぶ線の中点から、曲がり具合に応じて法線方向へずらした制御点 */
 function controlPoint(from: Point, to: Point, curvature: number): Point {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const distance = Math.hypot(dx, dy);
   const normal = leftNormal(dx, dy);
-  // 曲線の中点は制御点のずれの半分だけ膨らむので、2 倍しておく
+  // 2 倍しないと、曲線の中点は制御点のずれの半分しか膨らまない
   const offset = curvature * distance * 2;
   return {
     x: (from.x + to.x) / 2 + normal.x * offset,
@@ -84,7 +78,6 @@ function controlPoint(from: Point, to: Point, curvature: number): Point {
   };
 }
 
-/** 曲がり具合が指定されていないときの値。逆向きの関連があるときだけ膨らませて重なりを避ける */
 export function defaultCurvature(hasReverse: boolean): number {
   return hasReverse ? PAIRED_CURVATURE : DEFAULT_CURVATURE;
 }
@@ -138,7 +131,7 @@ export function centroid(points: readonly Point[]): Point {
   return { x: x / points.length, y: y / points.length };
 }
 
-/** 画面上（y 軸下向き）で点を順に辿ったときに時計回りか */
+/** 時計回りは画面上（y 軸下向き）で見た向き */
 export function isClockwise(points: readonly Point[]): boolean {
   let area = 0;
   for (const [index, point] of points.entries()) {

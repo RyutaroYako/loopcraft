@@ -1,6 +1,5 @@
 import type { JSX } from "@solidjs/web";
 
-/** 線幅 1.5 で揃えた 20px グリッドのアイコン */
 function Icon(props: { children: JSX.Element }) {
   return (
     <svg
@@ -55,7 +54,6 @@ export const SaveIcon = () => (
   </Icon>
 );
 
-/** 3 つの変数を線で結んだ、レイアウトを整える印 */
 export const LayoutIcon = () => (
   <Icon>
     <circle cx="10" cy="4.5" r="2" />
@@ -146,7 +144,6 @@ export const ArrowRightIcon = () => (
   </Icon>
 );
 
-/** 因果ループを表すロゴマーク */
 export const LogoMark = () => (
   <svg class="logo-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path

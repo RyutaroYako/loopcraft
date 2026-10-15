@@ -173,13 +173,10 @@ function VariableList(props: { hidden: boolean }) {
   );
 }
 
-/*
- * 検査パネルは選択中の ID ごとに作り直し、中身は ID から最新の図を引き直す。
- * 削除と同じ更新の中で子の計算が先に走っても落ちないよう、見つからないときは空で描く。
- */
+// 見つからない ID で落とさず空で描くのは、削除と同じ更新の中で子の計算が先に走ることがあるため
 function Inspector() {
   const editor = useContext(EditorContext);
-  // 型を絞り込むため、種類ごとに選択中の ID を取り出す
+  // selection() を 1 つの Match で使わないのは、種類ごとに型を絞り込めないため
   const selectedVariable = () => {
     const selection = editor.selection();
     return selection?.kind === "variable" ? selection.id : undefined;
@@ -293,11 +290,10 @@ function DiagramInspector() {
   );
 }
 
-/** 読み込めなかったときに退避したデータ。あるときだけ表示し、書き出しと削除ができる */
 function BackupList() {
   const editor = useContext(EditorContext);
   const [backups, setBackups] = createSignal(listBackups());
-  /** 削除の確認中の項目。唯一の写しを消すので、一度確かめてから消す */
+  // 押してすぐ消さないのは、唯一の写しで元に戻せないため
   const [confirming, setConfirming] = createSignal<string | null>(null);
   const download = (key: string, savedAt: Date) => {
     const text = readBackup(key);
@@ -318,7 +314,7 @@ function BackupList() {
     removeBackup(key);
     setConfirming(null);
     setBackups(listBackups());
-    // 押したボタンは行ごと消えるので、残りの項目か検査パネルへフォーカスを移す
+    // 移さないと、押したボタンが行ごと消えてフォーカスが失われる
     refocusWhenLost(() => list?.querySelector("button"), inspectorElement);
   };
   return (
@@ -335,9 +331,8 @@ function BackupList() {
               <li>
                 <span class="backup-date">{backup().savedAt.toLocaleString("ja-JP")}</span>
                 {/*
-                  確認中もボタン自体は差し替えず、表示と働きだけを切り替える。
-                  押したボタンにフォーカスが残るので、キーボードでもそのまま選べる
-                  （「削除」を押すと同じ位置の「やめる」にフォーカスが乗る）
+                  確認用のボタンに差し替えないのは、押したボタンのフォーカスが失われるため。
+                  差し替えなければ、「削除」を押すと同じ位置の「やめる」にフォーカスが乗る
                 */}
                 <button
                   type="button"
@@ -381,7 +376,6 @@ function VariableInspector(props: { id: VariableId }) {
       effects: links.filter((link) => link.from === props.id),
     };
   });
-  /** 自分自身と、既に同じ向きで繋がっている変数を除いた候補 */
   const candidates = (linked: VariableId[]) => {
     const excluded = new Set<VariableId>([props.id, ...linked]);
     return editor
@@ -479,8 +473,7 @@ function RelationList(props: {
 }
 
 /**
- * 候補を選んでから「追加」で確定する。閉じた select は矢印キーだけで値が変わる
- * ブラウザがあるので、選んだ時点では関連を作らない
+ * 選んだ時点で関連を作らないのは、閉じた select が矢印キーだけで値を変えるブラウザがあるため
  */
 function RelationPicker(props: {
   label: string;
@@ -542,7 +535,7 @@ function LinkInspector(props: { id: LinkId }) {
     const current = link();
     return current !== undefined && editor.hasReverse(current);
   };
-  /** 既定の形（直線、逆向きの関連があれば決まった曲がり）と違う曲がり具合が付いているか */
+  // undefined かどうかだけで見ないのは、既定と同じ値が明示されていることがあるため
   const customCurvature = () => {
     const curvature = link()?.curvature;
     return curvature !== undefined && curvature !== defaultCurvature(reversed());
@@ -620,7 +613,7 @@ function LinkInspector(props: { id: LinkId }) {
         }
       />
       <Show when={editor.editable()}>
-        {/* 以前の版や JSON で付けた曲がり具合は、ここでだけ既定の形に戻せる */}
+        {/* 曲がり具合を付ける操作が無いのに戻す操作を置くのは、以前の版や JSON で付いたものを戻す手段がここしか無いため */}
         <Show when={customCurvature()}>
           <div class="inline-actions">
             <button
@@ -628,7 +621,7 @@ function LinkInspector(props: { id: LinkId }) {
               class="button ghost small"
               onClick={() => {
                 update({ curvature: undefined });
-                // 押したボタンは消えるので、検査パネルへフォーカスを戻す
+                // 戻さないと、押したボタンが消えてフォーカスが失われる
                 refocusWhenLost(inspectorElement);
               }}
             >

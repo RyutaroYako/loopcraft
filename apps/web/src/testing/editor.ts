@@ -3,7 +3,7 @@ import type { Diagram } from "@loopcraft/core/schema";
 import { createRoot, flush } from "solid-js";
 import { createEditor } from "../editor/editor.ts";
 
-/** リアクティブな所有者の下でエディタを作る。dispose で後片付けする */
+/** createRoot で包むのは、createEditor の createMemo などに所有者が要るため */
 export function setupEditor(initial: Diagram = createSampleDiagram(), editable = true) {
   let dispose = () => {};
   const editor = createRoot((d) => {

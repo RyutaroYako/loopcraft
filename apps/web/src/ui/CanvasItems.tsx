@@ -10,10 +10,7 @@ import {
 } from "@loopcraft/core/geometry";
 import type { Link, LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
 
-/*
- * キャンバス上の各要素。どれも ID だけを受け取り、描画のたびに最新の図から引き直す。
- * 削除と同じ更新の中で子の計算が先に走っても落ちないよう、見つからないときは何も描かない。
- */
+// 見つからない ID で落とさず何も描かないのは、削除と同じ更新の中で子の計算が先に走ることがあるため
 
 const ORIGIN: Point = { x: 0, y: 0 };
 const ARROW_OFFSETS: Partial<Record<string, Point>> = {
@@ -169,7 +166,6 @@ export function NodeView(props: {
     const emphasis = editor.emphasis();
     return emphasis && !emphasis.variables.has(props.id) ? emphasis.kind : undefined;
   };
-  // キーボードだけでも選択・名前の変更・移動ができるようにする
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.shiftKey ? 40 : 8;
     const offset = ARROW_OFFSETS[event.key];
@@ -218,7 +214,7 @@ export function NodeView(props: {
         data-variable-id={props.id}
         onPointerDown={(event) => props.onPointerDown(event, props.id)}
         onFocus={() => {
-          // フォーカスした要素を選択して、Delete や検査パネルがその要素に効くようにする
+          // フォーカスと選択を別々にしないと、Delete や検査パネルがフォーカスしていない要素に効く
           if (!selected()) editor.select({ kind: "variable", id: props.id });
         }}
         onKeyDown={onKeyDown}
@@ -234,7 +230,7 @@ export function NodeView(props: {
         <text class="node-label" text-anchor="middle" dominant-baseline="central">
           {label() || "名称未設定"}
         </text>
-        {/* ポインタ専用の操作。キーボードでは検査パネルから関連を追加する */}
+        {/* キーボードで操作できなくてよいのは、検査パネルから関連を追加できるため */}
         <g
           class="node-handle"
           aria-hidden="true"
@@ -250,7 +246,7 @@ export function NodeView(props: {
   );
 }
 
-/** 描画が追いついた後に、変数の要素へフォーカスを移す */
+// すぐに focus しないのは、描画が追いつく前だとフォーカスが入らないことがあるため
 function focusVariable(id: VariableId) {
   requestAnimationFrame(() => {
     document.querySelector<SVGGElement>(`[data-variable-id="${CSS.escape(id)}"]`)?.focus();
@@ -263,8 +259,8 @@ export function InlineLabelEditor(props: { id: VariableId }) {
   const width = () => Math.max(180, (box()?.size.width ?? 0) + 24);
   const center = () => box()?.center ?? ORIGIN;
   const original = editor.current().variables.find((item) => item.id === props.id)?.label ?? "";
-  // 入力中の変化は 1 つのジェスチャーにまとめ、確定で 1 回の編集、Escape で無かったことにする。
-  // 別の操作が割り込むとジェスチャーは自動で確定されるので、ここで後始末をしなくても履歴は壊れない
+  // 入力のたびに commit しないのは、元に戻すが 1 文字ずつになり、Escape で取り消せないため。
+  // onCleanup で後始末しないのは、別の操作が割り込むとジェスチャーは自動で確定されるため
   let gesture: Gesture | undefined;
   let done = false;
   const preview = (label: string) => {
@@ -281,7 +277,7 @@ export function InlineLabelEditor(props: { id: VariableId }) {
       gesture?.end();
     }
     editor.setEditingVariable(null);
-    // キーボードで閉じたときは、入力欄が消えても変数にフォーカスを戻して操作を続けられるようにする
+    // 戻さないと入力欄と一緒にフォーカスが消える。blur で戻さないのは、移った先から奪うため
     if (how !== "blur") focusVariable(props.id);
   };
   return (
@@ -385,7 +381,6 @@ export function LoopMarkerView(props: {
   );
 }
 
-/** 半径 18 の円弧（-60° から 240° まで時計回り）と、その終端の矢じり */
 const LOOP_ARC = arcPath(18, -60, 240);
 const LOOP_ARROW_HEAD = arrowHeadPath(18, 240);
 

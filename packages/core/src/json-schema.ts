@@ -7,10 +7,7 @@ import {
   VariableSchema,
 } from "./schema.ts";
 
-/**
- * 保存形式の JSON Schema を生成する。
- * ID の一意性や参照先の存在など、JSON Schema で表せない制約は含まれない。
- */
+/** ID の一意性や参照先の存在など、JSON Schema で表せない制約は含まない */
 export function createDiagramJsonSchema() {
   return toJsonSchema(DiagramShapeSchema, {
     target: "draft-2020-12",
@@ -20,7 +17,7 @@ export function createDiagramJsonSchema() {
       Link: LinkSchema,
       Loop: LoopSchema,
     },
-    // brand は型レベルの区別にだけ使っており、JSON 上はただの文字列
+    // brand を出さないのは、型レベルの区別にだけ使い、JSON 上はただの文字列のため
     ignoreActions: ["brand"],
   });
 }

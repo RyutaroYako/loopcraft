@@ -86,7 +86,7 @@ describe("キーボード", () => {
     await userEvent.keyboard("{Control>}y{/Control}");
     await expect.element(node("離職数")).not.toBeInTheDocument();
 
-    // 変数を選んだまま入力欄で打っても、図の操作にはならない
+    // 変数にフォーカスを残してから入力欄へ移るのは、選択が残っていても入力欄の操作が図に効かないことを確かめるため
     nodeElement("sales").focus();
     const title = page.getByRole("textbox", { name: "図のタイトル" });
     await userEvent.click(title);
@@ -206,7 +206,7 @@ describe("serve で開いたとき", () => {
 
     mount(fileStartup(ok(), { readonly: true }));
     await expect.element(page.getByText("読み取り専用", { exact: true })).toBeVisible();
-    // 読み上げは画面の幅によらず、読み取り専用であることと、その意味を伝える
+    // toBeVisible で確かめないのは、読み上げ用の文は画面には出さないため
     await expect
       .element(page.getByText("読み取り専用。編集も保存もできません"))
       .toBeInTheDocument();

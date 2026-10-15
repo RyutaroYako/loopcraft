@@ -8,12 +8,11 @@ import { resolveWebDir } from "../web-dir.ts";
 export const DEFAULT_PORT = 4747;
 
 export interface ServeOptions {
-  /** 指定されたら、そのポートが使えないときに別のポートへ逃げない */
+  /** 指定されたら、使えなくても別のポートへ逃げない */
   port?: number;
   open?: boolean;
-  /** 編集できないようにし、サーバーも書き込みを拒否する */
   readonly?: boolean;
-  /** ファイルが無いとき、空の図ではなくサンプルの図で開く。保存するまでファイルは作らない */
+  /** 保存するまでファイルは作らない */
   sample?: boolean;
 }
 
@@ -23,7 +22,6 @@ export interface ServeDependencies {
   defaultPort?: number;
 }
 
-/** ファイルをブラウザのエディタで開く。ファイルが無ければ空の図で開き、最初の保存で作る */
 export async function serve(
   file: string,
   options: ServeOptions,

@@ -8,7 +8,6 @@ export interface IntegrityIssue {
   message: string;
 }
 
-/** スキーマの形だけでは表せない、要素間の整合性の違反をすべて列挙する。 */
 export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
   const issues: IntegrityIssue[] = [];
 
@@ -69,7 +68,7 @@ export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
   return issues;
 }
 
-/** 「原因→結果」の組を表すキー。同じ向きの関連の重複や、逆向きの関連の有無を調べるのに使う */
+/** 区切り文字で繋がないのは、ID に区切り文字が含まれると別の組と同じキーになるため */
 export function linkPairKey(from: string, to: string): string {
   return JSON.stringify([from, to]);
 }

@@ -17,7 +17,6 @@ import { createSample } from "./testing/sample.ts";
 const vid = (id: string) => id as VariableId;
 const lid = (id: string) => id as LinkId;
 
-/** 編集結果が常にスキーマの整合性を満たすことを確かめる */
 function expectValid(diagram: unknown) {
   expect(v.safeParse(DiagramSchema, diagram).issues).toBeUndefined();
 }

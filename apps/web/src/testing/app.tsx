@@ -10,7 +10,6 @@ import "../styles.css";
 
 let dispose: (() => void) | undefined;
 
-/** App を描く。前に描いたものは片付ける */
 export function mount(startup: Startup) {
   unmount();
   const root = document.createElement("div");
@@ -27,7 +26,7 @@ function unmount() {
 export function cleanup() {
   unmount();
   localStorage.clear();
-  // 失敗したテストが差し替えたままの click などを、次のテストに持ち越さない
+  // ここで戻すのは、失敗したテストが差し替えたままの click などを、次のテストに持ち越さないため
   vi.restoreAllMocks();
 }
 
@@ -38,14 +37,12 @@ export function browserStartup(diagram?: Diagram): Startup {
   };
 }
 
-/** serve で開いたときの保存先。保存や読み直しの結果と、外部からの知らせを差し替えられる */
 export function fakeFileStore() {
   let handlers: WatchHandlers | undefined;
   const control = {
     saveResult: { ok: true } as SaveResult,
     reloadResult: { ok: false, problems: [] } as ReloadResult,
     saved: [] as Diagram[],
-    /** watch に渡された知らせ先。外部での変更や切断を起こす */
     handlers: () => handlers!,
   };
   const store: DocumentStore = {
@@ -84,18 +81,16 @@ export const canvas = () => page.getByRole("group", { name: "システム図の�
 export const node = (name: string) => page.getByRole("button", { name, exact: true });
 export const notice = () => document.querySelector(".notice");
 
-/** 変数の要素。data-variable-id で引く */
 export function nodeElement(id: string) {
   return document.querySelector<SVGGElement>(`[data-variable-id="${id}"]`)!;
 }
 
-/** 要素の中心の画面座標 */
 export function centerOf(element: Element) {
   const rect = element.getBoundingClientRect();
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
-/** キャンバスの左上からの位置を、画面座標にする */
+/** x, y はキャンバスの左上から */
 export function canvasPoint(x: number, y: number) {
   const rect = document.querySelector(".canvas-svg")!.getBoundingClientRect();
   return { x: rect.left + x, y: rect.top + y };
@@ -103,10 +98,7 @@ export function canvasPoint(x: number, y: number) {
 
 const POINTER = { pointerId: 1, pointerType: "mouse", isPrimary: true, bubbles: true };
 
-/**
- * 要素の上で押し、指定した位置まで動かして離す。途中の移動も送る。
- * 実際のブラウザでは操作のたびに別のタスクになり、その間に描画の更新が済むので、ここでも毎回反映させる
- */
+/** 毎回 flush するのは、実際のブラウザでは操作のたびに別のタスクになり、その間に描画の更新が済むため */
 export function dragFrom(
   target: Element,
   from: { x: number; y: number },
@@ -135,10 +127,7 @@ export function dragFrom(
   flush();
 }
 
-/**
- * ダウンロードを横取りして、ファイル名を集める。
- * 実際に保存ダイアログやダウンロードを起こさないため
- */
+/** click を横取りするのは、実際に保存ダイアログやダウンロードを起こさないため */
 export function captureDownloads() {
   const files: string[] = [];
   const spy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
@@ -149,7 +138,7 @@ export function captureDownloads() {
   return { files, restore: () => spy.mockRestore() };
 }
 
-/** ファイル選択ダイアログの代わりに、渡したファイルを選んだことにする（undefined ならキャンセル） */
+/** click を差し替えるのは、本物のファイル選択ダイアログはテストから操作できないため。undefined ならキャンセル */
 export function chooseFile(file: File | undefined) {
   const spy = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (
     this: HTMLInputElement,

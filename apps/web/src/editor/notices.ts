@@ -12,12 +12,11 @@ interface Autosave {
 
 type Action = NonNullable<Notice["actions"]>[number];
 
-/** 自動保存の状態や、開いたときの問題を、取れる操作と一緒に知らせる */
 export function createNotices(context: {
   editor: Editor;
   store: DocumentStore;
   startup: Startup;
-  /** 読み取り専用なら、上書きを勧めない（サーバーが拒むので） */
+  /** 読み取り専用で上書きを勧めないのは、サーバーが拒むため */
   readonly?: boolean;
   autosave: () => Autosave;
   reloadPage?: () => void;
@@ -49,7 +48,6 @@ export function createNotices(context: {
       ]
     : [];
 
-  /** 読み直して、読めなければその理由をもう一度知らせる */
   const reloadFromFile = run(async (autosave) => {
     const result = await autosave.reload();
     if (!result.ok) explain({ kind: "suspended", reason: "external", problems: result.problems });
@@ -141,7 +139,7 @@ export function createNotices(context: {
     };
   }
 
-  /** explain で出した通知。状態が戻ったら、それだけを閉じる */
+  /** 覚えておくのは、状態が戻ったときに、ほかの通知まで閉じないため */
   let explained: Notice | undefined;
 
   function explain(status: AutosaveStatus) {
@@ -154,7 +152,6 @@ export function createNotices(context: {
   return {
     explain,
 
-    /** 開いた時点で知らせることがあれば知らせる */
     atStartup(initialStatus: AutosaveStatus | undefined) {
       if (startup.kind === "browser" && startup.sessionInvalid) {
         editor.notify({
@@ -187,18 +184,15 @@ export function createNotices(context: {
       }
     },
 
-    /** 問題のある状態から戻ったとき。そのとき出していた案内は古くなるので閉じる */
     recovered() {
       if (explained) editor.dismissNotice(explained);
       explained = undefined;
     },
 
-    /** 外部での変更を取り込んだとき */
     reloaded() {
       editor.notify({ tone: "info", title: `${fileName} の変更を読み込みました` });
     },
 
-    /** 外部での変更を見張れなくなったとき。保存は続けられる */
     unwatched(detail: string | undefined) {
       editor.notify({
         tone: "error",

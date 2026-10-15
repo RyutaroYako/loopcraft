@@ -14,10 +14,9 @@ import {
 import { EmptyState } from "./EmptyState.tsx";
 import { FitIcon, MinusIcon, PlusIcon } from "./icons.tsx";
 
-/** 一度に追跡するポインタは 1 本だけ。2 本目の指などは無視する */
 interface DragBase {
   pointerId: number;
-  /** 押した位置（画面座標）。しきい値を超えるまではクリック扱い */
+  // ワールド座標で持たないのは、パン中はポインタの下のワールド座標が動かず、しきい値を超えないため
   start: Point;
   moved: boolean;
 }
@@ -32,7 +31,6 @@ type Drag = DragBase &
 
 type DragInit = Drag extends infer D ? (D extends Drag ? Omit<D, keyof DragBase> : never) : never;
 
-/** これ以下の移動はクリックとみなす（画面上の px） */
 const DRAG_THRESHOLD = 3;
 
 export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
@@ -62,7 +60,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     return undefined;
   };
 
-  /** ドラッグを始められたら true。別のポインタでドラッグ中なら何もしない */
   const canStartDrag = (event: PointerEvent) => {
     if (event.button !== 0) return false;
     event.stopPropagation();
@@ -348,8 +345,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     { defer: true },
   );
 
-  // ドラッグ中はポインタをキャプチャしているので、dblclick の target は常に svg になる。
-  // 実際にポインタの下にあるものを調べて振り分ける
+  // event.target で振り分けないのは、ドラッグ中のキャプチャで dblclick の target が常に svg になるため
   const onDoubleClick = (event: MouseEvent) => {
     const point = worldPoint(event);
     const node = nodeAt(point);

@@ -44,7 +44,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
       </label>
       <Show when={props.readonly}>
         <span class="mode-badge" title="loopcraft serve --readonly で開いています">
-          {/* 狭い画面ではタイトルを潰さないよう短くする。読み上げは画面の幅によらず同じにする */}
+          {/* 見えている文言を読ませないのは、狭い画面で印だけに縮めると読み上げまで変わるため */}
           <span class="mode-badge-long" aria-hidden="true">
             読み取り専用
           </span>

@@ -11,7 +11,7 @@ import { ScreenshotDialog } from "./ui/ScreenshotDialog.tsx";
 import { Sidebar } from "./ui/Sidebar.tsx";
 import { Toolbar, type DialogKind } from "./ui/Toolbar.tsx";
 
-/** Enter を自前で扱う要素（ボタンやリンクなど）。ここでの Enter は横取りしない */
+/** ここで Enter を横取りしないのは、ボタンやリンクなどが自前で Enter を扱うため */
 function isInteractive(target: EventTarget | null) {
   return (
     target instanceof Element &&
@@ -27,7 +27,7 @@ function isTextInput(target: EventTarget | null) {
 }
 
 function App(props: { startup: Startup }) {
-  // 起動時の情報は描画中に変わらないので、最初に一度だけ解決する
+  // 追跡しないのは、起動時の情報が描画中に変わらないため
   const startup = untrack(() => props.startup);
   const { initial, store, readonly, initialStatus } = resolveStartup(startup);
   const editor = createEditor(initial, { editable: !readonly });
@@ -46,7 +46,6 @@ function App(props: { startup: Startup }) {
   const closeDialog = () => setDialog(null);
 
   const onKeyDown = (event: KeyboardEvent) => {
-    // ダイアログを開いている間は、図への操作のショートカットを効かせない
     if (dialog() !== null) return;
     const mod = event.metaKey || event.ctrlKey;
     if (mod && event.key.toLowerCase() === "z" && !isTextInput(event.target)) {
@@ -83,7 +82,6 @@ function App(props: { startup: Startup }) {
 
   const hasFiles = (event: DragEvent) => event.dataTransfer?.types.includes("Files") ?? false;
 
-  // どこかで取りこぼした例外も、黙って失敗させずに画面へ出す
   const onUnhandled = (event: PromiseRejectionEvent | ErrorEvent) => {
     const reason = "reason" in event ? event.reason : (event.error ?? event.message);
     editor.notify({

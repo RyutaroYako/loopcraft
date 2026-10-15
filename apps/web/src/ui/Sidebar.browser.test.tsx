@@ -27,12 +27,10 @@ const field = (name: string | RegExp) =>
   page.getByRole("textbox", { name, exact: typeof name === "string" });
 const inspector = () => page.getByRole("region", { name: "選択中の項目" });
 
-/** ブラウザに自動保存された図 */
 function stored(): Diagram {
   return JSON.parse(localStorage.getItem("loopcraft:document") ?? "null") as Diagram;
 }
 
-/** 説明を書いて保存されたこと、消すと項目ごと無くなることを確かめる */
 async function writeAndClearDescription(read: (diagram: Diagram) => string | undefined) {
   await userEvent.fill(field("説明"), "メモ");
   await expect.poll(() => read(stored())).toBe("メモ");
@@ -68,7 +66,7 @@ describe("図の概要", () => {
       await button("削除する").click();
       await expect.poll(() => button("書き出す").all().length).toBe(1);
 
-      // 別のタブで消されていたら、書き出せないことを知らせる
+      // localStorage を直接消すのは、別のタブで消された状態をまねるため
       localStorage.removeItem("loopcraft:document:backup:1700000000000");
       await button("書き出す").click();
       await expect
@@ -104,7 +102,7 @@ describe("変数", () => {
     await expect.element(add.first()).toBeDisabled();
     await page.getByRole("combobox", { name: "原因を追加" }).selectOptions("教育コスト");
     await add.first().click();
-    // 作った関連が選ばれるので、変数を選び直す
+    // 選び直さないと、作った関連が選ばれたままになる
     await expect.element(heading("関連")).toBeVisible();
     nodeElement("sales").focus();
     await page.getByRole("combobox", { name: "結果を追加" }).selectOptions("離職数");
@@ -156,7 +154,7 @@ describe("関連", () => {
     await button(/逆向きに動く/).click();
     await expect.element(page.getByText("社員数が増えると売上は減る")).toBeVisible();
     await button(/同じ向きに動く/).click();
-    // チェックボックスは見た目のスイッチの裏に隠しているので、ラベルを押す
+    // チェックボックスを直接押さないのは、見た目のスイッチの裏に隠れているため
     await page.getByText("遅れがある").click();
     await expect.element(page.getByRole("checkbox", { name: /遅れがある/ })).toBeChecked();
     await page.getByText("遅れがある").click();
@@ -166,7 +164,7 @@ describe("関連", () => {
     );
     await button("直線に戻す").click();
     await expect.element(button("直線に戻す")).not.toBeInTheDocument();
-    // 押したボタンは消えるので、フォーカスは（削除ボタンではなく）検査パネルへ戻る
+    // 削除ボタンへ戻さないのは、Enter を続けて押すと関連まで消してしまうため
     await expect.poll(() => document.activeElement?.classList.contains("inspector")).toBe(true);
     await button(/関連を削除/).click();
     await expect.element(heading("図の概要")).toBeVisible();
@@ -317,7 +315,6 @@ describe("変数の一覧", () => {
     await userEvent.fill(search(), "存在しない");
     await expect.element(page.getByText("名前が一致する変数はありません")).toBeVisible();
 
-    // タブを切り替えても、絞り込みは残る
     await page.getByRole("tab", { name: /ループ/ }).click();
     await expect.poll(() => document.getElementById("browser-panel-variables")!.hidden).toBe(true);
     await page.getByRole("tab", { name: /変数/ }).click();

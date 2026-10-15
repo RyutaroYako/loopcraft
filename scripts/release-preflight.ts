@@ -1,6 +1,6 @@
 /**
- * vpr release の前に、最新の main にいることを確かめる。
- * 古い main や別のブランチでタグを作ると、push してもタグだけが届き、公開できないタグが残るため
+ * vpr release の前に呼ぶ。
+ * 古い main や別のブランチでタグを作ると、push してもタグだけが届き、公開できないタグが残る
  */
 import { execFileSync } from "node:child_process";
 

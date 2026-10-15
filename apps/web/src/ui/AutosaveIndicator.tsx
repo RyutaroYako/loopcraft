@@ -11,7 +11,6 @@ function labelOf(status: AutosaveStatus, store: DocumentStore, unwatched: boolea
   return store.kind === "file" ? store.label : "自動保存済み";
 }
 
-/** 自動保存の状態を常に見えるようにする。問題があるときは押すと対処の案内を出す */
 export function AutosaveIndicator() {
   const autosave = useContext(AutosaveContext);
   const status = () => autosave.status();

@@ -12,18 +12,14 @@ import type { CommandName, Prompts } from "./interactive.ts";
 export interface ProgramDependencies {
   context: Context;
   version: string;
-  /** 足りない引数を対話で聞いてよいか */
   canPrompt: () => boolean;
   prompts: Prompts;
   openBrowser: (url: string) => Promise<unknown>;
-  /** serve を止める合図（Ctrl+C など）まで待つ */
   waitForExit: () => Promise<void>;
 }
 
-/** 対話がキャンセルされた。何もせずに終える */
 class Cancelled extends Error {}
 
-/** CLI を実行し、終了コードを返す */
 export async function runCli(argv: string[], dependencies: ProgramDependencies): Promise<number> {
   const { log } = dependencies.context;
   try {
@@ -76,7 +72,7 @@ export function createProgram(dependencies: ProgramDependencies) {
               prompts.chooseFile(context.cwd, {
                 message: "開くファイル",
                 allowNew: true,
-                // サンプルは既にあるファイルには使えないので、新しいファイル名だけを聞く
+                // 一覧から選ばせないのは、サンプルを既にあるファイルには使えないため
                 newOnly: options.sample,
               }),
             )) ?? missing("開くファイルを指定してください"))
@@ -159,7 +155,7 @@ export function createProgram(dependencies: ProgramDependencies) {
       parsePort,
     )
     .option("--readonly", "読み取り専用で開く")
-    // 以前は閲覧モードが既定で、編集するときに付けていた。今は常に編集できるので知らせるだけ
+    // 消さないのは、閲覧モードが既定だった頃に付けていた使い方を壊さないため
     .addOption(new Option("--edit").hideHelp())
     .option("--sample", "新しいファイルをサンプルの図で開く。保存するまでファイルは作らない")
     .option("--no-open", "ブラウザを開かない")
@@ -182,8 +178,7 @@ export function createProgram(dependencies: ProgramDependencies) {
     )
     .action(actions.loops);
 
-  // serve はファイルが無ければ最初の保存で作るので、新しく始める手段としては案内しない。
-  // 既存のスクリプトのために、コマンドとしては残す
+  // 案内しないのは、serve が最初の保存でファイルを作るため。消さないのは、既存のスクリプトのため
   program
     .command("init", { hidden: true })
     .description("新しい図のファイルを作る")
@@ -210,7 +205,7 @@ export function createProgram(dependencies: ProgramDependencies) {
     ].join("\n"),
   );
 
-  // 知らないコマンドは commander の英語のエラーではなく、日本語で伝える。
+  // 知らないコマンドを commander に任せないのは、エラーが英語になるため。
   // 設定はサブコマンドを作るときに引き継がれるので、すべて作った後でルートにだけ付ける
   program.allowExcessArguments();
   program.action(async () => {
@@ -232,7 +227,6 @@ export function createProgram(dependencies: ProgramDependencies) {
 
 interface ServeFlags {
   port?: number;
-  /** 以前の既定（閲覧モード）の名残。受け付けて知らせるだけ */
   edit?: boolean;
   readonly?: boolean;
   sample?: boolean;

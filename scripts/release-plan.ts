@@ -1,6 +1,6 @@
 /**
- * release.yml から呼び、公開するかとどの dist-tag に出すかを決める。
- * 公開済みの版は公開を飛ばし、公開の後で失敗したジョブを再実行できるようにする
+ * release.yml から呼ぶ。
+ * 公開済みの版を失敗にせず公開だけ飛ばすのは、公開の後で失敗したジョブを再実行できるようにするため
  */
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";

@@ -22,7 +22,7 @@ afterEach(cleanup);
 
 async function open(diagram: Diagram = createSampleDiagram()) {
   mount(browserStartup(diagram));
-  // 大きさを測って全体を表示し終えるまで待つ
+  // mount 直後に操作しないのは、大きさを測って全体を表示するまで要素の位置が定まらないため
   await settle();
 }
 
@@ -140,12 +140,10 @@ describe("ポインタでの操作", () => {
     const handle = from!.querySelector(".node-handle")!;
     const start = centerOf(handle);
 
-    // 自分自身や、すぐ近くで離したときは何も作らない
     dragFrom(handle, start, centerOf(from!));
     dragFrom(handle, start, offset(start, 20, 0));
     expect(document.querySelectorAll(".link")).toHaveLength(0);
 
-    // 引いている間は、離すと繋がる変数を示す
     press(handle, start);
     const svg = document.querySelector(".canvas-svg")!;
     const target = centerOf(to!);
@@ -262,7 +260,6 @@ describe("取り消しと例外的な操作", () => {
     const polarity = document.querySelector<SVGGElement>(".polarity")!;
     polarity.focus();
     await expect.element(heading("関連")).toBeVisible();
-    // 選んだ関連にフォーカスを戻しても、選び直さない
     nodeElement("sales").blur();
     polarity.blur();
     polarity.focus();
@@ -396,7 +393,7 @@ describe("表示", () => {
   });
 });
 
-/** 右クリック（キーボードのメニューキーなら位置なし）でメニューを開く */
+// 位置を省くと 0, 0 で送るのは、キーボードのメニューキーで開くとそう届くため
 function openMenu(target: Element, point?: { x: number; y: number }) {
   target.dispatchEvent(
     new MouseEvent("contextmenu", {
@@ -424,7 +421,6 @@ describe("選んだ変数のまわり", () => {
     expect(document.querySelector('[data-link-id="l_leave"]')!.classList.contains("faded")).toBe(
       true,
     );
-    // 売上を通らないループ（離職の悪循環）の記号も控えめに薄くし、通るループは残す
     const markers = [...document.querySelectorAll(".loop-marker")];
     expect(markers.some((marker) => marker.classList.contains("faded"))).toBe(true);
     expect(markers.some((marker) => !marker.classList.contains("faded"))).toBe(true);
@@ -455,13 +451,11 @@ describe("右クリックのメニュー", () => {
     await expect.element(menu("「売上」の操作")).not.toBeInTheDocument();
     await expect.element(node("売上")).toHaveFocus();
 
-    // キーボードのメニューキー（位置なし）でも、変数の位置に開く
     openMenu(nodeElement("sales"));
     await menuItem(/名前を変える/).click();
     await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
 
-    // メニューを開いている間は、Delete などのショートカットを図に届けない
     openMenu(nodeElement("sales"), centerOf(nodeElement("sales")));
     await expect.element(menuItem(/名前を変える/)).toHaveFocus();
     await userEvent.keyboard("{Delete}");
@@ -481,7 +475,7 @@ describe("右クリックのメニュー", () => {
 
     openMenu(link().querySelector(".link-hit")!, at());
     await expect.element(menu("関連の操作")).toBeVisible();
-    // ほかの操作（ここではショートカットではなく直接の元に戻す）で図が変わると閉じる
+    // ショートカットで元に戻さないのは、メニューを開いている間はキーが図に届かないため
     (document.querySelector('[aria-label="元に戻す"]') as HTMLButtonElement).click();
     await expect.element(menu("関連の操作")).not.toBeInTheDocument();
 
@@ -550,7 +544,6 @@ describe("右クリックのメニュー", () => {
     const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
     document.querySelector(".grid-bg")!.dispatchEvent(event);
     expect(document.querySelector(".context-menu")).toBeNull();
-    // ブラウザ自身のメニューは妨げない
     expect(event.defaultPrevented).toBe(false);
   });
 });

@@ -13,7 +13,6 @@ export interface InitOptions {
   force?: boolean;
 }
 
-/** 新しい図のファイルを作る */
 export async function init(file: string, options: InitOptions, { log, cwd }: Context) {
   const path = resolve(cwd, file);
   const shown = relative(cwd, path) || file;
