@@ -6,7 +6,6 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  untrack,
   useContext,
 } from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
@@ -20,21 +19,14 @@ import { defaultCurvature } from "@loopcraft/core/geometry";
 import type { LoopKind } from "@loopcraft/core/loop";
 import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
 import { createBottomSheet, SheetHandle } from "./BottomSheet.tsx";
-import { ArrowRightIcon, PinIcon, TrashIcon } from "./icons.tsx";
+import type { MenuItem } from "./ContextMenu.tsx";
+import { linkActions, loopActions, variableActions } from "./itemActions.ts";
+import { ArrowRightIcon, PinIcon } from "./icons.tsx";
 
 /** 狭い画面用に別の部品を作らないのは、中身も状態も同じで、並べ方だけが違うため */
 export function Sidebar() {
   const editor = useContext(EditorContext);
   const sheet = createBottomSheet();
-
-  createEffect(
-    () => editor.selection(),
-    (selection) => {
-      // 畳んだままにしないのは、選んだ項目の編集欄がシートの外に隠れるため
-      if (selection && untrack(sheet.size) === "peek") sheet.setSize("half");
-    },
-    { defer: true },
-  );
 
   createEffect(
     () => editor.connectingFrom(),
@@ -55,9 +47,63 @@ export function Sidebar() {
       style={{ "--sheet-height": `${sheet.height()}px` }}
     >
       <SheetHandle sheet={sheet} />
-      <Inspector />
+      {/* 選んだときにシートを上げないのは、動かそうと触れた変数や、その行き先がシートの下に隠れるため */}
+      <div class="sidebar-top">
+        <SelectionBar onExpand={() => sheet.setSize("half")} />
+        <Inspector />
+      </div>
       <Browser />
     </aside>
+  );
+}
+
+function SelectionBar(props: { onExpand: () => void }) {
+  const editor = useContext(EditorContext);
+  const title = () => {
+    const selection = editor.selection();
+    if (!selection) return "";
+    if (selection.kind === "variable") return labelOf(editor, selection.id);
+    if (selection.kind === "link") {
+      const link = editor.linkById().get(selection.id);
+      return `${labelOf(editor, link?.from)} → ${labelOf(editor, link?.to)}`;
+    }
+    return editor.loopEntryByLoopId().get(selection.id)?.featured?.loop.name || "ループ";
+  };
+  const actions = (): MenuItem[] => {
+    const selection = editor.selection();
+    if (!selection || !editor.editable()) return [];
+    if (selection.kind === "variable") return variableActions(editor, selection.id);
+    if (selection.kind === "link") return linkActions(editor, selection.id);
+    return loopActions(editor, selection.id);
+  };
+  return (
+    <Show when={editor.selection()}>
+      <div class="selection-bar">
+        <div class="selection-bar-head">
+          <p class="selection-bar-title">{title()}</p>
+          <button type="button" class="button ghost small sheet-expand" onClick={props.onExpand}>
+            詳しく
+          </button>
+        </div>
+        <Show when={actions().length > 0}>
+          <div class="selection-bar-actions" role="toolbar" aria-label="選んだ項目の操作">
+            {/* 項目でキーにしないのは、極性を変えるたびに一覧が作り直され、押したボタンからフォーカスが外れるため */}
+            <For each={actions()} keyed={false}>
+              {(action) => (
+                <button
+                  type="button"
+                  class={["button ghost small", { "danger-text": action().danger }]}
+                  disabled={action().disabled}
+                  onClick={() => action().run()}
+                >
+                  {action().label}
+                </button>
+              )}
+            </For>
+          </div>
+        </Show>
+      </div>
+    </Show>
   );
 }
 
@@ -179,7 +225,7 @@ function VariableList(props: { hidden: boolean }) {
         fallback={
           <p class="loop-empty">
             {editor.diagram().variables.length === 0
-              ? "キャンバスをダブルクリックすると、ここに変数が並びます"
+              ? "変数を追加すると、ここに並びます"
               : "名前が一致する変数はありません"}
           </p>
         }
@@ -436,16 +482,6 @@ function VariableInspector(props: { id: VariableId }) {
         placeholder="例: 売上"
         onInput={(label) => update({ label }, "label")}
       />
-      <Show when={editor.editable()}>
-        <button
-          type="button"
-          class="button connect-start"
-          onClick={() => editor.startConnecting(props.id)}
-        >
-          <ArrowRightIcon />
-          キャンバスで矢印を引く
-        </button>
-      </Show>
       <Field
         name="variable-description"
         label="説明"
@@ -474,9 +510,6 @@ function VariableInspector(props: { id: VariableId }) {
           onAdd={(other) => editor.connect(props.id, other)}
         />
       </div>
-      <Show when={editor.editable()}>
-        <DeleteButton label="変数を削除" />
-      </Show>
     </div>
   );
 }
@@ -680,7 +713,6 @@ function LinkInspector(props: { id: LinkId }) {
             </button>
           </div>
         </Show>
-        <DeleteButton label="関連を削除" />
       </Show>
     </div>
   );
@@ -722,35 +754,11 @@ function LoopInspector(props: { id: LoopId }) {
         <LoopPath links={entry()?.links ?? []} variables={entry()?.variables ?? []} />
         <span class="field-hint">{kindExplanation(negatives())}</span>
       </div>
-      <Show when={editor.editable()}>
-        <div class="inline-actions">
-          <button
-            type="button"
-            class="button ghost small"
-            disabled={loop()?.marker === undefined}
-            onClick={() => update({ marker: undefined })}
-          >
-            記号の位置を戻す
-          </button>
-        </div>
-        <DeleteButton label="見出しを外す" />
-      </Show>
     </div>
   );
 }
 
 const inspectorElement = () => document.querySelector<HTMLElement>(".inspector");
-
-function DeleteButton(props: { label: string }) {
-  const editor = useContext(EditorContext);
-  return (
-    <button type="button" class="button danger" onClick={() => editor.deleteSelection()}>
-      <TrashIcon />
-      {props.label}
-      <kbd>Delete</kbd>
-    </button>
-  );
-}
 
 function pressedState(value: boolean) {
   return value ? "true" : "false";

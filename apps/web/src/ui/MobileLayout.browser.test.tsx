@@ -122,16 +122,83 @@ describe("狭い画面", () => {
     });
   });
 
-  it("変数を選ぶとシートが上がり、編集欄を一覧より先に見せる", async () => {
+  it("変数を選んでもシートは畳んだまま、上端の操作で名前を変え、削除し、詳しく見られる", async () => {
     await atPhoneSize(async () => {
+      const bar = () => page.getByRole("toolbar", { name: "選んだ項目の操作" });
       await node("社員数").click();
+      await expect.element(bar()).toBeVisible();
+      expect(sheet().dataset.size).toBe("peek");
+      expect(document.querySelector(".selection-bar-title")?.textContent).toBe("社員数");
+
+      await bar().getByRole("button", { name: "名前を変える" }).click();
+      await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
+      await userEvent.keyboard("{Escape}");
+
+      await button("詳しく").click();
       await expect.poll(() => sheet().dataset.size).toBe("half");
+      await expect.element(bar()).toBeVisible();
+      await expect
+        .poll(() => getComputedStyle(document.querySelector(".sheet-expand")!).display)
+        .toBe("none");
       const name = page.getByRole("textbox", { name: "名前", exact: true });
       await expect.element(name).toBeVisible();
       const tabs = document.querySelector(".browser-tabs")!;
       expect(name.element().getBoundingClientRect().top).toBeLessThan(
         tabs.getBoundingClientRect().top,
       );
+
+      await button("パネルを広げる").click();
+      await button("パネルを畳む").click();
+      await expect.poll(() => sheet().dataset.size).toBe("peek");
+      await bar().getByRole("button", { name: "変数を削除" }).click();
+      await expect.element(node("社員数")).not.toBeInTheDocument();
+    });
+  });
+
+  it("上端の操作で矢印の極性を切り替えても、ボタンからフォーカスが外れない", async () => {
+    await atPhoneSize(async () => {
+      const link = page.getByRole("button", { name: /^社員数から売上への関連、極性プラス/ });
+      (link.element() as SVGGElement).focus();
+      const bar = page.getByRole("toolbar", { name: "選んだ項目の操作" });
+      const toMinus = bar.getByRole("button", { name: "極性を −（逆向き）にする" });
+      await expect.element(toMinus).toBeVisible();
+      (toMinus.element() as HTMLButtonElement).focus();
+      await userEvent.keyboard("{Enter}");
+      const toPlus = bar.getByRole("button", { name: "極性を +（同じ向き）にする" });
+      await expect.element(toPlus).toHaveFocus();
+      expect(sheet().dataset.size).toBe("peek");
+    });
+  });
+
+  it("指の素早い 2 回のタップでは、変数を足したり名前の入力を開いたりしない", async () => {
+    await atPhoneSize(async () => {
+      const count = () => document.querySelectorAll("[data-variable-id]").length;
+      const before = count();
+      const svg = document.querySelector(".canvas-svg")!;
+      const empty = canvasPoint(30, 30);
+      const tap = (target: Element, point: { x: number; y: number }) => {
+        const init = { pointerId: 9, pointerType: "touch", isPrimary: true, bubbles: true };
+        target.dispatchEvent(
+          new PointerEvent("pointerdown", { ...init, clientX: point.x, clientY: point.y }),
+        );
+        svg.dispatchEvent(
+          new PointerEvent("pointerup", { ...init, clientX: point.x, clientY: point.y }),
+        );
+      };
+      tap(document.querySelector(".grid-bg")!, empty);
+      svg.dispatchEvent(
+        new MouseEvent("dblclick", { bubbles: true, clientX: empty.x, clientY: empty.y }),
+      );
+      flush();
+      expect(count()).toBe(before);
+
+      const staff = nodeElement("staff");
+      tap(staff, centerOf(staff));
+      svg.dispatchEvent(
+        new MouseEvent("dblclick", { bubbles: true, ...clientOf(centerOf(staff)) }),
+      );
+      flush();
+      expect(document.querySelector(".inline-label")).toBeNull();
     });
   });
 
@@ -206,11 +273,11 @@ describe("指での操作", () => {
       const links = () => document.querySelectorAll("[data-link-id]").length;
       const before = links();
       await node("利益").click();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       await expect.poll(() => sheet().dataset.size).toBe("peek");
       await expect
         .poll(() => document.querySelector(".connect-banner [role=status]")?.textContent)
-        .toMatch(/^「利益」からつなぐ先をタップ/);
+        .toMatch(/^「利益」からつなぐ先を選ぶ/);
 
       // 変数の端の点に触れても、その変数に触れたのと同じ
       const handle = nodeElement("training").querySelector(".node-handle")!;
@@ -220,9 +287,9 @@ describe("指での操作", () => {
       await expect.element(page.getByRole("heading", { name: "関連", exact: true })).toBeVisible();
       expect(document.querySelector(".connect-banner")).toBeNull();
 
-      // 押さずにフォーカスで選ぶのは、半分まで上がったシートや下端のボタンが変数に重なるため
+      // 押さずにフォーカスで選ぶのは、下端のボタンが変数に重なるため
       nodeElement("profit").focus();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       const empty = canvasPoint(30, 30);
       const svg = document.querySelector(".canvas-svg")!;
       touch("pointerdown", svg, 2, empty);
@@ -239,7 +306,7 @@ describe("指での操作", () => {
       const banner = () => document.querySelector(".connect-banner");
       const start = async () => {
         await node("利益").click();
-        await button("キャンバスで矢印を引く").click();
+        await button("矢印を引く").click();
         await expect.poll(banner).not.toBeNull();
       };
 
@@ -308,6 +375,10 @@ describe("メニュー", () => {
         await expect.element(menuItem("整列")).not.toBeInTheDocument();
         await expect.element(menuItem("読み込み")).not.toBeInTheDocument();
         await expect.element(button("変数を追加")).not.toBeInTheDocument();
+        await userEvent.keyboard("{Escape}");
+        nodeElement("sales").focus();
+        await expect.element(button("詳しく")).toBeVisible();
+        expect(document.querySelector('[aria-label="選んだ項目の操作"]')).toBeNull();
       },
       fileStartup(
         { status: "ok", revision: "r", diagram: createSampleDiagram() },
@@ -347,7 +418,7 @@ describe("指での操作の取り違え", () => {
       const links = () => document.querySelectorAll("[data-link-id]").length;
       const before = links();
       await node("利益").click();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       const svg = document.querySelector(".canvas-svg")!;
       const training = nodeElement("training");
       touch("pointerdown", training, 1, centerOf(training));
@@ -363,7 +434,7 @@ describe("指での操作の取り違え", () => {
     await atPhoneSize(async () => {
       const banner = () => document.querySelector(".connect-banner");
       await node("利益").click();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       await userEvent.keyboard("{Delete}");
       await expect.poll(banner).toBeNull();
       await button("元に戻す").click();
@@ -371,7 +442,7 @@ describe("指での操作の取り違え", () => {
       expect(banner()).toBeNull();
 
       nodeElement("profit").focus();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       await expect.poll(banner).not.toBeNull();
       await page
         .getByRole("button", { name: /成長エンジン/ })
@@ -381,3 +452,7 @@ describe("指での操作の取り違え", () => {
     });
   });
 });
+
+function clientOf(point: { x: number; y: number }) {
+  return { clientX: point.x, clientY: point.y };
+}

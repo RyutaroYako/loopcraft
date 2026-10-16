@@ -32,13 +32,13 @@ export function EmptyState() {
           <li>
             <span class="step-index">01</span>
             <span>
-              キャンバスを<strong>ダブルクリック</strong>して変数を追加
+              下の<strong>「変数を追加」</strong>で変数を置く
             </span>
           </li>
           <li>
             <span class="step-index">02</span>
             <span>
-              変数の右端の点を<strong>ドラッグ</strong>して因果の矢印を引く
+              変数を選んで<strong>「矢印を引く」</strong>から、因果の矢印を引く
             </span>
           </li>
           <li>

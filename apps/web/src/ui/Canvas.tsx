@@ -3,6 +3,7 @@ import { EditorContext, type Gesture } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
 import type { LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
 import { ContextMenu, type MenuItem, type MenuState } from "./ContextMenu.tsx";
+import { linkActions, variableActions } from "./itemActions.ts";
 import {
   InlineLabelEditor,
   LinkDraftView,
@@ -262,49 +263,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   const [menu, setMenu] = createSignal<MenuState | null>(null);
   let menuOrigin: HTMLElement | SVGElement | undefined;
 
-  const variableMenu = (id: VariableId): MenuItem[] => [
-    {
-      label: "名前を変える",
-      shortcut: "F2",
-      run: () => editor.setEditingVariable(id),
-    },
-    {
-      label: "変数を削除",
-      shortcut: "Delete",
-      danger: true,
-      run: () => {
-        editor.select({ kind: "variable", id });
-        editor.deleteSelection();
-      },
-    },
-  ];
-
-  const linkMenu = (id: LinkId): MenuItem[] => {
-    const link = editor.linkById().get(id);
-    return [
-      {
-        label: link?.polarity === "-" ? "極性を +（同じ向き）にする" : "極性を −（逆向き）にする",
-        run: () => editor.commit(edit.togglePolarity(editor.current(), id)),
-      },
-      {
-        label: link?.delay ? "遅れを外す" : "遅れを付ける",
-        run: () =>
-          editor.commit(
-            edit.updateLink(editor.current(), id, { delay: link?.delay ? undefined : true }),
-          ),
-      },
-      {
-        label: "関連を削除",
-        shortcut: "Delete",
-        danger: true,
-        run: () => {
-          editor.select({ kind: "link", id });
-          editor.deleteSelection();
-        },
-      },
-    ];
-  };
-
   const canvasMenu = (point: Point): MenuItem[] => [
     {
       label: "ここに変数を追加",
@@ -351,11 +309,11 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       const id = node.dataset.variableId as VariableId;
       editor.select({ kind: "variable", id });
       const label = editor.variableById().get(id)?.label || "名称未設定";
-      setMenu({ ...position, label: `「${label}」の操作`, items: variableMenu(id) });
+      setMenu({ ...position, label: `「${label}」の操作`, items: variableActions(editor, id) });
     } else if (link) {
       const id = link.dataset.linkId as LinkId;
       editor.select({ kind: "link", id });
-      setMenu({ ...position, label: "関連の操作", items: linkMenu(id) });
+      setMenu({ ...position, label: "関連の操作", items: linkActions(editor, id) });
     } else {
       setMenu({
         ...position,
@@ -380,8 +338,13 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     { defer: true },
   );
 
+  // dblclick 自体に pointerType を持たせられないので、直前の pointerdown から覚えておく
+  let lastPointerType = "mouse";
+
   // event.target で振り分けないのは、ドラッグ中のキャプチャで dblclick の target が常に svg になるため
   const onDoubleClick = (event: MouseEvent) => {
+    // 指やペンで受けないのは、パンや選び直しのつもりの素早い 2 回のタップで、変数ができたり入力欄が開いたりするため
+    if (lastPointerType !== "mouse") return;
     const point = worldPoint(event);
     const node = nodeAt(point);
     if (node) {
@@ -403,6 +366,10 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       distance: Math.hypot(a.x - b.x, a.y - b.y),
       center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
     };
+  };
+
+  const rememberPointerType = (event: PointerEvent) => {
+    lastPointerType = event.pointerType;
   };
 
   const onTouchDown = (event: PointerEvent) => {
@@ -460,6 +427,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     props.svgRef?.(element);
     element.addEventListener("wheel", onWheel, { passive: false });
     // JSX の onPointerDown で受けないのは、変数のハンドラが先に伝播を止め、2 本目の指を数えられないため
+    element.addEventListener("pointerdown", rememberPointerType, true);
     element.addEventListener("pointerdown", onTouchDown, true);
     element.addEventListener("pointermove", onTouchMove, true);
     element.addEventListener("pointerup", onTouchUp, true);
@@ -572,7 +540,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           <div class="connect-banner">
             <p role="status">
               「{editor.variableById().get(from)?.label || "名称未設定"}
-              」からつなぐ先をタップ
+              」からつなぐ先を選ぶ
               <span class="connect-banner-note">空いた所なら新しい変数につなぐ</span>
             </p>
             <button type="button" class="button small" onClick={() => editor.stopConnecting()}>
@@ -601,6 +569,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
             <button
               type="button"
               class="button primary canvas-add"
+              title="空いた所のダブルクリックでも追加できます"
               onClick={() => editor.addVariableAt(editor.viewCenter())}
             >
               <PlusIcon />
@@ -635,23 +604,10 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         </button>
       </div>
 
-      <Show when={!isEmpty()}>
-        <Show
-          when={editor.editable()}
-          fallback={
-            <p class="canvas-hint">
-              <span>ドラッグで移動、Ctrl+ホイールで拡大縮小</span>
-            </p>
-          }
-        >
-          <p class="canvas-hint">
-            <span>ダブルクリックで変数を追加</span>
-            <span>右端の点をドラッグで関連</span>
-            <span>
-              <kbd>Delete</kbd> で削除
-            </span>
-          </p>
-        </Show>
+      <Show when={!isEmpty() && !editor.editable()}>
+        <p class="canvas-hint">
+          <span>ドラッグで移動、Ctrl+ホイールで拡大縮小</span>
+        </p>
       </Show>
     </div>
   );
