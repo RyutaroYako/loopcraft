@@ -6,7 +6,6 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  untrack,
   useContext,
 } from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
@@ -28,15 +27,6 @@ export function Sidebar() {
   const sheet = createBottomSheet();
 
   createEffect(
-    () => editor.selection(),
-    (selection) => {
-      // 畳んだままにしないのは、選んだ項目の編集欄がシートの外に隠れるため
-      if (selection && untrack(sheet.size) === "peek") sheet.setSize("half");
-    },
-    { defer: true },
-  );
-
-  createEffect(
     () => editor.connectingFrom(),
     (from) => {
       // 開いたままにしないのは、つなぐ先の変数がシートの下に隠れるため
@@ -55,9 +45,90 @@ export function Sidebar() {
       style={{ "--sheet-height": `${sheet.height()}px` }}
     >
       <SheetHandle sheet={sheet} />
+      {/* 選んだときにシートを上げないのは、動かそうと触れた変数や、その行き先がシートの下に隠れるため */}
+      <SelectionBar onExpand={() => sheet.setSize("half")} />
       <Inspector />
       <Browser />
     </aside>
+  );
+}
+
+/** 畳んだシートの上端に、選んだ項目の名前とよく使う操作だけを出す */
+function SelectionBar(props: { onExpand: () => void }) {
+  const editor = useContext(EditorContext);
+  const variableId = () => {
+    const selection = editor.selection();
+    return selection?.kind === "variable" ? selection.id : undefined;
+  };
+  const link = () => {
+    const selection = editor.selection();
+    return selection?.kind === "link" ? editor.linkById().get(selection.id) : undefined;
+  };
+  const title = () => {
+    const selection = editor.selection();
+    if (!selection) return "";
+    if (selection.kind === "variable") return labelOf(editor, selection.id);
+    if (selection.kind === "link") {
+      const current = link();
+      return `${labelOf(editor, current?.from)} → ${labelOf(editor, current?.to)}`;
+    }
+    return editor.loopEntryByLoopId().get(selection.id)?.featured?.loop.name || "ループ";
+  };
+  return (
+    <Show when={editor.selection()}>
+      <div class="selection-bar" role="toolbar" aria-label="選んだ項目の操作">
+        <p class="selection-bar-title">{title()}</p>
+        <div class="selection-bar-actions">
+          <Show when={editor.editable()}>
+            <Show when={variableId()} keyed>
+              {(id) => (
+                <>
+                  <button
+                    type="button"
+                    class="button ghost small"
+                    onClick={() => editor.setEditingVariable(id)}
+                  >
+                    名前を変える
+                  </button>
+                  <button
+                    type="button"
+                    class="button ghost small"
+                    onClick={() => editor.startConnecting(id)}
+                  >
+                    <ArrowRightIcon />
+                    矢印を引く
+                  </button>
+                </>
+              )}
+            </Show>
+            <Show when={link()} keyed>
+              {(current) => (
+                <button
+                  type="button"
+                  class="button ghost small"
+                  onClick={() => editor.commit(edit.togglePolarity(editor.current(), current.id))}
+                >
+                  {current.polarity === "-" ? "極性を + に" : "極性を − に"}
+                </button>
+              )}
+            </Show>
+            <Show when={editor.selection()?.kind !== "loop"}>
+              <button
+                type="button"
+                class="button ghost small danger-text"
+                onClick={() => editor.deleteSelection()}
+              >
+                <TrashIcon />
+                削除
+              </button>
+            </Show>
+          </Show>
+          <button type="button" class="button ghost small" onClick={props.onExpand}>
+            詳しく
+          </button>
+        </div>
+      </div>
+    </Show>
   );
 }
 
@@ -179,7 +250,7 @@ function VariableList(props: { hidden: boolean }) {
         fallback={
           <p class="loop-empty">
             {editor.diagram().variables.length === 0
-              ? "キャンバスをダブルクリックすると、ここに変数が並びます"
+              ? "変数を追加すると、ここに並びます"
               : "名前が一致する変数はありません"}
           </p>
         }

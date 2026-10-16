@@ -326,7 +326,7 @@ describe("変数の一覧", () => {
     (page.getByRole("tab", { name: /ループ/ }).element() as HTMLElement).focus();
     await userEvent.keyboard("{ArrowRight}");
     await expect.element(page.getByRole("tab", { name: /変数/ })).toHaveFocus();
-    await expect.element(page.getByText(/ここに変数が並びます/)).toBeVisible();
+    await expect.element(page.getByText(/ここに並びます/)).toBeVisible();
     await userEvent.keyboard("{ArrowLeft}");
     await expect.element(page.getByRole("tab", { name: /ループ/ })).toHaveFocus();
   });

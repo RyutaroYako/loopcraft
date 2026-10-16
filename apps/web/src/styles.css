@@ -1234,8 +1234,24 @@ button.save-status.warning .save-dot {
 /* 広い画面で出さないのは、ツールバーに全部並び、一覧もキャンバスの横に並ぶため */
 .toolbar-more,
 .sheet-handle,
-.canvas-actions {
+.canvas-actions,
+.selection-bar {
   display: none;
+}
+
+/* 文言を 1 つにまとめないのは、ダブルクリックや右クリックが指では使えず、案内が嘘になるため */
+.for-touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .for-touch {
+    display: revert;
+  }
+
+  .for-mouse {
+    display: none;
+  }
 }
 
 .sidebar {
@@ -1909,6 +1925,42 @@ button.save-status.warning .save-dot {
     background: var(--surface);
     touch-action: none;
     cursor: grab;
+  }
+
+  /* 広げたときに出さないのは、検査パネルに同じ名前と操作が並ぶため */
+  .sidebar[data-size="peek"] .selection-bar {
+    position: sticky;
+    top: 24px;
+    z-index: 1;
+    display: grid;
+    flex: none;
+    gap: 6px;
+    padding: 0 16px 10px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .selection-bar-title {
+    overflow: hidden;
+    font-size: 15px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .selection-bar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-left: -8px;
+  }
+
+  .selection-bar-actions .button {
+    min-height: 40px;
+  }
+
+  .selection-bar-actions .button:last-child {
+    margin-left: auto;
   }
 
   .sheet-grip {

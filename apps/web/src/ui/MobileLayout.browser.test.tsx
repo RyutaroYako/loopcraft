@@ -122,16 +122,68 @@ describe("狭い画面", () => {
     });
   });
 
-  it("変数を選ぶとシートが上がり、編集欄を一覧より先に見せる", async () => {
+  it("変数を選んでもシートは畳んだまま、上端の操作で名前を変え、削除し、詳しく見られる", async () => {
     await atPhoneSize(async () => {
+      const bar = () => page.getByRole("toolbar", { name: "選んだ項目の操作" });
       await node("社員数").click();
+      await expect.element(bar()).toBeVisible();
+      expect(sheet().dataset.size).toBe("peek");
+      expect(document.querySelector(".selection-bar-title")?.textContent).toBe("社員数");
+
+      await bar().getByRole("button", { name: "名前を変える" }).click();
+      await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
+      await userEvent.keyboard("{Escape}");
+
+      await bar().getByRole("button", { name: "詳しく" }).click();
       await expect.poll(() => sheet().dataset.size).toBe("half");
+      // 広げたら検査パネルに同じ操作があるので、上端の操作は隠す
+      await expect
+        .poll(() => getComputedStyle(document.querySelector(".selection-bar")!).display)
+        .toBe("none");
       const name = page.getByRole("textbox", { name: "名前", exact: true });
       await expect.element(name).toBeVisible();
       const tabs = document.querySelector(".browser-tabs")!;
       expect(name.element().getBoundingClientRect().top).toBeLessThan(
         tabs.getBoundingClientRect().top,
       );
+
+      await button("パネルを広げる").click();
+      await button("パネルを畳む").click();
+      await expect.poll(() => sheet().dataset.size).toBe("peek");
+      await bar().getByRole("button", { name: "削除" }).click();
+      await expect.element(node("社員数")).not.toBeInTheDocument();
+    });
+  });
+
+  it("指の素早い 2 回のタップでは、変数を足したり名前の入力を開いたりしない", async () => {
+    await atPhoneSize(async () => {
+      const count = () => document.querySelectorAll("[data-variable-id]").length;
+      const before = count();
+      const svg = document.querySelector(".canvas-svg")!;
+      const empty = canvasPoint(30, 30);
+      const tap = (target: Element, point: { x: number; y: number }) => {
+        const init = { pointerId: 9, pointerType: "touch", isPrimary: true, bubbles: true };
+        target.dispatchEvent(
+          new PointerEvent("pointerdown", { ...init, clientX: point.x, clientY: point.y }),
+        );
+        svg.dispatchEvent(
+          new PointerEvent("pointerup", { ...init, clientX: point.x, clientY: point.y }),
+        );
+      };
+      tap(document.querySelector(".grid-bg")!, empty);
+      svg.dispatchEvent(
+        new MouseEvent("dblclick", { bubbles: true, clientX: empty.x, clientY: empty.y }),
+      );
+      flush();
+      expect(count()).toBe(before);
+
+      const staff = nodeElement("staff");
+      tap(staff, centerOf(staff));
+      svg.dispatchEvent(
+        new MouseEvent("dblclick", { bubbles: true, ...clientOf(centerOf(staff)) }),
+      );
+      flush();
+      expect(document.querySelector(".inline-label")).toBeNull();
     });
   });
 
@@ -220,7 +272,7 @@ describe("指での操作", () => {
       await expect.element(page.getByRole("heading", { name: "関連", exact: true })).toBeVisible();
       expect(document.querySelector(".connect-banner")).toBeNull();
 
-      // 押さずにフォーカスで選ぶのは、半分まで上がったシートや下端のボタンが変数に重なるため
+      // 押さずにフォーカスで選ぶのは、下端のボタンが変数に重なるため
       nodeElement("profit").focus();
       await button("キャンバスで矢印を引く").click();
       const empty = canvasPoint(30, 30);
@@ -381,3 +433,7 @@ describe("指での操作の取り違え", () => {
     });
   });
 });
+
+function clientOf(point: { x: number; y: number }) {
+  return { clientX: point.x, clientY: point.y };
+}

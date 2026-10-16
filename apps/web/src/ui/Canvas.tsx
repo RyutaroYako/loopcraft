@@ -380,8 +380,14 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     { defer: true },
   );
 
+  /** 最後に押したポインタの種類。dblclick 自体はどの入力から来たかを持たない */
+  let lastPointerType = "mouse";
+
   // event.target で振り分けないのは、ドラッグ中のキャプチャで dblclick の target が常に svg になるため
   const onDoubleClick = (event: MouseEvent) => {
+    // 指で受けないのは、パンや選び直しのつもりの素早い 2 回のタップで、変数ができたり入力欄が開いたりするため。
+    // 指では下端の「変数を追加」と、選んだときの「名前を変える」を使う
+    if (lastPointerType === "touch") return;
     const point = worldPoint(event);
     const node = nodeAt(point);
     if (node) {
@@ -406,6 +412,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   };
 
   const onTouchDown = (event: PointerEvent) => {
+    lastPointerType = event.pointerType;
     if (event.pointerType !== "touch") return;
     // 主の指で数え直すのは、キャンバスの外で離された指の pointerup が届かず、数が残ることがあるため
     if (event.isPrimary) {
@@ -645,11 +652,12 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           }
         >
           <p class="canvas-hint">
-            <span>ダブルクリックで変数を追加</span>
-            <span>右端の点をドラッグで関連</span>
-            <span>
+            <span class="for-mouse">ダブルクリックで変数を追加</span>
+            <span class="for-mouse">右端の点をドラッグで関連</span>
+            <span class="for-mouse">
               <kbd>Delete</kbd> で削除
             </span>
+            <span class="for-touch">変数を選ぶと、下に名前の変更・矢印・削除が出ます</span>
           </p>
         </Show>
       </Show>
