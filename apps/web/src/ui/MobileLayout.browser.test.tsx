@@ -4,9 +4,10 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import {
   browserStartup,
   canvasPoint,
-  fileStartup,
   centerOf,
   cleanup,
+  expandButton,
+  fileStartup,
   mount,
   node,
   nodeElement,
@@ -17,7 +18,7 @@ import {
 afterEach(cleanup);
 
 const button = (name: string) => page.getByRole("button", { name, exact: true });
-const sheet = () => document.querySelector<HTMLElement>(".sidebar")!;
+const sheet = () => document.querySelector<HTMLElement>("aside")!;
 const sheetHeight = () => sheet().getBoundingClientRect().height;
 
 async function atPhoneSize(
@@ -44,7 +45,7 @@ function dragHandle(
   dy: number,
   options: { click?: boolean; button?: number; end?: "pointerup" | "pointercancel" } = {},
 ) {
-  const handle = document.querySelector(".sheet-handle")!;
+  const handle = document.querySelector('aside button[aria-label^="パネルを"]')!;
   const rect = handle.getBoundingClientRect();
   const init = { pointerId: 7, pointerType: "touch", isPrimary: true, bubbles: true };
   const x = rect.left + rect.width / 2;
@@ -84,9 +85,9 @@ describe("狭い画面", () => {
       await expect.poll(sheetHeight).toBe(peek);
 
       // キーボードでも一段ずつ送る
-      (document.querySelector(".sheet-handle") as HTMLElement).focus();
+      (document.querySelector('aside button[aria-label^="パネルを"]') as HTMLElement).focus();
       await userEvent.keyboard("{Enter}");
-      await expect.poll(() => sheet().dataset.size).toBe("half");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("half");
     });
   });
 
@@ -95,30 +96,30 @@ describe("狭い画面", () => {
       const peek = sheetHeight();
       expect(dragHandle(-20)).toBe(peek + 20);
       await expect.poll(sheetHeight).toBe(peek);
-      expect(sheet().dataset.size).toBe("peek");
+      expect(sheet().dataset.sheetSize).toBe("peek");
 
       dragHandle(-120);
-      await expect.poll(() => sheet().dataset.size).toBe("half");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("half");
       dragHandle(60);
-      await expect.poll(() => sheet().dataset.size).toBe("half");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("half");
       dragHandle(150);
-      await expect.poll(() => sheet().dataset.size).toBe("peek");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("peek");
 
       // 取り消されたときや、左ボタン以外では高さを変えない
       dragHandle(-120, { end: "pointercancel", click: false });
       await expect.poll(sheetHeight).toBe(peek);
       dragHandle(-120, { button: 2, click: false });
-      expect(sheet().dataset.size).toBe("peek");
+      expect(sheet().dataset.sheetSize).toBe("peek");
 
       // 上端近くまで引けば、途中で止まらず全体まで広げる
       dragHandle(-(window.innerHeight - 220));
-      await expect.poll(() => sheet().dataset.size).toBe("full");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("full");
 
       // click の届かない指のドラッグの後でも、次のタップで切り替わる
       dragHandle(window.innerHeight, { click: false });
-      await expect.poll(() => sheet().dataset.size).toBe("peek");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("peek");
       await button("パネルを広げる").click();
-      await expect.poll(() => sheet().dataset.size).toBe("half");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("half");
     });
   });
 
@@ -127,29 +128,29 @@ describe("狭い画面", () => {
       const bar = () => page.getByRole("toolbar", { name: "選んだ項目の操作" });
       await node("社員数").click();
       await expect.element(bar()).toBeVisible();
-      expect(sheet().dataset.size).toBe("peek");
-      expect(document.querySelector(".selection-bar-title")?.textContent).toBe("社員数");
+      expect(sheet().dataset.sheetSize).toBe("peek");
+      expect(document.querySelector('section[aria-label="選んだ項目"] h2')?.textContent).toBe(
+        "社員数",
+      );
 
       await bar().getByRole("button", { name: "名前を変える" }).click();
       await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
       await userEvent.keyboard("{Escape}");
 
       await button("詳しく").click();
-      await expect.poll(() => sheet().dataset.size).toBe("half");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("half");
       await expect.element(bar()).toBeVisible();
-      await expect
-        .poll(() => getComputedStyle(document.querySelector(".sheet-expand")!).display)
-        .toBe("none");
+      await expect.poll(() => getComputedStyle(expandButton()).display).toBe("none");
       const name = page.getByRole("textbox", { name: "名前", exact: true });
       await expect.element(name).toBeVisible();
-      const tabs = document.querySelector(".browser-tabs")!;
+      const tabs = document.querySelector("[role=tablist]")!;
       expect(name.element().getBoundingClientRect().top).toBeLessThan(
         tabs.getBoundingClientRect().top,
       );
 
       await button("パネルを広げる").click();
       await button("パネルを畳む").click();
-      await expect.poll(() => sheet().dataset.size).toBe("peek");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("peek");
       await bar().getByRole("button", { name: "変数を削除" }).click();
       await expect.element(node("社員数")).not.toBeInTheDocument();
     });
@@ -166,7 +167,7 @@ describe("狭い画面", () => {
       await userEvent.keyboard("{Enter}");
       const toPlus = bar.getByRole("button", { name: "極性を +（同じ向き）にする" });
       await expect.element(toPlus).toHaveFocus();
-      expect(sheet().dataset.size).toBe("peek");
+      expect(sheet().dataset.sheetSize).toBe("peek");
     });
   });
 
@@ -274,9 +275,12 @@ describe("指での操作", () => {
       const before = links();
       await node("利益").click();
       await button("矢印を引く").click();
-      await expect.poll(() => sheet().dataset.size).toBe("peek");
+      await expect.poll(() => sheet().dataset.sheetSize).toBe("peek");
       await expect
-        .poll(() => document.querySelector(".connect-banner [role=status]")?.textContent)
+        .poll(
+          () =>
+            document.querySelector('section[aria-label="矢印を引く"] [role=status]')?.textContent,
+        )
         .toMatch(/^「利益」からつなぐ先を選ぶ/);
 
       // 変数の端の点に触れても、その変数に触れたのと同じ
@@ -285,7 +289,7 @@ describe("指での操作", () => {
       touch("pointerup", document.querySelector(".canvas-svg")!, 1, centerOf(handle));
       expect(links()).toBe(before + 1);
       await expect.element(page.getByRole("heading", { name: "関連", exact: true })).toBeVisible();
-      expect(document.querySelector(".connect-banner")).toBeNull();
+      expect(document.querySelector('section[aria-label="矢印を引く"]')).toBeNull();
 
       // 押さずにフォーカスで選ぶのは、下端のボタンが変数に重なるため
       nodeElement("profit").focus();
@@ -303,7 +307,7 @@ describe("指での操作", () => {
     await atPhoneSize(async () => {
       const links = () => document.querySelectorAll("[data-link-id]").length;
       const before = links();
-      const banner = () => document.querySelector(".connect-banner");
+      const banner = () => document.querySelector('section[aria-label="矢印を引く"]');
       const start = async () => {
         await node("利益").click();
         await button("矢印を引く").click();
@@ -409,7 +413,7 @@ describe("指での操作の取り違え", () => {
       expect(scale()).toBe(before);
       touch("pointerup", svg, 2, b);
       touch("pointerup", svg, 3, centerOf(staff));
-      expect(sheet().dataset.size).toBe("peek");
+      expect(sheet().dataset.sheetSize).toBe("peek");
     });
   });
 
@@ -426,13 +430,13 @@ describe("指での操作の取り違え", () => {
       touch("pointerup", svg, 2, canvasPoint(40, 40));
       touch("pointerup", svg, 1, centerOf(training));
       expect(links()).toBe(before);
-      expect(document.querySelector(".connect-banner")).not.toBeNull();
+      expect(document.querySelector('section[aria-label="矢印を引く"]')).not.toBeNull();
     });
   });
 
   it("元の変数を消して戻しても、つなぐ途中には戻らない。別の項目を選ぶとつなぐのをやめる", async () => {
     await atPhoneSize(async () => {
-      const banner = () => document.querySelector(".connect-banner");
+      const banner = () => document.querySelector('section[aria-label="矢印を引く"]');
       await node("利益").click();
       await button("矢印を引く").click();
       await userEvent.keyboard("{Delete}");

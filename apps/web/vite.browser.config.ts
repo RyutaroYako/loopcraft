@@ -1,10 +1,11 @@
 import solid from "@solidjs/vite-plugin";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, lazyPlugins } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
 
 /** jsdom で済ませないのは、描画と操作を実際の Chromium で確かめるため */
 export default defineConfig({
-  plugins: lazyPlugins(() => [solid()]),
+  plugins: lazyPlugins(() => [solid(), tailwindcss()]),
   test: {
     name: "web-browser",
     include: ["src/**/*.browser.test.tsx"],

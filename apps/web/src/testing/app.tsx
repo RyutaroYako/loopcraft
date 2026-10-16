@@ -6,7 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import App from "../App.tsx";
 import type { Startup } from "../editor/startup.ts";
 import type { DocumentStore, ReloadResult, SaveResult, WatchHandlers } from "../editor/store.ts";
-import "../styles.css";
+import "../app.css";
 
 let dispose: (() => void) | undefined;
 
@@ -79,7 +79,12 @@ export function fileStartup(
 
 export const canvas = () => page.getByRole("group", { name: "システム図のキャンバス" });
 export const node = (name: string) => page.getByRole("button", { name, exact: true });
-export const notice = () => document.querySelector(".notice");
+export const notice = () => document.querySelector('[aria-label="お知らせ"]');
+/** getByRole で取らないのは、広い画面では display: none で、アクセシビリティツリーに載らないため */
+export const expandButton = () =>
+  [...document.querySelectorAll<HTMLElement>('section[aria-label="選んだ項目"] button')].find(
+    (button) => button.textContent?.trim() === "詳しく",
+  )!;
 
 export function nodeElement(id: string) {
   return document.querySelector<SVGGElement>(`[data-variable-id="${id}"]`)!;

@@ -4,6 +4,10 @@ import { Dialog } from "./Dialog.tsx";
 import { FileIcon, ImageIcon, LayoutIcon, OpenIcon, SaveIcon } from "./icons.tsx";
 import type { DialogKind } from "./Toolbar.tsx";
 
+const menuItemClass =
+  "flex min-h-13 items-center gap-3.5 rounded-md px-3 text-left text-lg enabled:hover:bg-surface-2 disabled:cursor-default disabled:opacity-40";
+const noteClass = "ml-auto text-sm text-muted";
+
 /** 狭い画面でツールバーに並べないのは、タイトルが読めないほど押し縮められるため */
 export function MenuDialog(props: {
   onOpenDialog: (kind: Exclude<DialogKind, "menu">) => void;
@@ -18,11 +22,18 @@ export function MenuDialog(props: {
   return (
     <Dialog
       title="メニュー"
-      class="menu-dialog"
+      width="w-[min(420px,calc(100vw-32px))]"
+      bodyClass="gap-0 px-2 pt-1 pb-2"
+      // 画面の中央に出さないのは、狭い画面では上の方の項目に親指が届かないため
+      class="max-md:mx-0 max-md:mt-auto max-md:mb-0 max-md:w-full max-md:max-w-none max-md:rounded-t-sheet max-md:rounded-b-none max-md:pb-[env(safe-area-inset-bottom)]"
       onClose={props.onClose}
       dialogRef={(element) => (dialog = element)}
       footer={
-        <button type="button" class="button primary" onClick={() => props.onOpenDialog("export")}>
+        <button
+          type="button"
+          class="button primary h-12 flex-1 text-lg"
+          onClick={() => props.onOpenDialog("export")}
+        >
           <SaveIcon />
           JSON を書き出す
         </button>
@@ -31,34 +42,34 @@ export function MenuDialog(props: {
       <Show when={editor.editable()}>
         <button
           type="button"
-          class="menu-item"
+          class={menuItemClass}
           onClick={() => run(() => editor.autoLayout())}
           disabled={editor.diagram().variables.length < 2}
         >
           <LayoutIcon />
           整列
-          <span class="menu-item-note">元に戻せます</span>
+          <span class={noteClass}>元に戻せます</span>
         </button>
-        <button type="button" class="menu-item" onClick={() => run(() => editor.newDiagram())}>
+        <button type="button" class={menuItemClass} onClick={() => run(() => editor.newDiagram())}>
           <FileIcon />
           新規
-          <span class="menu-item-note">元に戻せます</span>
+          <span class={noteClass}>元に戻せます</span>
         </button>
-        <button type="button" class="menu-item" onClick={() => props.onOpenDialog("import")}>
+        <button type="button" class={menuItemClass} onClick={() => props.onOpenDialog("import")}>
           <OpenIcon />
           読み込み
-          <span class="menu-item-note">JSON・ファイル</span>
+          <span class={noteClass}>JSON・ファイル</span>
         </button>
       </Show>
       <button
         type="button"
-        class="menu-item"
+        class={menuItemClass}
         onClick={() => props.onOpenDialog("screenshot")}
         disabled={editor.diagram().variables.length === 0}
       >
         <ImageIcon />
         画像
-        <span class="menu-item-note">PNG でコピー・保存</span>
+        <span class={noteClass}>PNG でコピー・保存</span>
       </button>
     </Dialog>
   );

@@ -51,7 +51,7 @@ export function ContextMenu(props: {
         element = node;
         queueMicrotask(() => buttons()[0]?.focus());
       }}
-      class="context-menu"
+      class="absolute z-20 grid rounded-md border border-line bg-surface p-1 shadow-float"
       role="menu"
       aria-label={props.menu.label}
       style={{ left: `${left()}px`, top: `${top()}px`, width: `${MENU_WIDTH}px` }}
@@ -76,7 +76,11 @@ export function ContextMenu(props: {
           <button
             type="button"
             role="menuitem"
-            class={["context-menu-item", { danger: item.danger }]}
+            // フォーカスを薄い背景だけにしないのは、白地との差が小さく、キーボードではどの項目が選ばれているか読めないため
+            class={[
+              "flex h-8 items-center justify-between gap-3 rounded-xs px-2.5 text-left text-base focus:bg-surface-2 focus:outline-none focus-visible:shadow-focus-inset",
+              item.danger ? "text-negative" : "text-ink disabled:text-faint",
+            ]}
             disabled={item.disabled}
             aria-keyshortcuts={item.shortcut}
             // hover だけで光らせないのは、キーボードのフォーカスと 2 つ同時に光るため
@@ -88,7 +92,11 @@ export function ContextMenu(props: {
             }}
           >
             <span>{item.label}</span>
-            {item.shortcut && <kbd aria-hidden="true">{item.shortcut}</kbd>}
+            {item.shortcut && (
+              <kbd class="text-xs text-muted" aria-hidden="true">
+                {item.shortcut}
+              </kbd>
+            )}
           </button>
         )}
       </For>

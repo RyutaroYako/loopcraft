@@ -1,0 +1,130 @@
+/*
+ * デザイントークン。Tailwind のユーティリティ（bg-surface, text-sm, rounded-md など）と
+ * primitives.css や canvas.css の var(--color-ink) などは、どちらもここだけを参照する。
+ */
+
+/* static にするのは、ユーティリティから使われていなくても primitives.css や canvas.css が var() で参照するため */
+@theme static {
+  /* Tailwind 既定の色・文字・角丸・影・幅を消すのは、トークン外の値が紛れ込むのを防ぎ、rem 基準の値（:root が 14px なので 12.5% 小さくなる）を使わせないため */
+  --color-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --container-*: initial;
+  --tracking-*: initial;
+
+  /* spacing を px で持つのは、既定の 0.25rem だと :root の 14px に引きずられ、gap-6 が 24px でなく 21px になるため */
+  --spacing: 4px;
+
+  --font-sans: "Geist Variable", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+
+  --color-ink: #18181b;
+  --color-ink-2: #3f3f46;
+  --color-muted: #71717a;
+  --color-faint: #a1a1aa;
+
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f4f5;
+  --color-canvas: #fafafa;
+  --color-line: #e4e4e7;
+  --color-line-strong: #d4d4d8;
+  --color-link: #8b8b94;
+  --color-scrim: rgb(24 24 27 / 0.32);
+  --color-glass: rgb(255 255 255 / 0.92);
+
+  --color-ink-hover: #27272a;
+  --color-on-ink: #fafafa;
+  --color-on-strong: #ffffff;
+  --color-on-strong-line: rgb(255 255 255 / 0.4);
+  --color-on-strong-hover: rgb(255 255 255 / 0.12);
+
+  --color-accent: #0f766e;
+  --color-accent-strong: #115e59;
+  --color-accent-soft: rgb(15 118 110 / 0.09);
+  --color-accent-tint: #f0f8f7;
+
+  --color-negative: #be3455;
+  --color-negative-soft: rgb(190 52 85 / 0.08);
+  --color-negative-tint: #fdf4f6;
+  --color-negative-line: rgb(190 52 85 / 0.35);
+
+  --color-warning: #8a5a0b;
+  --color-warning-soft: #fdf8ec;
+  --color-warning-line: rgb(161 98 7 / 0.3);
+  --color-warning-dot: #b7791f;
+
+  --text-2xs: 10.5px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 17px;
+
+  --tracking-display: -0.02em;
+  --tracking-heading: -0.01em;
+  --tracking-label: 0.08em;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-sheet: 18px;
+
+  --shadow-float: 0 1px 2px rgb(24 24 27 / 0.04), 0 8px 24px -12px rgb(24 24 27 / 0.18);
+  --shadow-raised: 0 1px 2px rgb(24 24 27 / 0.06);
+  --shadow-knob: 0 1px 2px rgb(24 24 27 / 0.2);
+  --shadow-accent: 0 10px 24px -10px rgb(15 118 110 / 0.6);
+  --shadow-sheet: 0 -1px 0 var(--color-line), 0 -12px 32px -16px rgb(24 24 27 / 0.22);
+  --shadow-focus-inset: inset 0 0 0 1.5px var(--color-accent);
+  --shadow-edge-inset: inset 0 0 0 1px var(--color-on-strong-line);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --default-transition-duration: 0.2s;
+  --default-transition-timing-function: var(--ease-out);
+
+  --animate-rise: rise 0.6s var(--ease-out) both;
+  --animate-notice-in: notice-in 0.4s var(--ease-out) both;
+  --animate-dialog-in: dialog-in 0.3s var(--ease-out) both;
+  --animate-backdrop-in: backdrop-in 0.3s var(--ease-out) both;
+  --animate-save-pulse: save-pulse 1.6s var(--ease-out) infinite;
+}
+
+/* 詰めるだけで済ませる画面と分けるのは、低い画面ではそれでも下の操作と重なるため。max-md:short: で使う */
+@custom-variant short (@media (max-height: 760px));
+
+/* @theme の中に書かないのは、animate-[rise_0.3s_…] のように時間だけ変えて使う所があり、そこからは参照が辿られないため */
+@keyframes save-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}

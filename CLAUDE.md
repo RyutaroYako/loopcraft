@@ -31,3 +31,13 @@ release. Add a tool name to select part of the graph. For example, run
 - **コード**には what を書く。何をしているかは、名前と構造で読めるようにする
 - **コミットメッセージ**には why を書く。なぜこの変更が必要だったか（何が困っていたか）
 - **コメント**には why not を書く。素直な書き方や他の選択肢を、なぜ採らなかったか。コードを読めば分かる what や、コミットに書くべき why はコメントにしない
+
+# スタイル（apps/web）
+
+- 新しく書く UI は Tailwind のユーティリティで書く。値は `src/styles/tokens.css` のトークン（`text-ink`, `text-sm`, `rounded-md`, `shadow-float` など）を使い、`[13.5px]` のような任意値はトークンにない場合だけにする
+- 余白は 4px 単位（`gap-6` = 24px）。`:root` が 14px のため、rem 基準の Tailwind 既定値は tokens.css で消してある
+- 色・文字サイズ・角丸を足すときは tokens.css に足す。CSS に値を直書きしない
+- 同じプロパティのユーティリティを 1 つの要素に重ねない（`bg-transparent` と `bg-accent` など）。勝ち負けは書いた順でなく生成順で決まるので、状態で変えるときは条件で片方だけ付ける
+- `group` は名前付き（`group/item` など）で使う。名前が無いと、外側の別の `group` の hover まで拾う
+- CSS に残すのは、複数の画面で使う部品（`primitives.css` の `.button` `.field` など）と、キャンバスの SVG・アイコン（`canvas.css`）だけ
+- テストやコードから要素を探すときは、クラス名でなく role・`aria-*`・`data-*` を使う（状態は `aria-current` `aria-pressed`、領域は `<section aria-label>`）。`data-testid` で済ませず、取れないときは要素に役割と名前を付ける。クラスは見た目のためだけに使う。キャンバスの SVG は canvas.css の状態クラス（`.node.selected` など）で探してよい

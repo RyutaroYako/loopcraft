@@ -1,8 +1,8 @@
 import { parseDiagramJson, stringifyDiagram } from "@loopcraft/core/io";
-import { For, Show, createSignal, untrack, useContext } from "solid-js";
+import { Show, createSignal, untrack, useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
 import { pickJsonFile } from "../editor/file.ts";
-import { CopyButton, Dialog } from "./Dialog.tsx";
+import { CopyButton, Dialog, DialogError, DialogSpacer } from "./Dialog.tsx";
 import { OpenIcon, SaveIcon } from "./icons.tsx";
 
 export function ImportDialog(props: { onClose: () => void }) {
@@ -38,7 +38,6 @@ export function ImportDialog(props: { onClose: () => void }) {
   return (
     <Dialog
       title="JSON を読み込む"
-      class="json-dialog"
       onClose={props.onClose}
       dialogRef={(element) => (dialog = element)}
       footer={
@@ -47,7 +46,7 @@ export function ImportDialog(props: { onClose: () => void }) {
             <OpenIcon />
             ファイルから選ぶ
           </button>
-          <span class="dialog-spacer" />
+          <DialogSpacer />
           <button type="button" class="button" onClick={close}>
             キャンセル
           </button>
@@ -68,7 +67,7 @@ export function ImportDialog(props: { onClose: () => void }) {
         </label>
         <textarea
           id="import-json-text"
-          class="json-text"
+          class="min-h-[280px] font-mono text-sm leading-normal whitespace-pre"
           value={text()}
           onInput={(event) => {
             setText(event.currentTarget.value);
@@ -80,15 +79,7 @@ export function ImportDialog(props: { onClose: () => void }) {
         />
       </form>
       <Show when={errors().length > 0}>
-        <div class="dialog-error" role="alert">
-          <p>読み込めませんでした</p>
-          <ul>
-            <For each={errors().slice(0, 8)}>{(error) => <li>{error}</li>}</For>
-          </ul>
-          <Show when={errors().length > 8}>
-            <p class="notice-more">ほか {errors().length - 8} 件</p>
-          </Show>
-        </div>
+        <DialogError title="読み込めませんでした" errors={errors()} />
       </Show>
     </Dialog>
   );
@@ -101,7 +92,6 @@ export function ExportDialog(props: { onClose: () => void }) {
   return (
     <Dialog
       title="JSON を書き出す"
-      class="json-dialog"
       onClose={props.onClose}
       footer={
         <>
@@ -109,7 +99,7 @@ export function ExportDialog(props: { onClose: () => void }) {
             <SaveIcon />
             ファイルに保存
           </button>
-          <span class="dialog-spacer" />
+          <DialogSpacer />
           <CopyButton copy={() => navigator.clipboard.writeText(text)} />
         </>
       }
@@ -117,7 +107,7 @@ export function ExportDialog(props: { onClose: () => void }) {
       <label class="field">
         <span class="field-label">この JSON を貼り付ければ、別の場所で同じ図を開けます</span>
         <textarea
-          class="json-text"
+          class="min-h-[280px] font-mono text-sm leading-normal whitespace-pre"
           value={text}
           readonly
           spellcheck={false}

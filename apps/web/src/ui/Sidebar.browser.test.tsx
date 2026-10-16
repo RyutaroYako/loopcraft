@@ -6,6 +6,7 @@ import {
   browserStartup,
   captureDownloads,
   cleanup,
+  expandButton,
   fileStartup,
   mount,
   node,
@@ -91,12 +92,12 @@ describe("変数", () => {
   it("広い画面でも、選んだ項目の操作から矢印を引き、下端のボタンで変数を足す", async () => {
     await open();
     const bar = page.getByRole("toolbar", { name: "選んだ項目の操作" });
-    const listTop = () => document.querySelector(".browser")!.getBoundingClientRect().top;
+    const listTop = () => document.querySelector("[role=tablist]")!.getBoundingClientRect().top;
     const before = listTop();
     nodeElement("profit").focus();
     await expect.element(bar).toBeVisible();
     expect(listTop()).toBe(before);
-    expect(getComputedStyle(document.querySelector(".sheet-expand")!).display).toBe("none");
+    expect(getComputedStyle(expandButton()).display).toBe("none");
 
     const links = () => document.querySelectorAll("[data-link-id]").length;
     const linkCount = links();
@@ -188,7 +189,7 @@ describe("関連", () => {
     await button("直線に戻す").click();
     await expect.element(button("直線に戻す")).not.toBeInTheDocument();
     // 削除ボタンへ戻さないのは、Enter を続けて押すと関連まで消してしまうため
-    await expect.poll(() => document.activeElement?.classList.contains("inspector")).toBe(true);
+    await expect.poll(() => document.activeElement?.id === "inspector").toBe(true);
     await button(/関連を削除/).click();
     await expect.element(heading("図の概要")).toBeVisible();
     expect(document.querySelector('[aria-label^="社員数から売上への関連"]')).toBeNull();
@@ -205,7 +206,7 @@ describe("関連", () => {
       page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement
     ).focus();
     await expect.element(heading("関連")).toBeVisible();
-    expect(document.querySelector(".inspector .inline-actions")).toBeNull();
+    expect(document.getElementById("inspector")?.textContent).not.toMatch(/に戻す/);
 
     await open({
       ...sample,
@@ -274,18 +275,28 @@ describe("ループ", () => {
 
   it("すべてのループを並べ、見出していないループは選ぶと強調し、ピンで見出す", async () => {
     await open();
-    await expect.poll(() => document.querySelectorAll(".loop-item").length).toBe(4);
-    expect(document.querySelectorAll(".loop-item.balancing")).toHaveLength(2);
+    await expect.poll(() => document.querySelectorAll("[data-loop-key]").length).toBe(4);
+    expect(document.querySelectorAll("[data-loop-key][data-kind=balancing]")).toHaveLength(2);
 
-    const plain = document.querySelector(".loop-item:not(.featured) .loop-item-main")!;
+    const plain = [...document.querySelectorAll("[data-loop-key]")]
+      .find((item) => item.querySelector('[aria-pressed="false"]'))!
+      .querySelector("button")!;
     await page.elementLocator(plain).click();
-    await expect.poll(() => document.querySelector(".loop-item.active")).not.toBeNull();
+    await expect
+      .poll(() => document.querySelector('[data-loop-key] [aria-current="true"]'))
+      .not.toBeNull();
     await page.elementLocator(plain).click();
     await userEvent.unhover(page.elementLocator(plain));
-    await expect.poll(() => document.querySelector(".loop-item.active")).toBeNull();
+    await expect
+      .poll(() => document.querySelector('[data-loop-key] [aria-current="true"]'))
+      .toBeNull();
 
-    await page.elementLocator(document.querySelector(".loop-item:not(.featured) .pin")!).click();
-    await expect.poll(() => document.querySelectorAll(".loop-item.featured").length).toBe(4);
+    await page
+      .elementLocator(document.querySelector('[data-loop-key] [aria-pressed="false"]')!)
+      .click();
+    await expect
+      .poll(() => document.querySelectorAll('[data-loop-key] [aria-pressed="true"]').length)
+      .toBe(4);
   });
 
   it("ループが無いときは案内し、多すぎるときは知らせる", async () => {
@@ -316,7 +327,7 @@ describe("ループ", () => {
 
 describe("変数の一覧", () => {
   const search = () => page.getByRole("searchbox", { name: "変数を名前で絞り込む" });
-  const rows = () => document.querySelectorAll(".variable-item");
+  const rows = () => document.querySelectorAll("#browser-panel-variables li");
 
   it("タブで切り替え、原因と結果の数を示し、名前で絞り込み、選ぶと検査パネルに出す", async () => {
     await open();
@@ -334,7 +345,7 @@ describe("変数の一覧", () => {
       .click();
     await expect.element(heading("変数")).toBeVisible();
     await expect.element(field("名前")).toHaveValue("売上");
-    expect(document.querySelector(".variable-item.active")).not.toBeNull();
+    expect(document.querySelector('#browser-panel-variables [aria-current="true"]')).not.toBeNull();
 
     await userEvent.fill(search(), "存在しない");
     await expect.element(page.getByText("名前が一致する変数はありません")).toBeVisible();
@@ -370,7 +381,7 @@ describe("読み取り専用", () => {
       .toBeVisible();
     nodeElement("sales").focus();
     await expect.element(field("名前")).toHaveAttribute("readonly");
-    expect(document.querySelector(".relation-picker")).toBeNull();
+    expect(document.querySelector('select[aria-label$="を追加"]')).toBeNull();
     await expect.element(button(/変数を削除/)).not.toBeInTheDocument();
     (
       page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement

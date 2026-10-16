@@ -2,6 +2,10 @@ import { Show, useContext } from "solid-js";
 import { AutosaveContext, type AutosaveStatus } from "../editor/autosave.ts";
 import type { DocumentStore } from "../editor/store.ts";
 
+const statusClass =
+  "inline-flex h-7 items-center gap-1.75 rounded-full border px-2.5 text-sm whitespace-nowrap";
+const dotClass = "size-1.75 rounded-full";
+
 function labelOf(status: AutosaveStatus, store: DocumentStore, unwatched: boolean) {
   if (status.kind === "failing") return "自動保存できません";
   if (status.kind === "suspended") {
@@ -16,6 +20,7 @@ export function AutosaveIndicator() {
   const status = () => autosave.status();
   const unwatched = () => autosave.unwatched() !== undefined;
   const label = () => labelOf(status(), autosave.store, unwatched());
+  const onlyUnwatched = () => status().kind === "ok";
   const explain = () => {
     if (status().kind !== "ok") autosave.explain(status());
     else autosave.explainUnwatched(autosave.unwatched());
@@ -25,26 +30,39 @@ export function AutosaveIndicator() {
       when={status().kind !== "ok" || unwatched()}
       fallback={
         <span
-          class="save-status ok"
+          class={[statusClass, "border-transparent text-muted"]}
           title={
             autosave.store.kind === "file"
               ? `変更は ${autosave.store.label} に自動で保存されます`
               : "変更はこのブラウザに自動で保存されます"
           }
         >
-          <span class="save-dot" aria-hidden="true" />
-          <span class="save-label">{label()}</span>
+          <span class={[dotClass, "bg-accent opacity-70"]} aria-hidden="true" />
+          <span class="max-md:hidden">{label()}</span>
         </span>
       }
     >
       <button
         type="button"
-        class={["save-status", status().kind === "ok" ? "warning" : status().kind]}
+        class={[
+          statusClass,
+          "font-medium transition-[transform] active:transform-[translateY(1px)_scale(0.98)]",
+          onlyUnwatched()
+            ? "border-warning-line bg-warning-soft text-warning"
+            : "border-negative-line bg-negative-soft text-negative",
+        ]}
         aria-label={`${label()}。詳しく見る`}
         onClick={explain}
       >
-        <span class="save-dot" aria-hidden="true" />
-        <span class="save-label">{label()}</span>
+        <span
+          class={[
+            dotClass,
+            "animate-save-pulse opacity-100",
+            onlyUnwatched() ? "bg-warning-dot" : "bg-negative",
+          ]}
+          aria-hidden="true"
+        />
+        <span>{label()}</span>
       </button>
     </Show>
   );

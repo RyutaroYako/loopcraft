@@ -1,0 +1,42 @@
+:root {
+  font-size: var(--text-md);
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* preflight の既定（矢印のカーソル）にしないのは、押せる所と押せない所を見分けにくいため */
+button {
+  cursor: pointer;
+}
+
+::placeholder {
+  color: var(--color-faint);
+}
+
+fieldset {
+  min-width: 0;
+}
+
+:focus-visible {
+  outline: 1.5px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
