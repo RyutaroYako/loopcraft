@@ -26,7 +26,9 @@ export function Dialog(props: {
         props.dialogRef?.(element);
       }}
       class={[
-        "m-auto max-h-[calc(100dvh-64px)] rounded-xl border border-line bg-surface p-0 text-ink shadow-float backdrop:animate-backdrop-in backdrop:bg-scrim open:flex open:animate-dialog-in open:flex-col",
+        "m-auto max-h-[calc(100dvh-64px)] rounded-xl border border-line bg-surface text-ink shadow-float",
+        "open:flex open:animate-dialog-in open:flex-col",
+        "backdrop:animate-backdrop-in backdrop:bg-scrim",
         props.width ?? "w-[min(640px,calc(100vw-32px))]",
         props.class,
       ]}

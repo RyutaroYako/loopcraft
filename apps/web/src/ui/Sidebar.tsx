@@ -42,7 +42,10 @@ export function Sidebar() {
       class={[
         // 中身の高さで分けないのは、選択で検査パネルが伸び縮みし、ループ一覧がカーソルの下で動くため。
         // 狭い画面で縮ませないのは、シートの高さに押し込められて一覧と概要が重なるため。スクロールはシート全体で受ける
-        "sidebar grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] border-l border-line bg-surface max-md:relative max-md:z-2 max-md:-mt-4 max-md:flex max-md:h-(--sheet-height) max-md:flex-col max-md:overflow-y-auto max-md:overscroll-contain max-md:rounded-t-sheet max-md:border-l-0 max-md:pb-[env(safe-area-inset-bottom)] max-md:shadow-sheet max-md:*:flex-none max-md:*:overflow-visible",
+        "sidebar grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] border-l border-line bg-surface",
+        "max-md:relative max-md:z-2 max-md:-mt-4 max-md:h-(--sheet-height) max-md:pb-[env(safe-area-inset-bottom)]",
+        "max-md:flex max-md:flex-col max-md:overflow-y-auto max-md:overscroll-contain max-md:*:flex-none max-md:*:overflow-visible",
+        "max-md:rounded-t-sheet max-md:border-l-0 max-md:shadow-sheet",
         // 指で動かしている間も遷移を残さないのは、遅れて付いてきて取っ手が指から離れるため
         sheet.dragging()
           ? "max-md:transition-none"
@@ -620,7 +623,10 @@ function RelationPicker(props: {
   return (
     <div class="relation-picker mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] gap-1">
       <select
-        class="h-7 w-full min-w-0 cursor-pointer rounded-xs border border-dashed border-line-strong px-1.5 text-sm text-muted transition-[border-color] hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink"
+        class={[
+          "h-7 w-full min-w-0 cursor-pointer rounded-xs border border-dashed border-line-strong px-1.5 text-sm text-muted transition-[border-color]",
+          "hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink",
+        ]}
         name={props.label}
         aria-label={props.label}
         onChange={(event) => setChosen(event.currentTarget.value as VariableId | "")}
@@ -738,7 +744,12 @@ function LinkInspector(props: { id: LinkId }) {
           onChange={(event) => update({ delay: event.currentTarget.checked || undefined })}
         />
         <span
-          class="relative mt-px h-4.5 w-8 rounded-full bg-line-strong transition-[background-color] duration-250 peer-checked:bg-accent peer-focus-visible:outline-[1.5px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent after:absolute after:top-0.5 after:left-0.5 after:size-3.5 after:rounded-full after:bg-surface after:shadow-knob after:transition-[transform] after:duration-250 after:content-[''] peer-checked:after:transform-[translateX(14px)]"
+          class={[
+            "relative mt-px h-4.5 w-8 rounded-full bg-line-strong transition-[background-color] duration-250 peer-checked:bg-accent",
+            "peer-focus-visible:outline-[1.5px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent",
+            "after:absolute after:top-0.5 after:left-0.5 after:size-3.5 after:rounded-full after:bg-surface after:shadow-knob after:content-['']",
+            "after:transition-[transform] after:duration-250 peer-checked:after:transform-[translateX(14px)]",
+          ]}
           aria-hidden="true"
         />
         <span>
@@ -873,10 +884,21 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
     })),
   );
   return (
-    <ol class="relative grid gap-0.5 pl-3.5 before:absolute before:top-2.5 before:bottom-2.5 before:left-0.75 before:border-l before:border-dashed before:border-line-strong before:content-[''] after:pt-0.5 after:text-xs after:text-faint after:content-['先頭に戻る']">
+    <ol
+      class={[
+        "relative grid gap-0.5 pl-3.5",
+        "before:absolute before:top-2.5 before:bottom-2.5 before:left-0.75 before:border-l before:border-dashed before:border-line-strong before:content-['']",
+        "after:pt-0.5 after:text-xs after:text-faint after:content-['先頭に戻る']",
+      ]}
+    >
       <For each={steps()} keyed={false}>
         {(step) => (
-          <li class="relative flex items-center justify-between gap-2 py-1 text-base before:absolute before:-left-3.5 before:size-1.75 before:rounded-full before:border-[1.5px] before:border-accent before:bg-surface before:content-['']">
+          <li
+            class={[
+              "relative flex items-center justify-between gap-2 py-1 text-base",
+              "before:absolute before:-left-3.5 before:size-1.75 before:rounded-full before:border-[1.5px] before:border-accent before:bg-surface before:content-['']",
+            ]}
+          >
             <span>{step().label}</span>
             <PolarityGlyph polarity={step().polarity} />
           </li>

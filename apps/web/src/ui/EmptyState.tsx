@@ -7,8 +7,12 @@ import { OpenIcon, PlusIcon, SparkIcon } from "./icons.tsx";
 // empty-state はスタイルを持たないが、Canvas が group-has-[.empty-state] で拡大縮小の操作を隠す目印として残す。
 // 案内全体で押下を受け取らないのは、案内の上でもダブルクリックで変数を足せるようにするため。
 // 狭い画面で広い画面と同じ余白にしないのは、ボタンが下の拡大縮小の操作と重なるため
-const sectionClass =
-  "empty-state absolute top-[clamp(32px,14%,140px)] left-[clamp(24px,9%,120px)] grid max-w-[520px] animate-rise gap-6 bg-[radial-gradient(closest-side,var(--color-canvas)_70%,transparent)] py-7 pr-8 pointer-events-none max-md:top-4 max-md:gap-3.5 max-md:py-3";
+const sectionClass = [
+  "empty-state pointer-events-none absolute top-[clamp(32px,14%,140px)] left-[clamp(24px,9%,120px)]",
+  "grid max-w-[520px] animate-rise gap-6 py-7 pr-8",
+  "bg-[radial-gradient(closest-side,var(--color-canvas)_70%,transparent)]",
+  "max-md:top-4 max-md:gap-3.5 max-md:py-3",
+];
 const titleClass =
   "max-w-[19ch] text-[clamp(24px,3vw,30px)] leading-tight font-semibold tracking-display text-balance [word-break:auto-phrase]";
 
