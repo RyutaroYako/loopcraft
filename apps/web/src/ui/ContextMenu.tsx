@@ -78,7 +78,7 @@ export function ContextMenu(props: {
             role="menuitem"
             // フォーカスを薄い背景だけにしないのは、白地との差が小さく、キーボードではどの項目が選ばれているか読めないため
             class={[
-              "flex h-8 items-center justify-between gap-3 rounded-xs border-0 bg-transparent px-2.5 py-0 text-left text-base focus:bg-surface-2 focus:outline-none focus-visible:shadow-focus-inset",
+              "flex h-8 items-center justify-between gap-3 rounded-xs px-2.5 text-left text-base focus:bg-surface-2 focus:outline-none focus-visible:shadow-focus-inset",
               item.danger ? "text-negative" : "text-ink disabled:text-faint",
             ]}
             disabled={item.disabled}

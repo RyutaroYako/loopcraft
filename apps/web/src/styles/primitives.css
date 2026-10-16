@@ -94,9 +94,7 @@ kbd {
   place-items: center;
   width: 32px;
   height: 32px;
-  border: 0;
   border-radius: var(--radius-sm);
-  background: transparent;
   color: var(--color-ink-2);
   transition:
     background-color 0.2s var(--ease-out),
@@ -166,10 +164,6 @@ kbd {
 .field textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-}
-
-.field ::placeholder {
-  color: var(--color-faint);
 }
 
 .button.danger-text {

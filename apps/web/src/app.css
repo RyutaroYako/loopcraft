@@ -1,9 +1,6 @@
-/* preflight を読み込まないのは、base.css が独自のリセットを持ち、二重にすると既存の見た目が崩れるため */
-/* 既存の CSS をレイヤーに入れるのは、レイヤー外に置くと詳細度に関係なく utilities より優先され、ol { padding: 0 } のような要素指定にさえ負けるため */
-@layer theme, base, components, utilities;
-@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss";
 @import "./styles/tokens.css";
 @import "./styles/base.css" layer(base);
+/* 共通部品とキャンバスを components に置くのは、ユーティリティで個別に上書きできるようにするため */
 @import "./styles/primitives.css" layer(components);
 @import "./styles/canvas.css" layer(components);
-@import "tailwindcss/utilities.css" layer(utilities);

@@ -165,10 +165,8 @@ function Browser() {
               aria-selected={tab() === item.value ? "true" : "false"}
               tabindex={tab() === item.value ? 0 : -1}
               class={[
-                "inline-flex h-7.5 items-center gap-1.5 rounded-sm border-0 px-3 py-0 text-base font-medium transition-[background-color,color] max-md:min-h-10",
-                tab() === item.value
-                  ? "bg-surface-2 text-ink"
-                  : "bg-transparent text-muted hover:text-ink",
+                "inline-flex h-7.5 items-center gap-1.5 rounded-sm px-3 text-base font-medium transition-[background-color,color] max-md:min-h-10",
+                tab() === item.value ? "bg-surface-2 text-ink" : "text-muted hover:text-ink",
               ]}
               onClick={() => setTab(item.value)}
             >
@@ -245,7 +243,7 @@ function VariableList(props: { hidden: boolean }) {
         <label class="block px-5 pb-2.5">
           <span class="sr-only">変数を名前で絞り込む</span>
           <input
-            class="h-8 w-full rounded-sm border border-line bg-surface px-2.5 py-0 text-base text-ink max-md:min-h-10"
+            class="h-8 w-full rounded-sm border border-line bg-surface px-2.5 text-base text-ink max-md:min-h-10"
             type="search"
             name="variable-search"
             placeholder="名前で絞り込む"
@@ -591,7 +589,7 @@ function RelationList(props: {
               <li>
                 <button
                   type="button"
-                  class="-ml-1.5 flex w-full items-center gap-2 rounded-xs border-0 bg-transparent px-1.5 py-1.25 text-left text-base hover:bg-surface-2"
+                  class="-ml-1.5 flex w-full items-center gap-2 rounded-xs px-1.5 py-1.25 text-left text-base hover:bg-surface-2"
                   onClick={() => editor.select({ kind: "link", id: link.id })}
                 >
                   <PolarityGlyph polarity={link.polarity} />
@@ -622,7 +620,7 @@ function RelationPicker(props: {
   return (
     <div class="relation-picker mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] gap-1">
       <select
-        class="h-7 w-full min-w-0 cursor-pointer rounded-xs border border-dashed border-line-strong bg-transparent px-1.5 py-0 text-sm text-muted transition-[border-color] hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink"
+        class="h-7 w-full min-w-0 cursor-pointer rounded-xs border border-dashed border-line-strong px-1.5 text-sm text-muted transition-[border-color] hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink"
         name={props.label}
         aria-label={props.label}
         onChange={(event) => setChosen(event.currentTarget.value as VariableId | "")}
@@ -740,7 +738,7 @@ function LinkInspector(props: { id: LinkId }) {
           onChange={(event) => update({ delay: event.currentTarget.checked || undefined })}
         />
         <span
-          class="relative mt-px h-4.5 w-8 rounded-pill bg-line-strong transition-[background-color] duration-250 peer-checked:bg-accent peer-focus-visible:outline-[1.5px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent after:absolute after:top-0.5 after:left-0.5 after:size-3.5 after:rounded-circle after:bg-surface after:shadow-knob after:transition-[transform] after:duration-250 after:content-[''] peer-checked:after:transform-[translateX(14px)]"
+          class="relative mt-px h-4.5 w-8 rounded-full bg-line-strong transition-[background-color] duration-250 peer-checked:bg-accent peer-focus-visible:outline-[1.5px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent after:absolute after:top-0.5 after:left-0.5 after:size-3.5 after:rounded-full after:bg-surface after:shadow-knob after:transition-[transform] after:duration-250 after:content-[''] peer-checked:after:transform-[translateX(14px)]"
           aria-hidden="true"
         />
         <span>
@@ -831,20 +829,18 @@ const itemClass =
   "relative grid animate-[rise_0.4s_var(--ease-out)_calc(var(--index)*35ms)_both] grid-cols-[minmax(0,1fr)_auto] items-center rounded-md transition-[background-color] hover:bg-surface-2";
 /** before: を常に付けないのは、Tailwind が before: の付いた要素すべてに content を足し、選んでいない行にも印が出るため */
 const activeItemClass =
-  "bg-surface-2 before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:rounded-pill before:bg-accent";
+  "bg-surface-2 before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:rounded-full before:bg-accent";
 const itemMainClass =
-  "loop-item-main grid min-w-0 items-center gap-3 border-0 bg-transparent py-2.25 pr-1 pl-2.5 text-left";
+  "loop-item-main grid min-w-0 items-center gap-3 py-2.25 pr-1 pl-2.5 text-left";
 const routeEndClass =
-  "rounded-pill border border-line bg-surface px-2.5 py-1 text-base font-medium text-ink transition-[border-color] hover:border-accent";
+  "rounded-full border border-line bg-surface px-2.5 py-1 text-base font-medium text-ink transition-[border-color] hover:border-accent";
 const itemTitleClass = "truncate text-base font-medium";
 const itemRouteClass = "truncate text-sm text-muted";
 
 function segmentClass(active: boolean) {
   return [
     "inline-flex h-8 items-center justify-center gap-1.5 rounded-xs border text-sm font-medium transition-[background-color,color]",
-    active
-      ? "border-line bg-surface text-ink shadow-raised"
-      : "border-transparent bg-transparent text-muted",
+    active ? "border-line bg-surface text-ink shadow-raised" : "border-transparent text-muted",
   ];
 }
 
@@ -880,7 +876,7 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
     <ol class="relative grid gap-0.5 pl-3.5 before:absolute before:top-2.5 before:bottom-2.5 before:left-0.75 before:border-l before:border-dashed before:border-line-strong before:content-[''] after:pt-0.5 after:text-xs after:text-faint after:content-['先頭に戻る']">
       <For each={steps()} keyed={false}>
         {(step) => (
-          <li class="relative flex items-center justify-between gap-2 py-1 text-base before:absolute before:-left-3.5 before:size-1.75 before:rounded-circle before:border-[1.5px] before:border-accent before:bg-surface before:content-['']">
+          <li class="relative flex items-center justify-between gap-2 py-1 text-base before:absolute before:-left-3.5 before:size-1.75 before:rounded-full before:border-[1.5px] before:border-accent before:bg-surface before:content-['']">
             <span>{step().label}</span>
             <PolarityGlyph polarity={step().polarity} />
           </li>

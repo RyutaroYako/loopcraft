@@ -3,8 +3,8 @@ import { AutosaveContext, type AutosaveStatus } from "../editor/autosave.ts";
 import type { DocumentStore } from "../editor/store.ts";
 
 const statusClass =
-  "inline-flex h-7 items-center gap-1.75 rounded-pill border px-2.5 py-0 text-sm whitespace-nowrap";
-const dotClass = "size-1.75 rounded-circle";
+  "inline-flex h-7 items-center gap-1.75 rounded-full border px-2.5 text-sm whitespace-nowrap";
+const dotClass = "size-1.75 rounded-full";
 
 function labelOf(status: AutosaveStatus, store: DocumentStore, unwatched: boolean) {
   if (status.kind === "failing") return "自動保存できません";
@@ -30,7 +30,7 @@ export function AutosaveIndicator() {
       when={status().kind !== "ok" || unwatched()}
       fallback={
         <span
-          class={[statusClass, "border-transparent bg-transparent text-muted"]}
+          class={[statusClass, "border-transparent text-muted"]}
           title={
             autosave.store.kind === "file"
               ? `変更は ${autosave.store.label} に自動で保存されます`

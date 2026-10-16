@@ -8,6 +8,7 @@ export function NoticeView() {
   return (
     <Show when={editor.notice()} keyed>
       {(notice) => (
+        // -translate-x-1/2 にしないのは、translate プロパティが登場アニメーションの transform と重なり、二重にずれるため
         <div
           class={[
             "notice fixed top-17 left-1/2 z-20 flex w-[min(480px,calc(100vw-32px))] transform-[translateX(-50%)] animate-notice-in items-start gap-3 rounded-lg border bg-surface pt-3 pr-2 pb-3 pl-4 shadow-float",

@@ -5,7 +5,7 @@ import { FileIcon, ImageIcon, LayoutIcon, OpenIcon, SaveIcon } from "./icons.tsx
 import type { DialogKind } from "./Toolbar.tsx";
 
 const menuItemClass =
-  "flex min-h-13 items-center gap-3.5 rounded-md border-0 bg-transparent px-3 py-0 text-left text-lg enabled:hover:bg-surface-2 disabled:cursor-default disabled:opacity-40";
+  "flex min-h-13 items-center gap-3.5 rounded-md px-3 text-left text-lg enabled:hover:bg-surface-2 disabled:cursor-default disabled:opacity-40";
 const noteClass = "ml-auto text-sm text-muted";
 
 /** 狭い画面でツールバーに並べないのは、タイトルが読めないほど押し縮められるため */

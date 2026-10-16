@@ -1,7 +1,5 @@
 :root {
-  font-family: var(--font-sans);
   font-size: var(--text-md);
-  line-height: 1.5;
   color: var(--color-ink);
   background: var(--color-canvas);
   color-scheme: light;
@@ -11,46 +9,21 @@
 }
 
 * {
-  box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;
 }
 
-body {
-  margin: 0;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
-}
-
+/* preflight の既定（矢印のカーソル）にしないのは、押せる所と押せない所を見分けにくいため */
 button {
   cursor: pointer;
 }
 
-h2,
-p,
-ol,
-ul,
-dl,
-dd,
-fieldset {
-  margin: 0;
-  padding: 0;
+::placeholder {
+  color: var(--color-faint);
 }
 
 fieldset {
-  border: 0;
   min-width: 0;
-}
-
-ol,
-ul {
-  list-style: none;
 }
 
 :focus-visible {
@@ -66,9 +39,4 @@ ul {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-/* ブラウザ既定の [hidden] に任せないのは、flex などのユーティリティの display に負けて隠れなくなるため */
-[hidden]:where(:not([hidden="until-found"])) {
-  display: none !important;
 }

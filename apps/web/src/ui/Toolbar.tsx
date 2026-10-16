@@ -30,7 +30,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
       <label class="min-w-0">
         <span class="sr-only">図のタイトル</span>
         <input
-          class="h-8.5 w-[min(100%,440px)] rounded-sm border border-transparent bg-transparent px-2.5 py-0 text-lg font-medium tracking-heading transition-[background-color,border-color] hover:bg-surface-2 focus:border-accent focus:bg-surface focus:outline-none"
+          class="h-8.5 w-[min(100%,440px)] rounded-sm border border-transparent px-2.5 text-lg font-medium tracking-heading transition-[background-color,border-color] hover:bg-surface-2 focus:border-accent focus:bg-surface focus:outline-none"
           name="title"
           value={editor.diagram().title}
           readonly={!editor.editable()}
@@ -43,7 +43,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
       </label>
       <Show when={props.readonly}>
         <span
-          class="rounded-pill bg-surface-2 px-2.5 py-0.75 text-sm font-medium whitespace-nowrap text-ink-2 max-md:inline-flex max-md:px-1.5 max-md:py-1"
+          class="rounded-full bg-surface-2 px-2.5 py-0.75 text-sm font-medium whitespace-nowrap text-ink-2 max-md:inline-flex max-md:px-1.5 max-md:py-1"
           title="loopcraft serve --readonly で開いています"
         >
           {/* 見えている文言を読ませないのは、狭い画面で印だけに縮めると読み上げまで変わるため */}
