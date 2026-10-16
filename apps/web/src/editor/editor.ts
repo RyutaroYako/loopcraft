@@ -175,11 +175,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   function show(next: Diagram) {
     present = next;
     setDiagram(next);
-    // 隠すだけにしないのは、やり直しで元の変数が戻ると、つなぐ途中の状態まで黙って戻るため
-    const source = connectingSource();
-    if (source !== null && !next.variables.some((variable) => variable.id === source)) {
-      setConnectingSource(null);
-    }
   }
 
   function commit(next: Diagram, coalesceKey?: string) {
@@ -266,7 +261,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     const collection = { variable: target.variables, link: target.links, loop: target.loops }[
       selected.kind
     ];
-    if (!collection.some((item) => item.id === selected.id)) setSelection(null);
+    if (!collection.some((item) => item.id === selected.id)) select(null);
   }
 
   function notify(next: Notice) {
@@ -287,8 +282,10 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     setNotice(null);
   }
 
+  /** 選択は必ずここで変える。つなぐ途中なのは、元の変数を選んでいる間だけに保つため */
   function select(next: Selection | null) {
-    // 別の項目を選んでもつなぐ途中のままにしないのは、案内がシートに隠れ、次のタップで思わぬ矢印ができるため
+    // 別の項目を選んだらつなぐのをやめるのは、案内がシートに隠れ、次のタップで思わぬ矢印ができるため。
+    // 選択が外れるのを待って隠すだけにしないのは、元に戻すで消えた変数がやり直しで戻ると、つなぐ途中まで黙って戻るため
     const source = connectingSource();
     if (source !== null && !(next?.kind === "variable" && next.id === source)) {
       setConnectingSource(null);
@@ -337,7 +334,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     if (selected.kind === "variable") commit(edit.removeVariable(present, selected.id));
     if (selected.kind === "link") commit(edit.removeLinks(present, new Set([selected.id])));
     if (selected.kind === "loop") commit(edit.removeLoop(present, selected.id));
-    setSelection(null);
+    select(null);
     keepFocusInCanvas();
   }
 
@@ -352,7 +349,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     if (!isEditable) return;
     const loop = present.loops.find((item) => item.id === id);
     commit(edit.removeLoop(present, id));
-    if (selection()?.id === id) setSelection(null);
+    if (selection()?.id === id) select(null);
     if (loop) setFocusedLoop(cycleKey(loop.links));
   }
 
@@ -392,7 +389,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   function replaceDiagram(next: Diagram) {
     if (!isEditable) return;
     commit(next);
-    setSelection(null);
+    select(null);
     setFocusedLoop(null);
     setEditingVariable(null);
     fitView(next);

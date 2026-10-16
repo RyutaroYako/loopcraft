@@ -98,8 +98,8 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       startDrag(event, () => ({ kind: "tap", id }));
       return;
     }
-    // 指では押した時点で選ばないのは、2 本指の 1 本目だと、拡大縮小のつもりで選択が変わりシートまで上がるため
-    if (event.pointerType !== "touch") editor.select({ kind: "variable", id });
+    // 押した時点で選ばないのは、2 本指の 1 本目だと、拡大縮小のつもりで選択が変わりシートまで上がるため。
+    // 動かし始めるか離したときに選ぶ
     if (editor.editingVariable() === id) return;
     editor.setEditingVariable(null);
     const variable = editor.current().variables.find((item) => item.id === id);

@@ -1871,7 +1871,7 @@ button.save-status.warning .save-dot {
     z-index: 2;
     display: flex;
     flex-direction: column;
-    height: 136px;
+    height: var(--sheet-height);
     margin-top: -16px;
     padding-bottom: env(safe-area-inset-bottom);
     overflow-y: auto;
@@ -1884,16 +1884,8 @@ button.save-status.warning .save-dot {
     transition: height 0.3s var(--ease-out);
   }
 
-  .sidebar.sheet-half {
-    height: 50dvh;
-  }
-
-  .sidebar.sheet-full {
-    height: calc(100dvh - 56px - 120px);
-  }
-
   /* 指で動かしている間も遷移を残さないのは、遅れて付いてきて取っ手が指から離れるため */
-  .sidebar[style*="height"] {
+  .sidebar.dragging {
     transition: none;
   }
 
@@ -2040,7 +2032,7 @@ button.save-status.warning .save-dot {
     padding-right: 8px;
   }
 
-  .toolbar-group[aria-label="履歴"],
+  .toolbar-history,
   .toolbar-layout,
   .toolbar-file {
     display: none;

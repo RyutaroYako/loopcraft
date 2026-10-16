@@ -40,21 +40,33 @@ async function atPhoneSize(
   }
 }
 
-function dragHandle(dy: number, options: { click?: boolean } = {}) {
+function dragHandle(
+  dy: number,
+  options: { click?: boolean; button?: number; end?: "pointerup" | "pointercancel" } = {},
+) {
   const handle = document.querySelector(".sheet-handle")!;
   const rect = handle.getBoundingClientRect();
   const init = { pointerId: 7, pointerType: "touch", isPrimary: true, bubbles: true };
   const x = rect.left + rect.width / 2;
   const y = rect.top + rect.height / 2;
   handle.dispatchEvent(
-    new PointerEvent("pointerdown", { ...init, button: 0, clientX: x, clientY: y }),
+    new PointerEvent("pointerdown", {
+      ...init,
+      button: options.button ?? 0,
+      clientX: x,
+      clientY: y,
+    }),
   );
   handle.dispatchEvent(new PointerEvent("pointermove", { ...init, clientX: x, clientY: y + dy }));
   flush();
   const during = sheetHeight();
-  handle.dispatchEvent(new PointerEvent("pointerup", { ...init, clientX: x, clientY: y + dy }));
+  handle.dispatchEvent(
+    new PointerEvent(options.end ?? "pointerup", { ...init, clientX: x, clientY: y + dy }),
+  );
   // マウスでは離した後に click が届き、指で動かしたときは届かない
-  if (options.click ?? true) handle.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  if (options.click ?? true) {
+    handle.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+  }
   flush();
   return during;
 }
@@ -70,37 +82,50 @@ describe("狭い画面", () => {
       await expect.element(button("パネルを畳む")).toBeVisible();
       await button("パネルを畳む").click();
       await expect.poll(sheetHeight).toBe(peek);
+
+      // キーボードでも一段ずつ送る
+      (document.querySelector(".sheet-handle") as HTMLElement).focus();
+      await userEvent.keyboard("{Enter}");
+      await expect.poll(() => sheet().dataset.size).toBe("half");
     });
   });
 
-  it("取っ手を引いた分だけ追い、離すと一段ずつ止まる", async () => {
+  it("取っ手を引いた分だけ追い、離した高さに近い段で止まる", async () => {
     await atPhoneSize(async () => {
       const peek = sheetHeight();
       expect(dragHandle(-20)).toBe(peek + 20);
       await expect.poll(sheetHeight).toBe(peek);
-      expect(sheet().classList.contains("sheet-peek")).toBe(true);
+      expect(sheet().dataset.size).toBe("peek");
 
       dragHandle(-120);
-      await expect.poll(() => sheet().classList.contains("sheet-half")).toBe(true);
-      dragHandle(80);
-      await expect.poll(() => sheet().classList.contains("sheet-peek")).toBe(true);
+      await expect.poll(() => sheet().dataset.size).toBe("half");
+      dragHandle(60);
+      await expect.poll(() => sheet().dataset.size).toBe("half");
+      dragHandle(150);
+      await expect.poll(() => sheet().dataset.size).toBe("peek");
+
+      // 取り消されたときや、左ボタン以外では高さを変えない
+      dragHandle(-120, { end: "pointercancel", click: false });
+      await expect.poll(sheetHeight).toBe(peek);
+      dragHandle(-120, { button: 2, click: false });
+      expect(sheet().dataset.size).toBe("peek");
 
       // 上端近くまで引けば、途中で止まらず全体まで広げる
       dragHandle(-(window.innerHeight - 220));
-      await expect.poll(() => sheet().classList.contains("sheet-full")).toBe(true);
+      await expect.poll(() => sheet().dataset.size).toBe("full");
 
       // click の届かない指のドラッグの後でも、次のタップで切り替わる
       dragHandle(window.innerHeight, { click: false });
-      await expect.poll(() => sheet().classList.contains("sheet-peek")).toBe(true);
+      await expect.poll(() => sheet().dataset.size).toBe("peek");
       await button("パネルを広げる").click();
-      await expect.poll(() => sheet().classList.contains("sheet-half")).toBe(true);
+      await expect.poll(() => sheet().dataset.size).toBe("half");
     });
   });
 
   it("変数を選ぶとシートが上がり、編集欄を一覧より先に見せる", async () => {
     await atPhoneSize(async () => {
       await node("社員数").click();
-      await expect.poll(() => sheet().classList.contains("sheet-half")).toBe(true);
+      await expect.poll(() => sheet().dataset.size).toBe("half");
       const name = page.getByRole("textbox", { name: "名前", exact: true });
       await expect.element(name).toBeVisible();
       const tabs = document.querySelector(".browser-tabs")!;
@@ -182,7 +207,7 @@ describe("指での操作", () => {
       const before = links();
       await node("利益").click();
       await button("キャンバスで矢印を引く").click();
-      await expect.poll(() => sheet().classList.contains("sheet-peek")).toBe(true);
+      await expect.poll(() => sheet().dataset.size).toBe("peek");
       await expect
         .poll(() => document.querySelector(".connect-banner [role=status]")?.textContent)
         .toMatch(/^「利益」からつなぐ先をタップ/);
@@ -313,7 +338,7 @@ describe("指での操作の取り違え", () => {
       expect(scale()).toBe(before);
       touch("pointerup", svg, 2, b);
       touch("pointerup", svg, 3, centerOf(staff));
-      expect(sheet().classList.contains("sheet-peek")).toBe(true);
+      expect(sheet().dataset.size).toBe("peek");
     });
   });
 

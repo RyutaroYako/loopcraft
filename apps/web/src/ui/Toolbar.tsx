@@ -1,7 +1,8 @@
 import { Show, useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
 import { AutosaveIndicator } from "./AutosaveIndicator.tsx";
-import { HistoryButtons, mod } from "./HistoryButtons.tsx";
+import { HistoryButtons } from "./HistoryButtons.tsx";
+import { mod } from "./shortcut.ts";
 import * as edit from "@loopcraft/core/edit";
 import {
   FileIcon,
@@ -52,7 +53,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
         </span>
       </Show>
       <AutosaveIndicator />
-      <HistoryButtons class="toolbar-group" />
+      <HistoryButtons class="toolbar-group toolbar-history" />
       <Show when={editor.editable()}>
         <button
           type="button"

@@ -19,38 +19,19 @@ import * as edit from "@loopcraft/core/edit";
 import { defaultCurvature } from "@loopcraft/core/geometry";
 import type { LoopKind } from "@loopcraft/core/loop";
 import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
+import { createBottomSheet, SheetHandle } from "./BottomSheet.tsx";
 import { ArrowRightIcon, PinIcon, TrashIcon } from "./icons.tsx";
-
-type SheetSize = "peek" | "half" | "full";
-
-const SHEET_SIZES: SheetSize[] = ["peek", "half", "full"];
-const SHEET_TAP_SLOP = 6;
-
-function followFinger(drag: { startY: number; startHeight: number }, event: PointerEvent) {
-  const height = drag.startHeight + drag.startY - event.clientY;
-  return Math.max(64, Math.min(window.innerHeight - 64, height));
-}
-
-/** styles.css の .sheet-* の高さと合わせる。CSS から読まないのは、dvh を含む値は px に解決されずに返るため */
-function sheetHeights(): Record<SheetSize, number> {
-  return { peek: 136, half: window.innerHeight / 2, full: window.innerHeight - 176 };
-}
 
 /** 狭い画面用に別の部品を作らないのは、中身も状態も同じで、並べ方だけが違うため */
 export function Sidebar() {
   const editor = useContext(EditorContext);
-  const [size, setSize] = createSignal<SheetSize>("peek");
-  const [dragHeight, setDragHeight] = createSignal<number | null>(null);
-  let sheet: HTMLElement | undefined;
-  let drag: { pointerId: number; startY: number; startHeight: number } | undefined;
-  // click だけで切り替えないのは、ドラッグの後にも click が届き、決めた高さをさらに一段送るため
-  let suppressClick = false;
+  const sheet = createBottomSheet();
 
   createEffect(
     () => editor.selection(),
     (selection) => {
       // 畳んだままにしないのは、選んだ項目の編集欄がシートの外に隠れるため
-      if (selection && untrack(size) === "peek") setSize("half");
+      if (selection && untrack(sheet.size) === "peek") sheet.setSize("half");
     },
     { defer: true },
   );
@@ -59,72 +40,21 @@ export function Sidebar() {
     () => editor.connectingFrom(),
     (from) => {
       // 開いたままにしないのは、つなぐ先の変数がシートの下に隠れるため
-      if (from !== null) setSize("peek");
+      if (from !== null) sheet.setSize("peek");
     },
     { defer: true },
   );
 
-  const onPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0 || !sheet) return;
-    // 前のドラッグの印を持ち越さないのは、指で動かした後は click が届かず、印が次のタップを握りつぶすため
-    suppressClick = false;
-    try {
-      (event.currentTarget as Element).setPointerCapture(event.pointerId);
-    } catch {
-      // 既に離されたポインタはキャプチャできないが、取っ手の上で動かす分には追える
-    }
-    drag = {
-      pointerId: event.pointerId,
-      startY: event.clientY,
-      startHeight: sheet.getBoundingClientRect().height,
-    };
-  };
-  const onPointerMove = (event: PointerEvent) => {
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    setDragHeight(followFinger(drag, event));
-  };
-  const onPointerUp = (event: PointerEvent) => {
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    const moved = drag.startY - event.clientY;
-    const released = followFinger(drag, event);
-    drag = undefined;
-    setDragHeight(null);
-    if (event.type !== "pointerup" || Math.abs(moved) < SHEET_TAP_SLOP) return;
-    suppressClick = true;
-    // 一段ずつにしないのは、上端近くまで引いても半分で止まり、指から離れて落ちるため
-    const heights = sheetHeights();
-    const nearest = SHEET_SIZES.reduce((best, candidate) =>
-      Math.abs(heights[candidate] - released) < Math.abs(heights[best] - released)
-        ? candidate
-        : best,
-    );
-    setSize(nearest);
-  };
-
   return (
     <aside
-      ref={(element) => (sheet = element)}
-      class={["sidebar", `sheet-${size()}`, { "has-selection": editor.selection() !== null }]}
-      style={dragHeight() === null ? undefined : { height: `${dragHeight()}px` }}
+      class={[
+        "sidebar",
+        { dragging: sheet.dragging(), "has-selection": editor.selection() !== null },
+      ]}
+      data-size={sheet.size()}
+      style={{ "--sheet-height": `${sheet.height()}px` }}
     >
-      <button
-        type="button"
-        class="sheet-handle"
-        aria-label={size() === "full" ? "パネルを畳む" : "パネルを広げる"}
-        onClick={() => {
-          if (suppressClick) {
-            suppressClick = false;
-            return;
-          }
-          setSize(SHEET_SIZES[(SHEET_SIZES.indexOf(size()) + 1) % SHEET_SIZES.length]!);
-        }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
-        <span class="sheet-grip" aria-hidden="true" />
-      </button>
+      <SheetHandle sheet={sheet} />
       <Inspector />
       <Browser />
     </aside>

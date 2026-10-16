@@ -1,9 +1,7 @@
 import { useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
 import { RedoIcon, UndoIcon } from "./icons.tsx";
-
-const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
-export const mod = isMac ? "⌘" : "Ctrl+";
+import { mod } from "./shortcut.ts";
 
 export function HistoryButtons(props: { class: string }) {
   const editor = useContext(EditorContext);
