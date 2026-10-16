@@ -1,5 +1,6 @@
 import type { JSX } from "@solidjs/web";
-import { For, Show, createSignal, onCleanup, onSettled } from "solid-js";
+import { createSignal, onCleanup, onSettled } from "solid-js";
+import { DetailList } from "./DetailList.tsx";
 import { CheckIcon, CloseIcon, CopyIcon } from "./icons.tsx";
 
 export function Dialog(props: {
@@ -61,8 +62,6 @@ export function DialogSpacer() {
   return <span class="flex-1" />;
 }
 
-const MAX_ERRORS = 8;
-
 export function DialogError(props: { title: string; errors: string[] }) {
   return (
     <div
@@ -70,12 +69,7 @@ export function DialogError(props: { title: string; errors: string[] }) {
       role="alert"
     >
       <p class="font-semibold text-negative">{props.title}</p>
-      <ul class="grid gap-0.5 font-mono text-[11.5px] wrap-anywhere text-ink-2">
-        <For each={props.errors.slice(0, MAX_ERRORS)}>{(error) => <li>{error}</li>}</For>
-      </ul>
-      <Show when={props.errors.length > MAX_ERRORS}>
-        <p class="text-sm text-muted">ほか {props.errors.length - MAX_ERRORS} 件</p>
-      </Show>
+      <DetailList items={props.errors} />
     </div>
   );
 }

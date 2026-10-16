@@ -70,7 +70,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           title="変数の配置を自動で整える（元に戻せます）"
         >
           <LayoutIcon />
-          <span class="max-md:hidden">整列</span>
+          <span>整列</span>
         </button>
       </Show>
       <div
@@ -87,7 +87,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
             title="新しい図を作る（元に戻せます）"
           >
             <FileIcon />
-            <span class="max-md:hidden">新規</span>
+            <span>新規</span>
           </button>
           <button
             type="button"
@@ -97,7 +97,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
             title="JSON を貼り付けるか、ファイルから読み込む"
           >
             <OpenIcon />
-            <span class="max-md:hidden">読み込み</span>
+            <span>読み込み</span>
           </button>
         </Show>
         <button
@@ -109,7 +109,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           title="図全体を画像にしてコピー・保存する"
         >
           <ImageIcon />
-          <span class="max-md:hidden">画像</span>
+          <span>画像</span>
         </button>
         <button
           type="button"
@@ -119,7 +119,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           title={`JSON をコピーするか、ファイルに保存する（${mod}S でファイルに保存）`}
         >
           <SaveIcon />
-          <span class="max-md:hidden">JSON を書き出す</span>
+          <span>JSON を書き出す</span>
         </button>
       </div>
       <button

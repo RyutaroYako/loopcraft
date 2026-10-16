@@ -90,7 +90,7 @@ export function SheetHandle(props: { sheet: ReturnType<typeof createBottomSheet>
       onPointerUp={handle.onPointerUp}
       onPointerCancel={handle.onPointerUp}
     >
-      <span class="h-1 w-9 rounded-[2px] bg-line-strong" aria-hidden="true" />
+      <span class="h-1 w-9 rounded-pill bg-line-strong" aria-hidden="true" />
     </button>
   );
 }

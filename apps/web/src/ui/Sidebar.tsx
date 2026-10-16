@@ -42,7 +42,7 @@ export function Sidebar() {
       class={[
         // 中身の高さで分けないのは、選択で検査パネルが伸び縮みし、ループ一覧がカーソルの下で動くため。
         // 狭い画面で縮ませないのは、シートの高さに押し込められて一覧と概要が重なるため。スクロールはシート全体で受ける
-        "sidebar grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] border-l border-line bg-surface max-md:relative max-md:z-2 max-md:-mt-4 max-md:flex max-md:h-(--sheet-height) max-md:flex-col max-md:overflow-y-auto max-md:overscroll-contain max-md:rounded-[18px_18px_0_0] max-md:border-l-0 max-md:pb-[env(safe-area-inset-bottom)] max-md:shadow-[0_-1px_0_var(--color-line),0_-12px_32px_-16px_rgb(24_24_27/0.22)] max-md:*:flex-none max-md:*:overflow-visible",
+        "sidebar grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] border-l border-line bg-surface max-md:relative max-md:z-2 max-md:-mt-4 max-md:flex max-md:h-(--sheet-height) max-md:flex-col max-md:overflow-y-auto max-md:overscroll-contain max-md:rounded-t-sheet max-md:border-l-0 max-md:pb-[env(safe-area-inset-bottom)] max-md:shadow-sheet max-md:*:flex-none max-md:*:overflow-visible",
         // 指で動かしている間も遷移を残さないのは、遅れて付いてきて取っ手が指から離れるため
         sheet.dragging()
           ? "max-md:transition-none"
@@ -173,7 +173,7 @@ function Browser() {
               onClick={() => setTab(item.value)}
             >
               {item.label}
-              <span class="font-mono text-[11.5px] text-muted">
+              <span class="font-mono text-detail text-muted">
                 {item.count()}
                 <span class="sr-only">件</span>
               </span>
@@ -583,7 +583,7 @@ function RelationList(props: {
       <p class="field-label">{props.title}</p>
       <Show
         when={props.links.length > 0}
-        fallback={<p class="text-[12.5px] text-muted">{props.empty}</p>}
+        fallback={<p class="text-note text-muted">{props.empty}</p>}
       >
         <ul class="grid gap-0.5">
           <For each={props.links}>
@@ -622,7 +622,7 @@ function RelationPicker(props: {
   return (
     <div class="relation-picker mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] gap-1">
       <select
-        class="h-7 w-full min-w-0 cursor-pointer rounded-[7px] border border-dashed border-line-strong bg-transparent px-1.5 py-0 text-[12.5px] text-muted transition-[border-color] hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink"
+        class="h-7 w-full min-w-0 cursor-pointer rounded-control border border-dashed border-line-strong bg-transparent px-1.5 py-0 text-note text-muted transition-[border-color] hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink"
         name={props.label}
         aria-label={props.label}
         onChange={(event) => setChosen(event.currentTarget.value as VariableId | "")}
@@ -659,7 +659,7 @@ function PolarityGlyph(props: { polarity: "+" | "-" }) {
   return (
     <span
       class={[
-        "inline-grid size-4.5 flex-none place-items-center rounded-[5px] font-mono text-sm font-semibold",
+        "inline-grid size-4.5 flex-none place-items-center rounded-glyph font-mono text-sm font-semibold",
         props.polarity === "+" ? "bg-surface-2 text-ink" : "bg-negative-soft text-negative",
       ]}
     >
@@ -692,19 +692,11 @@ function LinkInspector(props: { id: LinkId }) {
     <div class={inspectorBodyClass}>
       <SectionHeading kicker="Link" title="関連" />
       <p class="flex flex-wrap items-center gap-2 text-faint">
-        <button
-          type="button"
-          class="rounded-pill border border-line bg-surface px-2.5 py-1 text-base font-medium text-ink transition-[border-color] hover:border-accent"
-          onClick={() => selectEnd("from")}
-        >
+        <button type="button" class={routeEndClass} onClick={() => selectEnd("from")}>
           {from()}
         </button>
         <ArrowRightIcon />
-        <button
-          type="button"
-          class="rounded-pill border border-line bg-surface px-2.5 py-1 text-base font-medium text-ink transition-[border-color] hover:border-accent"
-          onClick={() => selectEnd("to")}
-        >
+        <button type="button" class={routeEndClass} onClick={() => selectEnd("to")}>
           {to()}
         </button>
       </p>
@@ -748,7 +740,7 @@ function LinkInspector(props: { id: LinkId }) {
           onChange={(event) => update({ delay: event.currentTarget.checked || undefined })}
         />
         <span
-          class="relative mt-px h-4.5 w-8 rounded-[9px] bg-line-strong transition-[background-color] duration-250 peer-checked:bg-accent peer-focus-visible:outline-[1.5px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent after:absolute after:top-0.5 after:left-0.5 after:size-3.5 after:rounded-[50%] after:bg-surface after:shadow-[0_1px_2px_rgb(24_24_27/0.2)] after:transition-[transform] after:duration-250 after:content-[''] peer-checked:after:transform-[translateX(14px)]"
+          class="relative mt-px h-4.5 w-8 rounded-pill bg-line-strong transition-[background-color] duration-250 peer-checked:bg-accent peer-focus-visible:outline-[1.5px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent after:absolute after:top-0.5 after:left-0.5 after:size-3.5 after:rounded-circle after:bg-surface after:shadow-knob after:transition-[transform] after:duration-250 after:content-[''] peer-checked:after:transform-[translateX(14px)]"
           aria-hidden="true"
         />
         <span>
@@ -832,25 +824,26 @@ const inspectorElement = () => document.querySelector<HTMLElement>(".inspector")
 
 const inspectorBodyClass =
   "grid animate-[rise_0.35s_var(--ease-out)_both] gap-4.5 px-5 pt-5 pb-4.5";
-const emptyClass =
-  "grid content-start justify-items-start gap-2.5 px-5 py-2 text-[12.5px] text-muted";
+const emptyClass = "grid content-start justify-items-start gap-2.5 px-5 py-2 text-note text-muted";
 const itemsClass =
   "grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto px-2.5 pb-5 max-md:flex-none max-md:overflow-visible";
 const itemClass =
   "relative grid animate-[rise_0.4s_var(--ease-out)_calc(var(--index)*35ms)_both] grid-cols-[minmax(0,1fr)_auto] items-center rounded-md transition-[background-color] hover:bg-surface-2";
 /** before: を常に付けないのは、Tailwind が before: の付いた要素すべてに content を足し、選んでいない行にも印が出るため */
 const activeItemClass =
-  "bg-surface-2 before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:rounded-[1px] before:bg-accent";
+  "bg-surface-2 before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:rounded-pill before:bg-accent";
 const itemMainClass =
   "loop-item-main grid min-w-0 items-center gap-3 border-0 bg-transparent py-2.25 pr-1 pl-2.5 text-left";
-const itemTitleClass = "truncate text-[13.5px] font-medium";
+const routeEndClass =
+  "rounded-pill border border-line bg-surface px-2.5 py-1 text-base font-medium text-ink transition-[border-color] hover:border-accent";
+const itemTitleClass = "truncate text-item font-medium";
 const itemRouteClass = "truncate text-sm text-muted";
 
 function segmentClass(active: boolean) {
   return [
-    "inline-flex h-8 items-center justify-center gap-1.5 rounded-[7px] border text-[12.5px] font-medium transition-[background-color,color]",
+    "inline-flex h-8 items-center justify-center gap-1.5 rounded-control border text-note font-medium transition-[background-color,color]",
     active
-      ? "border-line bg-surface text-ink shadow-[0_1px_2px_rgb(24_24_27/0.06)]"
+      ? "border-line bg-surface text-ink shadow-raised"
       : "border-transparent bg-transparent text-muted",
   ];
 }
@@ -884,10 +877,10 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
     })),
   );
   return (
-    <ol class="relative grid gap-0.5 pl-3.5 before:absolute before:top-2.5 before:bottom-2.5 before:left-0.75 before:border-l before:border-dashed before:border-line-strong before:content-[''] after:pt-0.5 after:text-[11.5px] after:text-faint after:content-['先頭に戻る']">
+    <ol class="relative grid gap-0.5 pl-3.5 before:absolute before:top-2.5 before:bottom-2.5 before:left-0.75 before:border-l before:border-dashed before:border-line-strong before:content-[''] after:pt-0.5 after:text-detail after:text-faint after:content-['先頭に戻る']">
       <For each={steps()} keyed={false}>
         {(step) => (
-          <li class="relative flex items-center justify-between gap-2 py-1 text-base before:absolute before:-left-3.5 before:size-1.75 before:rounded-[50%] before:border-[1.5px] before:border-accent before:bg-surface before:content-['']">
+          <li class="relative flex items-center justify-between gap-2 py-1 text-base before:absolute before:-left-3.5 before:size-1.75 before:rounded-circle before:border-[1.5px] before:border-accent before:bg-surface before:content-['']">
             <span>{step().label}</span>
             <PolarityGlyph polarity={step().polarity} />
           </li>
@@ -973,9 +966,9 @@ function LoopItem(props: { entry: LoopEntry; index: number }) {
       >
         <span
           class={[
-            "grid size-7.5 place-items-center rounded-sm font-mono text-sm font-semibold group-hover/item:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.4)]",
+            "grid size-7.5 place-items-center rounded-sm font-mono text-sm font-semibold group-hover/item:shadow-edge-inset",
             badgeColor(props.entry.kind, !!props.entry.featured),
-            { "shadow-[inset_0_0_0_1px_rgb(255_255_255/0.4)]": active() },
+            { "shadow-edge-inset": active() },
           ]}
         >
           {props.entry.featured?.badge ?? (props.entry.kind === "reinforcing" ? "R" : "B")}

@@ -1,5 +1,6 @@
 import { For, Show, useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
+import { DetailList } from "./DetailList.tsx";
 import { CloseIcon } from "./icons.tsx";
 
 export function NoticeView() {
@@ -18,13 +19,8 @@ export function NoticeView() {
             <p class={["font-semibold", { "text-negative": notice.tone === "error" }]}>
               {notice.title}
             </p>
-            <Show when={notice.details?.length}>
-              <ul class="grid gap-0.5 font-mono text-[11.5px] wrap-anywhere text-ink-2">
-                <For each={notice.details?.slice(0, 8)}>{(detail) => <li>{detail}</li>}</For>
-              </ul>
-              <Show when={(notice.details?.length ?? 0) > 8}>
-                <p class="text-sm text-muted">ほか {(notice.details?.length ?? 0) - 8} 件</p>
-              </Show>
+            <Show when={notice.details?.length ? notice.details : undefined} keyed>
+              {(details) => <DetailList items={details} />}
             </Show>
             <Show when={notice.actions?.length}>
               <div class="flex flex-wrap gap-1.5 pt-1">

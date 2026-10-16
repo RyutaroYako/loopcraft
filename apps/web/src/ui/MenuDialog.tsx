@@ -6,7 +6,7 @@ import type { DialogKind } from "./Toolbar.tsx";
 
 const menuItemClass =
   "flex min-h-13 items-center gap-3.5 rounded-md border-0 bg-transparent px-3 py-0 text-left text-lg enabled:hover:bg-surface-2 disabled:cursor-default disabled:opacity-40";
-const noteClass = "ml-auto text-[12.5px] text-muted";
+const noteClass = "ml-auto text-note text-muted";
 
 /** 狭い画面でツールバーに並べないのは、タイトルが読めないほど押し縮められるため */
 export function MenuDialog(props: {
@@ -25,7 +25,7 @@ export function MenuDialog(props: {
       width="w-[min(420px,calc(100vw-32px))]"
       bodyClass="gap-0 px-2 pt-1 pb-2"
       // 画面の中央に出さないのは、狭い画面では上の方の項目に親指が届かないため
-      class="max-md:mx-0 max-md:mt-auto max-md:mb-0 max-md:w-full max-md:max-w-none max-md:rounded-[18px_18px_0_0] max-md:pb-[env(safe-area-inset-bottom)]"
+      class="max-md:mx-0 max-md:mt-auto max-md:mb-0 max-md:w-full max-md:max-w-none max-md:rounded-t-sheet max-md:rounded-b-none max-md:pb-[env(safe-area-inset-bottom)]"
       onClose={props.onClose}
       dialogRef={(element) => (dialog = element)}
       footer={

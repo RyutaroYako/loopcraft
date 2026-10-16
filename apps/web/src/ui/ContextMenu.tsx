@@ -76,10 +76,9 @@ export function ContextMenu(props: {
           <button
             type="button"
             role="menuitem"
-            // hover を別に光らせないのは、指した項目へフォーカスを移すので 2 つ同時に光るため。
             // フォーカスを薄い背景だけにしないのは、白地との差が小さく、キーボードではどの項目が選ばれているか読めないため
             class={[
-              "flex h-8 items-center justify-between gap-3 rounded-xs border-0 bg-transparent px-2.5 py-0 text-left text-base focus:bg-surface-2 focus:outline-none focus-visible:shadow-[inset_0_0_0_1.5px_var(--color-accent)]",
+              "flex h-8 items-center justify-between gap-3 rounded-xs border-0 bg-transparent px-2.5 py-0 text-left text-base focus:bg-surface-2 focus:outline-none focus-visible:shadow-focus-inset",
               item.danger ? "text-negative" : "text-ink disabled:text-faint",
             ]}
             disabled={item.disabled}

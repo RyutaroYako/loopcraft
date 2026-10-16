@@ -4,7 +4,7 @@ import type { DocumentStore } from "../editor/store.ts";
 
 const statusClass =
   "inline-flex h-7 items-center gap-1.75 rounded-pill border px-2.5 py-0 text-sm whitespace-nowrap";
-const dotClass = "size-1.75 rounded-[50%]";
+const dotClass = "size-1.75 rounded-circle";
 
 function labelOf(status: AutosaveStatus, store: DocumentStore, unwatched: boolean) {
   if (status.kind === "failing") return "自動保存できません";
@@ -20,7 +20,7 @@ export function AutosaveIndicator() {
   const status = () => autosave.status();
   const unwatched = () => autosave.unwatched() !== undefined;
   const label = () => labelOf(status(), autosave.store, unwatched());
-  const warning = () => status().kind === "ok";
+  const onlyUnwatched = () => status().kind === "ok";
   const explain = () => {
     if (status().kind !== "ok") autosave.explain(status());
     else autosave.explainUnwatched(autosave.unwatched());
@@ -47,9 +47,9 @@ export function AutosaveIndicator() {
         class={[
           statusClass,
           "font-medium transition-[transform] active:transform-[translateY(1px)_scale(0.98)]",
-          warning()
+          onlyUnwatched()
             ? "border-warning-line bg-warning-soft text-warning"
-            : "border-[rgb(190_52_85/0.3)] bg-negative-soft text-negative",
+            : "border-negative-line-light bg-negative-soft text-negative",
         ]}
         aria-label={`${label()}。詳しく見る`}
         onClick={explain}
@@ -58,7 +58,7 @@ export function AutosaveIndicator() {
           class={[
             dotClass,
             "animate-save-pulse opacity-100",
-            warning() ? "bg-warning-dot" : "bg-negative",
+            onlyUnwatched() ? "bg-warning-dot" : "bg-negative",
           ]}
           aria-hidden="true"
         />

@@ -549,7 +549,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
             </p>
             <button
               type="button"
-              class="button small border-[rgb(255_255_255/0.4)] bg-transparent text-on-strong enabled:hover:border-on-strong enabled:hover:bg-[rgb(255_255_255/0.12)]"
+              class="button small border-on-strong-line bg-transparent text-on-strong enabled:hover:border-on-strong enabled:hover:bg-on-strong-hover"
               onClick={() => editor.stopConnecting()}
             >
               やめる
@@ -580,7 +580,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           <Show when={!isEmpty()}>
             <button
               type="button"
-              class="button primary ml-auto h-12 rounded-xl border-accent bg-accent pr-4.5 pl-3.5 text-lg shadow-[0_10px_24px_-10px_rgb(15_118_110/0.6)] enabled:hover:border-accent-strong enabled:hover:bg-accent-strong"
+              class="button primary ml-auto h-12 rounded-xl border-accent bg-accent pr-4.5 pl-3.5 text-lg shadow-accent enabled:hover:border-accent-strong enabled:hover:bg-accent-strong"
               title="空いた所のダブルクリックでも追加できます"
               onClick={() => editor.addVariableAt(editor.viewCenter())}
             >

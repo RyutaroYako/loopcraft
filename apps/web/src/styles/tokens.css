@@ -18,13 +18,11 @@
   --font-sans: "Geist Variable", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
 
-  /* 文字 */
   --color-ink: #18181b;
   --color-ink-2: #3f3f46;
   --color-muted: #71717a;
   --color-faint: #a1a1aa;
 
-  /* 面と線 */
   --color-surface: #ffffff;
   --color-surface-2: #f4f4f5;
   --color-canvas: #fafafa;
@@ -32,24 +30,23 @@
   --color-line-strong: #d4d4d8;
   --color-scrim: rgb(24 24 27 / 0.32);
   --color-glass: rgb(255 255 255 / 0.92);
+  --color-veil: rgb(250 250 250 / 0.88);
 
-  /* 黒地のボタン */
   --color-ink-hover: #27272a;
   --color-on-ink: #fafafa;
-  /* 強調色や濃い灰色の地に載せる文字 */
   --color-on-strong: #ffffff;
+  --color-on-strong-line: rgb(255 255 255 / 0.4);
+  --color-on-strong-hover: rgb(255 255 255 / 0.12);
 
-  /* 強調 */
   --color-accent: #0f766e;
   --color-accent-strong: #115e59;
   --color-accent-soft: rgb(15 118 110 / 0.09);
 
-  /* 削除・エラー */
   --color-negative: #be3455;
   --color-negative-soft: rgb(190 52 85 / 0.08);
   --color-negative-line: rgb(190 52 85 / 0.35);
+  --color-negative-line-light: rgb(190 52 85 / 0.3);
 
-  /* 注意 */
   --color-warning: #8a5a0b;
   --color-warning-soft: #fdf8ec;
   --color-warning-line: rgb(161 98 7 / 0.3);
@@ -57,21 +54,37 @@
 
   --text-2xs: 10.5px;
   --text-xs: 11px;
+  /* 段の間の大きさを 2xs〜xl に混ぜないのは、名前の並びが崩れ、どれが基本の段か読めなくなるため */
+  --text-detail: 11.5px;
   --text-sm: 12px;
+  --text-note: 12.5px;
   --text-base: 13px;
+  --text-item: 13.5px;
   --text-md: 14px;
   --text-lg: 15px;
   --text-xl: 17px;
 
+  --radius-glyph: 5px;
   --radius-xs: 6px;
+  --radius-control: 7px;
   --radius-sm: 8px;
+  --radius-button: 9px;
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-sheet: 18px;
   /* rounded-full にしないのは、計算値が 999px でなく無限大になり、移行前と見比べられなくなるため */
   --radius-pill: 999px;
+  --radius-circle: 50%;
 
   --shadow-float: 0 1px 2px rgb(24 24 27 / 0.04), 0 8px 24px -12px rgb(24 24 27 / 0.18);
+  --shadow-raised: 0 1px 2px rgb(24 24 27 / 0.06);
+  --shadow-knob: 0 1px 2px rgb(24 24 27 / 0.2);
+  --shadow-accent: 0 10px 24px -10px rgb(15 118 110 / 0.6);
+  --shadow-sheet: 0 -1px 0 var(--color-line), 0 -12px 32px -16px rgb(24 24 27 / 0.22);
+  --shadow-focus-inset: inset 0 0 0 1.5px var(--color-accent);
+  --shadow-edge-inset: inset 0 0 0 1px var(--color-on-strong-line);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --default-transition-duration: 0.2s;
