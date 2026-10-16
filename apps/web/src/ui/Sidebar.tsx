@@ -19,6 +19,7 @@ import { defaultCurvature } from "@loopcraft/core/geometry";
 import type { LoopKind } from "@loopcraft/core/loop";
 import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
 import { createBottomSheet, SheetHandle } from "./BottomSheet.tsx";
+import { togglePolarityLabel } from "./linkLabels.ts";
 import { ArrowRightIcon, PinIcon, TrashIcon } from "./icons.tsx";
 
 /** 狭い画面用に別の部品を作らないのは、中身も状態も同じで、並べ方だけが違うため */
@@ -53,7 +54,6 @@ export function Sidebar() {
   );
 }
 
-/** 畳んだシートの上端に、選んだ項目の名前とよく使う操作だけを出す */
 function SelectionBar(props: { onExpand: () => void }) {
   const editor = useContext(EditorContext);
   const variableId = () => {
@@ -77,7 +77,12 @@ function SelectionBar(props: { onExpand: () => void }) {
   return (
     <Show when={editor.selection()}>
       <div class="selection-bar" role="toolbar" aria-label="選んだ項目の操作">
-        <p class="selection-bar-title">{title()}</p>
+        <div class="selection-bar-head">
+          <p class="selection-bar-title">{title()}</p>
+          <button type="button" class="button ghost small" onClick={props.onExpand}>
+            詳しく
+          </button>
+        </div>
         <div class="selection-bar-actions">
           <Show when={editor.editable()}>
             <Show when={variableId()} keyed>
@@ -108,7 +113,7 @@ function SelectionBar(props: { onExpand: () => void }) {
                   class="button ghost small"
                   onClick={() => editor.commit(edit.togglePolarity(editor.current(), current.id))}
                 >
-                  {current.polarity === "-" ? "極性を + に" : "極性を − に"}
+                  {togglePolarityLabel(current.polarity)}
                 </button>
               )}
             </Show>
@@ -123,9 +128,6 @@ function SelectionBar(props: { onExpand: () => void }) {
               </button>
             </Show>
           </Show>
-          <button type="button" class="button ghost small" onClick={props.onExpand}>
-            詳しく
-          </button>
         </div>
       </div>
     </Show>

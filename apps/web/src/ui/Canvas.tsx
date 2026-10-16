@@ -3,6 +3,7 @@ import { EditorContext, type Gesture } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
 import type { LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
 import { ContextMenu, type MenuItem, type MenuState } from "./ContextMenu.tsx";
+import { togglePolarityLabel } from "./linkLabels.ts";
 import {
   InlineLabelEditor,
   LinkDraftView,
@@ -283,7 +284,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     const link = editor.linkById().get(id);
     return [
       {
-        label: link?.polarity === "-" ? "極性を +（同じ向き）にする" : "極性を −（逆向き）にする",
+        label: togglePolarityLabel(link?.polarity),
         run: () => editor.commit(edit.togglePolarity(editor.current(), id)),
       },
       {
@@ -380,14 +381,13 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     { defer: true },
   );
 
-  /** 最後に押したポインタの種類。dblclick 自体はどの入力から来たかを持たない */
+  // dblclick 自体に pointerType を持たせられないので、直前の pointerdown から覚えておく
   let lastPointerType = "mouse";
 
   // event.target で振り分けないのは、ドラッグ中のキャプチャで dblclick の target が常に svg になるため
   const onDoubleClick = (event: MouseEvent) => {
-    // 指で受けないのは、パンや選び直しのつもりの素早い 2 回のタップで、変数ができたり入力欄が開いたりするため。
-    // 指では下端の「変数を追加」と、選んだときの「名前を変える」を使う
-    if (lastPointerType === "touch") return;
+    // 指やペンで受けないのは、パンや選び直しのつもりの素早い 2 回のタップで、変数ができたり入力欄が開いたりするため
+    if (lastPointerType !== "mouse") return;
     const point = worldPoint(event);
     const node = nodeAt(point);
     if (node) {
@@ -651,13 +651,15 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
             </p>
           }
         >
-          <p class="canvas-hint">
-            <span class="for-mouse">ダブルクリックで変数を追加</span>
-            <span class="for-mouse">右端の点をドラッグで関連</span>
-            <span class="for-mouse">
+          <p class="canvas-hint for-touch">
+            <span>変数を選ぶと、名前の変更・矢印・削除ができます</span>
+          </p>
+          <p class="canvas-hint for-mouse">
+            <span>ダブルクリックで変数を追加</span>
+            <span>右端の点をドラッグで関連</span>
+            <span>
               <kbd>Delete</kbd> で削除
             </span>
-            <span class="for-touch">変数を選ぶと、下に名前の変更・矢印・削除が出ます</span>
           </p>
         </Show>
       </Show>

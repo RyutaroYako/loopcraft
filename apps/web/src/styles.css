@@ -1239,18 +1239,40 @@ button.save-status.warning .save-dot {
   display: none;
 }
 
-/* 文言を 1 つにまとめないのは、ダブルクリックや右クリックが指では使えず、案内が嘘になるため */
-.for-touch {
-  display: none;
+/* 文言を 1 つにまとめないのは、ダブルクリックや右クリックが指では使えず、案内が嘘になるため。
+   表示する側を display で指定しないのは、要素ごとの display（flex など）を上書きしてしまうため */
+@media not (pointer: coarse) {
+  .for-touch {
+    display: none !important;
+  }
 }
 
 @media (pointer: coarse) {
-  .for-touch {
-    display: revert;
+  .for-mouse {
+    display: none !important;
+  }
+}
+
+/* 広い画面の指でも下端に足すボタンを出すのは、ダブルタップで足せないため。
+   履歴はツールバーにあるので出さない */
+@media (pointer: coarse) and (min-width: 768px) {
+  .canvas-actions {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
   }
 
-  .for-mouse {
+  .canvas-history {
     display: none;
+  }
+
+  .canvas-add.button {
+    height: 48px;
+  }
+
+  .canvas-hint {
+    bottom: 76px;
   }
 }
 
@@ -1934,13 +1956,21 @@ button.save-status.warning .save-dot {
     z-index: 1;
     display: grid;
     flex: none;
-    gap: 6px;
-    padding: 0 16px 10px;
+    gap: 2px;
+    padding: 0 16px 6px;
     border-bottom: 1px solid var(--line);
     background: var(--surface);
   }
 
+  .selection-bar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
   .selection-bar-title {
+    min-width: 0;
     overflow: hidden;
     font-size: 15px;
     font-weight: 600;
@@ -1948,19 +1978,17 @@ button.save-status.warning .save-dot {
     white-space: nowrap;
   }
 
+  /* 折り返さないのは、畳んだシートの高さに収まらず、2 段目の操作が隠れるため */
   .selection-bar-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     gap: 4px;
     margin-left: -8px;
   }
 
   .selection-bar-actions .button {
     min-height: 40px;
-  }
-
-  .selection-bar-actions .button:last-child {
-    margin-left: auto;
   }
 
   .sheet-grip {

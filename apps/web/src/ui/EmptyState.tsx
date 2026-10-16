@@ -47,7 +47,7 @@ export function EmptyState() {
                 変数の右端の点を<strong>ドラッグ</strong>して因果の矢印を引く
               </span>
               <span class="for-touch">
-                変数を選んで<strong>「矢印を引く」</strong>から因果の矢印を引く
+                変数を選んで、<strong>矢印を引くボタン</strong>から因果の矢印を引く
               </span>
             </span>
           </li>
