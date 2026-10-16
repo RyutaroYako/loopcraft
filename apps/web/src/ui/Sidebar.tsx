@@ -734,6 +734,7 @@ function LinkInspector(props: { id: LinkId }) {
       <label class="relative grid cursor-pointer grid-cols-[auto_1fr] items-start gap-3">
         <input
           class="peer pointer-events-none absolute opacity-0"
+          role="switch"
           name="delay"
           type="checkbox"
           checked={link()?.delay ?? false}

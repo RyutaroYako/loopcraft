@@ -84,6 +84,7 @@ export function SheetHandle(props: { sheet: ReturnType<typeof createBottomSheet>
       type="button"
       class="sticky top-0 z-1 hidden h-6 w-full flex-none cursor-grab touch-none place-items-center bg-surface max-md:grid"
       aria-label={props.sheet.size() === "full" ? "パネルを畳む" : "パネルを広げる"}
+      aria-expanded={props.sheet.size() === "peek" ? "false" : "true"}
       onClick={handle.onClick}
       onPointerDown={handle.onPointerDown}
       onPointerMove={handle.onPointerMove}

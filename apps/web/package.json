@@ -23,6 +23,7 @@
     "@tailwindcss/vite": "catalog:",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "catalog:",
+    "axe-core": "catalog:",
     "jsdom": "30.1.2",
     "playwright": "1.64.0",
     "tailwindcss": "catalog:",

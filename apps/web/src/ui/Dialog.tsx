@@ -39,7 +39,8 @@ export function Dialog(props: {
         if (event.target === event.currentTarget) event.currentTarget.close();
       }}
     >
-      <header class="flex items-center justify-between gap-3 pt-3 pr-3 pb-1 pl-5">
+      {/* header と footer にしないのは、dialog は区分コンテンツでなく、ページ全体のバナーや末尾と同じ役割に数えられるため */}
+      <div class="flex items-center justify-between gap-3 pt-3 pr-3 pb-1 pl-5">
         <h2 class="text-lg font-semibold tracking-heading">{props.title}</h2>
         <button
           type="button"
@@ -49,13 +50,11 @@ export function Dialog(props: {
         >
           <CloseIcon />
         </button>
-      </header>
+      </div>
       <div class={["grid min-h-0 overflow-auto", props.bodyClass ?? "gap-3 px-5 pt-2 pb-4"]}>
         {props.children}
       </div>
-      <footer class="flex items-center gap-2 border-t border-line px-5 pt-3 pb-4">
-        {props.footer}
-      </footer>
+      <div class="flex items-center gap-2 border-t border-line px-5 pt-3 pb-4">{props.footer}</div>
     </dialog>
   );
 }
