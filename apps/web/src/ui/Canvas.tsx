@@ -411,8 +411,11 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     };
   };
 
-  const onTouchDown = (event: PointerEvent) => {
+  const rememberPointerType = (event: PointerEvent) => {
     lastPointerType = event.pointerType;
+  };
+
+  const onTouchDown = (event: PointerEvent) => {
     if (event.pointerType !== "touch") return;
     // 主の指で数え直すのは、キャンバスの外で離された指の pointerup が届かず、数が残ることがあるため
     if (event.isPrimary) {
@@ -467,6 +470,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     props.svgRef?.(element);
     element.addEventListener("wheel", onWheel, { passive: false });
     // JSX の onPointerDown で受けないのは、変数のハンドラが先に伝播を止め、2 本目の指を数えられないため
+    element.addEventListener("pointerdown", rememberPointerType, true);
     element.addEventListener("pointerdown", onTouchDown, true);
     element.addEventListener("pointermove", onTouchMove, true);
     element.addEventListener("pointerup", onTouchUp, true);

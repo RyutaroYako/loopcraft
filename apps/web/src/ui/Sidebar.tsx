@@ -106,14 +106,15 @@ function SelectionBar(props: { onExpand: () => void }) {
                 </>
               )}
             </Show>
-            <Show when={link()} keyed>
-              {(current) => (
+            {/* 変数と違い、矢印そのものでキーにしないのは、極性を変えるたびにボタンが作り直され、フォーカスが外れるため */}
+            <Show when={link()?.id} keyed>
+              {(id) => (
                 <button
                   type="button"
                   class="button ghost small"
-                  onClick={() => editor.commit(edit.togglePolarity(editor.current(), current.id))}
+                  onClick={() => editor.commit(edit.togglePolarity(editor.current(), id))}
                 >
-                  {togglePolarityLabel(current.polarity)}
+                  {togglePolarityLabel(editor.linkById().get(id)?.polarity)}
                 </button>
               )}
             </Show>

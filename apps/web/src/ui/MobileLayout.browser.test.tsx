@@ -136,7 +136,6 @@ describe("狭い画面", () => {
 
       await bar().getByRole("button", { name: "詳しく" }).click();
       await expect.poll(() => sheet().dataset.size).toBe("half");
-      // 広げたら検査パネルに同じ操作があるので、上端の操作は隠す
       await expect
         .poll(() => getComputedStyle(document.querySelector(".selection-bar")!).display)
         .toBe("none");
@@ -152,6 +151,21 @@ describe("狭い画面", () => {
       await expect.poll(() => sheet().dataset.size).toBe("peek");
       await bar().getByRole("button", { name: "削除" }).click();
       await expect.element(node("社員数")).not.toBeInTheDocument();
+    });
+  });
+
+  it("上端の操作で矢印の極性を切り替えても、ボタンからフォーカスが外れない", async () => {
+    await atPhoneSize(async () => {
+      const link = page.getByRole("button", { name: /^社員数から売上への関連、極性プラス/ });
+      (link.element() as SVGGElement).focus();
+      const bar = page.getByRole("toolbar", { name: "選んだ項目の操作" });
+      const toMinus = bar.getByRole("button", { name: "極性を −（逆向き）にする" });
+      await expect.element(toMinus).toBeVisible();
+      (toMinus.element() as HTMLButtonElement).focus();
+      await userEvent.keyboard("{Enter}");
+      const toPlus = bar.getByRole("button", { name: "極性を +（同じ向き）にする" });
+      await expect.element(toPlus).toHaveFocus();
+      expect(sheet().dataset.size).toBe("peek");
     });
   });
 

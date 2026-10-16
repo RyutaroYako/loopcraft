@@ -1253,8 +1253,7 @@ button.save-status.warning .save-dot {
   }
 }
 
-/* 広い画面の指でも下端に足すボタンを出すのは、ダブルタップで足せないため。
-   履歴はツールバーにあるので出さない */
+/* 履歴をここに出さないのは、広い画面ではツールバーに既にあるため */
 @media (pointer: coarse) and (min-width: 768px) {
   .canvas-actions {
     position: absolute;
