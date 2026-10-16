@@ -48,8 +48,10 @@ export function Sidebar() {
     >
       <SheetHandle sheet={sheet} />
       {/* 選んだときにシートを上げないのは、動かそうと触れた変数や、その行き先がシートの下に隠れるため */}
-      <SelectionBar onExpand={() => sheet.setSize("half")} />
-      <Inspector />
+      <div class="sidebar-top">
+        <SelectionBar onExpand={() => sheet.setSize("half")} />
+        <Inspector />
+      </div>
       <Browser />
     </aside>
   );
@@ -76,29 +78,30 @@ function SelectionBar(props: { onExpand: () => void }) {
   };
   return (
     <Show when={editor.selection()}>
-      <div class="selection-bar" role="toolbar" aria-label="選んだ項目の操作">
+      <div class="selection-bar">
         <div class="selection-bar-head">
           <p class="selection-bar-title">{title()}</p>
           <button type="button" class="button ghost small sheet-expand" onClick={props.onExpand}>
             詳しく
           </button>
         </div>
-        <div class="selection-bar-actions">
-          {/* 項目でキーにしないのは、極性を変えるたびに一覧が作り直され、押したボタンからフォーカスが外れるため */}
-          <For each={actions()} keyed={false}>
-            {(action) => (
-              <button
-                type="button"
-                class={["button ghost small", { "danger-text": action().danger }]}
-                disabled={action().disabled}
-                title={action().shortcut && `${action().shortcut} キーでも操作できます`}
-                onClick={() => action().run()}
-              >
-                {action().label}
-              </button>
-            )}
-          </For>
-        </div>
+        <Show when={actions().length > 0}>
+          <div class="selection-bar-actions" role="toolbar" aria-label="選んだ項目の操作">
+            {/* 項目でキーにしないのは、極性を変えるたびに一覧が作り直され、押したボタンからフォーカスが外れるため */}
+            <For each={actions()} keyed={false}>
+              {(action) => (
+                <button
+                  type="button"
+                  class={["button ghost small", { "danger-text": action().danger }]}
+                  disabled={action().disabled}
+                  onClick={() => action().run()}
+                >
+                  {action().label}
+                </button>
+              )}
+            </For>
+          </div>
+        </Show>
       </div>
     </Show>
   );

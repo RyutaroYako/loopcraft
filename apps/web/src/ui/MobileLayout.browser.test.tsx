@@ -134,7 +134,7 @@ describe("狭い画面", () => {
       await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
       await userEvent.keyboard("{Escape}");
 
-      await bar().getByRole("button", { name: "詳しく" }).click();
+      await button("詳しく").click();
       await expect.poll(() => sheet().dataset.size).toBe("half");
       await expect.element(bar()).toBeVisible();
       await expect
@@ -277,7 +277,7 @@ describe("指での操作", () => {
       await expect.poll(() => sheet().dataset.size).toBe("peek");
       await expect
         .poll(() => document.querySelector(".connect-banner [role=status]")?.textContent)
-        .toMatch(/^「利益」からつなぐ先をタップ/);
+        .toMatch(/^「利益」からつなぐ先を選ぶ/);
 
       // 変数の端の点に触れても、その変数に触れたのと同じ
       const handle = nodeElement("training").querySelector(".node-handle")!;
@@ -375,6 +375,10 @@ describe("メニュー", () => {
         await expect.element(menuItem("整列")).not.toBeInTheDocument();
         await expect.element(menuItem("読み込み")).not.toBeInTheDocument();
         await expect.element(button("変数を追加")).not.toBeInTheDocument();
+        await userEvent.keyboard("{Escape}");
+        nodeElement("sales").focus();
+        await expect.element(button("詳しく")).toBeVisible();
+        expect(document.querySelector('[aria-label="選んだ項目の操作"]')).toBeNull();
       },
       fileStartup(
         { status: "ok", revision: "r", diagram: createSampleDiagram() },

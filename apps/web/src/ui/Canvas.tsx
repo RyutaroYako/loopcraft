@@ -540,7 +540,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           <div class="connect-banner">
             <p role="status">
               「{editor.variableById().get(from)?.label || "名称未設定"}
-              」からつなぐ先をタップ
+              」からつなぐ先を選ぶ
               <span class="connect-banner-note">空いた所なら新しい変数につなぐ</span>
             </p>
             <button type="button" class="button small" onClick={() => editor.stopConnecting()}>

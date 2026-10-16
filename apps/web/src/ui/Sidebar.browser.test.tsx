@@ -91,15 +91,18 @@ describe("変数", () => {
   it("広い画面でも、選んだ項目の操作から矢印を引き、下端のボタンで変数を足す", async () => {
     await open();
     const bar = page.getByRole("toolbar", { name: "選んだ項目の操作" });
+    const listTop = () => document.querySelector(".browser")!.getBoundingClientRect().top;
+    const before = listTop();
     nodeElement("profit").focus();
     await expect.element(bar).toBeVisible();
+    expect(listTop()).toBe(before);
     expect(getComputedStyle(document.querySelector(".sheet-expand")!).display).toBe("none");
 
     const links = () => document.querySelectorAll("[data-link-id]").length;
-    const before = links();
+    const linkCount = links();
     await bar.getByRole("button", { name: "矢印を引く" }).click();
     await node("教育コスト").click();
-    expect(links()).toBe(before + 1);
+    expect(links()).toBe(linkCount + 1);
     await expect.element(heading("関連")).toBeVisible();
 
     const variables = () => document.querySelectorAll("[data-variable-id]").length;
