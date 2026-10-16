@@ -604,19 +604,10 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         </button>
       </div>
 
-      <Show when={!isEmpty()}>
-        <Show
-          when={editor.editable()}
-          fallback={
-            <p class="canvas-hint">
-              <span>ドラッグで移動、Ctrl+ホイールで拡大縮小</span>
-            </p>
-          }
-        >
-          <p class="canvas-hint">
-            <span>変数を選ぶと、名前の変更・矢印・削除ができます</span>
-          </p>
-        </Show>
+      <Show when={!isEmpty() && !editor.editable()}>
+        <p class="canvas-hint">
+          <span>ドラッグで移動、Ctrl+ホイールで拡大縮小</span>
+        </p>
       </Show>
     </div>
   );

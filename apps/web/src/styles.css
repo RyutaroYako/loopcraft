@@ -799,10 +799,6 @@ button.save-status.warning .save-dot {
   pointer-events: none;
 }
 
-.canvas-actions ~ .canvas-hint {
-  bottom: 76px;
-}
-
 .empty-state {
   position: absolute;
   top: clamp(32px, 14%, 140px);
