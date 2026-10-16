@@ -89,6 +89,14 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
   const onNodePointerDown = (event: PointerEvent, id: VariableId) => {
     if (!canStartDrag(event)) return;
+    const from = editor.connectingFrom();
+    if (from !== null) {
+      // 止めないと、押した変数にフォーカスが移り、選択がつないだ矢印からその変数に戻る
+      event.preventDefault();
+      editor.stopConnecting();
+      if (from !== id) editor.connect(from, id);
+      return;
+    }
     editor.select({ kind: "variable", id });
     if (editor.editingVariable() === id) return;
     editor.setEditingVariable(null);
@@ -104,6 +112,8 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   };
 
   const onHandlePointerDown = (event: PointerEvent, from: VariableId) => {
+    // 点に触れても変数に触れたのと同じに扱うのは、指では点と変数を打ち分けられないため
+    if (editor.connectingFrom() !== null) return onNodePointerDown(event, from);
     if (!canStartDrag(event)) return;
     editor.setEditingVariable(null);
     startDrag(event, () => ({ kind: "connect", from }));
@@ -193,6 +203,13 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     switch (finished.kind) {
       case "pan":
         if (!finished.moved && !cancelled) {
+          const from = editor.connectingFrom();
+          if (from !== null) {
+            editor.stopConnecting();
+            const point = worldPoint(event);
+            editor.connectToNewVariable(from, { x: Math.round(point.x), y: Math.round(point.y) });
+            return;
+          }
           editor.select(null);
           editor.setFocusedLoop(null);
         }
@@ -359,6 +376,50 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     editor.addVariableAt({ x: Math.round(point.x), y: Math.round(point.y) });
   };
 
+  const touches = new Map<number, Point>();
+  let pinch: { distance: number; center: Point } | undefined;
+
+  const measurePinch = () => {
+    const [a, b] = [...touches.values()] as [Point, Point];
+    return {
+      distance: Math.hypot(a.x - b.x, a.y - b.y),
+      center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    };
+  };
+
+  const onTouchDown = (event: PointerEvent) => {
+    if (event.pointerType !== "touch") return;
+    touches.set(event.pointerId, screenPoint(event));
+    if (touches.size !== 2) return;
+    // 2 本目の指を通さないのは、乗った変数を選んだり動かし始めたりしないため
+    event.stopPropagation();
+    // 1 本目のドラッグを続けないのは、変数を動かしながら拡大縮小すると狙いが定まらないため
+    cancelDrag();
+    for (const id of touches.keys()) {
+      try {
+        svg!.setPointerCapture(id);
+      } catch {
+        // 既に離された指はキャプチャできないが、次の pointerup で数え直す
+      }
+    }
+    pinch = measurePinch();
+  };
+
+  const onTouchMove = (event: PointerEvent) => {
+    if (!touches.has(event.pointerId)) return;
+    touches.set(event.pointerId, screenPoint(event));
+    if (!pinch || touches.size !== 2) return;
+    const next = measurePinch();
+    editor.zoomAt(next.center, next.distance / Math.max(1, pinch.distance));
+    editor.panBy(next.center.x - pinch.center.x, next.center.y - pinch.center.y);
+    pinch = next;
+  };
+
+  const onTouchUp = (event: PointerEvent) => {
+    touches.delete(event.pointerId);
+    if (touches.size < 2) pinch = undefined;
+  };
+
   const onWheel = (event: WheelEvent) => {
     event.preventDefault();
     if (event.ctrlKey || event.metaKey) {
@@ -372,6 +433,11 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     svg = element;
     props.svgRef?.(element);
     element.addEventListener("wheel", onWheel, { passive: false });
+    // 捕捉段階で受けるのは、2 本目の指が変数の上に乗っても、変数より先に止めるため
+    element.addEventListener("pointerdown", onTouchDown, true);
+    element.addEventListener("pointermove", onTouchMove, true);
+    element.addEventListener("pointerup", onTouchUp, true);
+    element.addEventListener("pointercancel", onTouchUp, true);
   };
 
   let container: HTMLDivElement | undefined;
@@ -473,6 +539,21 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
       <Show when={isEmpty()}>
         <EmptyState />
+      </Show>
+
+      <Show when={editor.connectingFrom()} keyed>
+        {(from) => (
+          <div class="connect-banner">
+            <p role="status">
+              「{editor.variableById().get(from)?.label || "名称未設定"}
+              」からつなぐ先をタップ
+              <span class="connect-banner-note">空いた所なら新しい変数につなぐ</span>
+            </p>
+            <button type="button" class="button small" onClick={() => editor.stopConnecting()}>
+              やめる
+            </button>
+          </div>
+        )}
       </Show>
 
       <Show when={menu()} keyed>

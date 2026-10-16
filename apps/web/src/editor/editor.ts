@@ -90,6 +90,8 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   const [hoveredLoop, setHoveredLoop] = createSignal<string | null>(null);
   /** selection で表さないのは、見出していないループには LoopId が無いため */
   const [focusedLoop, setFocusedLoop] = createSignal<string | null>(null);
+  /** ドラッグで引くだけにしないのは、指では変数の端の小さな点を狙いにくいため */
+  const [connectingSource, setConnectingSource] = createSignal<VariableId | null>(null);
   const [viewport, setViewport] = createSignal<Viewport>({ x: 0, y: 0, zoom: 1 });
   /** シグナルにしないのは、描画には使わないため */
   let currentSize: Size = { width: 0, height: 0 };
@@ -362,6 +364,22 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     }
   }
 
+  // 消えた変数のまま待たせないのは、元に戻すや削除で元の変数が無くなることがあるため
+  const connectingFrom = () => {
+    const id = connectingSource();
+    return id !== null && variableById().has(id) ? id : null;
+  };
+
+  function startConnecting(id: VariableId) {
+    if (!isEditable) return;
+    setEditingVariable(null);
+    setConnectingSource(id);
+  }
+
+  function stopConnecting() {
+    setConnectingSource(null);
+  }
+
   function setEditingVariable(id: VariableId | null) {
     if (id !== null && !isEditable) return;
     setEditingVariableSignal(id);
@@ -511,6 +529,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     editingVariable,
     hoveredLoop,
     focusedLoop,
+    connectingFrom,
     viewport,
     notice,
 
@@ -523,6 +542,8 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     setEditingVariable,
     setHoveredLoop,
     setFocusedLoop,
+    startConnecting,
+    stopConnecting,
     setViewportSize,
     dismissNotice,
     notify,

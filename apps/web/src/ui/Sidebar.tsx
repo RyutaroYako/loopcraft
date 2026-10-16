@@ -6,6 +6,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  untrack,
   useContext,
 } from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
@@ -45,7 +46,16 @@ export function Sidebar() {
     () => editor.selection(),
     (selection) => {
       // 畳んだままにしないのは、選んだ項目の編集欄がシートの外に隠れるため
-      if (selection && size() === "peek") setSize("half");
+      if (selection && untrack(size) === "peek") setSize("half");
+    },
+    { defer: true },
+  );
+
+  createEffect(
+    () => editor.connectingFrom(),
+    (from) => {
+      // 開いたままにしないのは、つなぐ先の変数がシートの下に隠れるため
+      if (from !== null) setSize("peek");
     },
     { defer: true },
   );
@@ -485,6 +495,16 @@ function VariableInspector(props: { id: VariableId }) {
         placeholder="例: 売上"
         onInput={(label) => update({ label }, "label")}
       />
+      <Show when={editor.editable()}>
+        <button
+          type="button"
+          class="button connect-start"
+          onClick={() => editor.startConnecting(props.id)}
+        >
+          <ArrowRightIcon />
+          キャンバスで矢印を引く
+        </button>
+      </Show>
       <Field
         name="variable-description"
         label="説明"

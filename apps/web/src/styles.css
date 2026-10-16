@@ -1118,6 +1118,76 @@ button.save-status.warning .save-dot {
   opacity: 1;
 }
 
+.connect-banner {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 480px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-float);
+  animation: rise 0.3s var(--ease-out) both;
+}
+
+.connect-banner p {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.connect-banner-note {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+.connect-banner .button {
+  border-color: rgb(255 255 255 / 0.4);
+  background: transparent;
+  color: #fff;
+}
+
+.connect-banner .button:hover:not(:disabled) {
+  border-color: #fff;
+  background: rgb(255 255 255 / 0.12);
+}
+
+/* 指で操るときだけ出すのは、マウスなら変数の右端の点をドラッグする方が早いため */
+.connect-start {
+  display: none;
+  justify-self: start;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .connect-start {
+    display: inline-flex;
+  }
+}
+
+/* 指では 9px の点に当たらないので、当たり判定と見た目の点を大きくする */
+@media (pointer: coarse) {
+  .node-handle-hit {
+    r: 22px;
+  }
+
+  .node-handle-dot {
+    r: 7px;
+  }
+
+  /* 見えない点に当たらないようにする。ホバーの無い指では、選んだ変数の点しか見えない */
+  .node:not(.selected) .node-handle {
+    pointer-events: none;
+  }
+}
+
 /* 広い画面では一覧とキャンバスが並ぶので、シートの取っ手と下端の操作は要らない */
 .sheet-handle,
 .canvas-actions {
@@ -1867,6 +1937,15 @@ button.save-status.warning .save-dot {
 
   .canvas-history .icon-button {
     width: 44px;
+    height: 44px;
+  }
+
+  /* 右上の全体表示と重ならないように空ける */
+  .connect-banner {
+    right: 64px;
+  }
+
+  .connect-start {
     height: 44px;
   }
 
