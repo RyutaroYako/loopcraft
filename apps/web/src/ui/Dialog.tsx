@@ -38,7 +38,7 @@ export function Dialog(props: {
       }}
     >
       <header class="flex items-center justify-between gap-3 pt-3 pr-3 pb-1 pl-5">
-        <h2 class="text-lg font-semibold tracking-[-0.01em]">{props.title}</h2>
+        <h2 class="text-lg font-semibold tracking-heading">{props.title}</h2>
         <button
           type="button"
           class="icon-button"

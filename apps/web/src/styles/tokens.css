@@ -11,6 +11,7 @@
   --radius-*: initial;
   --shadow-*: initial;
   --container-*: initial;
+  --tracking-*: initial;
 
   /* spacing を px で持つのは、既定の 0.25rem だと :root の 14px に引きずられ、gap-6 が 24px でなく 21px になるため */
   --spacing: 4px;
@@ -28,9 +29,9 @@
   --color-canvas: #fafafa;
   --color-line: #e4e4e7;
   --color-line-strong: #d4d4d8;
+  --color-link: #8b8b94;
   --color-scrim: rgb(24 24 27 / 0.32);
   --color-glass: rgb(255 255 255 / 0.92);
-  --color-veil: rgb(250 250 250 / 0.88);
 
   --color-ink-hover: #27272a;
   --color-on-ink: #fafafa;
@@ -41,11 +42,12 @@
   --color-accent: #0f766e;
   --color-accent-strong: #115e59;
   --color-accent-soft: rgb(15 118 110 / 0.09);
+  --color-accent-tint: #f0f8f7;
 
   --color-negative: #be3455;
   --color-negative-soft: rgb(190 52 85 / 0.08);
+  --color-negative-tint: #fdf4f6;
   --color-negative-line: rgb(190 52 85 / 0.35);
-  --color-negative-line-light: rgb(190 52 85 / 0.3);
 
   --color-warning: #8a5a0b;
   --color-warning-soft: #fdf8ec;
@@ -54,25 +56,21 @@
 
   --text-2xs: 10.5px;
   --text-xs: 11px;
-  /* 段の間の大きさを 2xs〜xl に混ぜないのは、名前の並びが崩れ、どれが基本の段か読めなくなるため */
-  --text-detail: 11.5px;
   --text-sm: 12px;
-  --text-note: 12.5px;
   --text-base: 13px;
-  --text-item: 13.5px;
   --text-md: 14px;
   --text-lg: 15px;
   --text-xl: 17px;
 
-  --radius-glyph: 5px;
+  --tracking-display: -0.02em;
+  --tracking-heading: -0.01em;
+  --tracking-label: 0.08em;
+
   --radius-xs: 6px;
-  --radius-control: 7px;
   --radius-sm: 8px;
-  --radius-button: 9px;
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 14px;
-  --radius-2xl: 16px;
   --radius-sheet: 18px;
   /* rounded-full にしないのは、計算値が 999px でなく無限大になり、移行前と見比べられなくなるため */
   --radius-pill: 999px;

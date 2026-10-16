@@ -173,7 +173,7 @@ function Browser() {
               onClick={() => setTab(item.value)}
             >
               {item.label}
-              <span class="font-mono text-detail text-muted">
+              <span class="font-mono text-xs text-muted">
                 {item.count()}
                 <span class="sr-only">件</span>
               </span>
@@ -345,7 +345,7 @@ function SectionHeading(props: { kicker: string; title: string }) {
   return (
     <header class="grid gap-0.5">
       <p class="eyebrow">{props.kicker}</p>
-      <h2 class="text-xl font-semibold tracking-[-0.015em]">{props.title}</h2>
+      <h2 class="text-xl font-semibold tracking-heading">{props.title}</h2>
     </header>
   );
 }
@@ -583,7 +583,7 @@ function RelationList(props: {
       <p class="field-label">{props.title}</p>
       <Show
         when={props.links.length > 0}
-        fallback={<p class="text-note text-muted">{props.empty}</p>}
+        fallback={<p class="text-sm text-muted">{props.empty}</p>}
       >
         <ul class="grid gap-0.5">
           <For each={props.links}>
@@ -622,7 +622,7 @@ function RelationPicker(props: {
   return (
     <div class="relation-picker mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] gap-1">
       <select
-        class="h-7 w-full min-w-0 cursor-pointer rounded-control border border-dashed border-line-strong bg-transparent px-1.5 py-0 text-note text-muted transition-[border-color] hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink"
+        class="h-7 w-full min-w-0 cursor-pointer rounded-xs border border-dashed border-line-strong bg-transparent px-1.5 py-0 text-sm text-muted transition-[border-color] hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink"
         name={props.label}
         aria-label={props.label}
         onChange={(event) => setChosen(event.currentTarget.value as VariableId | "")}
@@ -659,7 +659,7 @@ function PolarityGlyph(props: { polarity: "+" | "-" }) {
   return (
     <span
       class={[
-        "inline-grid size-4.5 flex-none place-items-center rounded-glyph font-mono text-sm font-semibold",
+        "inline-grid size-4.5 flex-none place-items-center rounded-xs font-mono text-sm font-semibold",
         props.polarity === "+" ? "bg-surface-2 text-ink" : "bg-negative-soft text-negative",
       ]}
     >
@@ -824,7 +824,7 @@ const inspectorElement = () => document.querySelector<HTMLElement>(".inspector")
 
 const inspectorBodyClass =
   "grid animate-[rise_0.35s_var(--ease-out)_both] gap-4.5 px-5 pt-5 pb-4.5";
-const emptyClass = "grid content-start justify-items-start gap-2.5 px-5 py-2 text-note text-muted";
+const emptyClass = "grid content-start justify-items-start gap-2.5 px-5 py-2 text-sm text-muted";
 const itemsClass =
   "grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto px-2.5 pb-5 max-md:flex-none max-md:overflow-visible";
 const itemClass =
@@ -836,12 +836,12 @@ const itemMainClass =
   "loop-item-main grid min-w-0 items-center gap-3 border-0 bg-transparent py-2.25 pr-1 pl-2.5 text-left";
 const routeEndClass =
   "rounded-pill border border-line bg-surface px-2.5 py-1 text-base font-medium text-ink transition-[border-color] hover:border-accent";
-const itemTitleClass = "truncate text-item font-medium";
+const itemTitleClass = "truncate text-base font-medium";
 const itemRouteClass = "truncate text-sm text-muted";
 
 function segmentClass(active: boolean) {
   return [
-    "inline-flex h-8 items-center justify-center gap-1.5 rounded-control border text-note font-medium transition-[background-color,color]",
+    "inline-flex h-8 items-center justify-center gap-1.5 rounded-xs border text-sm font-medium transition-[background-color,color]",
     active
       ? "border-line bg-surface text-ink shadow-raised"
       : "border-transparent bg-transparent text-muted",
@@ -877,7 +877,7 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
     })),
   );
   return (
-    <ol class="relative grid gap-0.5 pl-3.5 before:absolute before:top-2.5 before:bottom-2.5 before:left-0.75 before:border-l before:border-dashed before:border-line-strong before:content-[''] after:pt-0.5 after:text-detail after:text-faint after:content-['先頭に戻る']">
+    <ol class="relative grid gap-0.5 pl-3.5 before:absolute before:top-2.5 before:bottom-2.5 before:left-0.75 before:border-l before:border-dashed before:border-line-strong before:content-[''] after:pt-0.5 after:text-xs after:text-faint after:content-['先頭に戻る']">
       <For each={steps()} keyed={false}>
         {(step) => (
           <li class="relative flex items-center justify-between gap-2 py-1 text-base before:absolute before:-left-3.5 before:size-1.75 before:rounded-circle before:border-[1.5px] before:border-accent before:bg-surface before:content-['']">

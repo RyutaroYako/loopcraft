@@ -161,7 +161,7 @@ function App(props: { startup: Startup }) {
             <ScreenshotDialog capture={() => captureDiagram(canvasSvg!)} onClose={closeDialog} />
           </Show>
           <div
-            class="pointer-events-none fixed inset-3 z-30 grid place-items-center rounded-2xl border-[1.5px] border-dashed border-accent bg-veil text-lg font-medium text-accent-strong opacity-0 transition-opacity group-[.dropping]/app:opacity-100"
+            class="pointer-events-none fixed inset-3 z-30 grid place-items-center rounded-xl border-[1.5px] border-dashed border-accent bg-glass text-lg font-medium text-accent-strong opacity-0 transition-opacity group-[.dropping]/app:opacity-100"
             aria-hidden="true"
           >
             <p>JSON ファイルをドロップして読み込む</p>

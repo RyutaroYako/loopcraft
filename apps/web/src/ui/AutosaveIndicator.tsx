@@ -49,7 +49,7 @@ export function AutosaveIndicator() {
           "font-medium transition-[transform] active:transform-[translateY(1px)_scale(0.98)]",
           onlyUnwatched()
             ? "border-warning-line bg-warning-soft text-warning"
-            : "border-negative-line-light bg-negative-soft text-negative",
+            : "border-negative-line bg-negative-soft text-negative",
         ]}
         aria-label={`${label()}。詳しく見る`}
         onClick={explain}

@@ -10,7 +10,7 @@ import { OpenIcon, PlusIcon, SparkIcon } from "./icons.tsx";
 const sectionClass =
   "empty-state absolute top-[clamp(32px,14%,140px)] left-[clamp(24px,9%,120px)] grid max-w-[520px] animate-rise gap-6 bg-[radial-gradient(closest-side,var(--color-canvas)_70%,transparent)] py-7 pr-8 pointer-events-none max-md:top-4 max-md:gap-3.5 max-md:py-3";
 const titleClass =
-  "max-w-[19ch] text-[clamp(24px,3vw,30px)] leading-tight font-semibold tracking-[-0.02em] text-balance [word-break:auto-phrase]";
+  "max-w-[19ch] text-[clamp(24px,3vw,30px)] leading-tight font-semibold tracking-display text-balance [word-break:auto-phrase]";
 
 export function EmptyState() {
   const editor = useContext(EditorContext);

@@ -25,14 +25,12 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
     <header class="grid grid-flow-col auto-cols-auto grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-line bg-surface pr-3 pl-4 max-md:gap-1 max-md:pr-2 max-md:pl-3">
       <div class="flex items-center gap-2 border-r border-line pr-3 text-accent max-md:pr-2">
         <LogoMark />
-        <span class="text-md font-semibold tracking-[-0.01em] text-ink max-md:hidden">
-          Loopcraft
-        </span>
+        <span class="text-md font-semibold tracking-heading text-ink max-md:hidden">Loopcraft</span>
       </div>
       <label class="min-w-0">
         <span class="sr-only">図のタイトル</span>
         <input
-          class="h-8.5 w-[min(100%,440px)] rounded-sm border border-transparent bg-transparent px-2.5 py-0 text-lg font-medium tracking-[-0.01em] transition-[background-color,border-color] hover:bg-surface-2 focus:border-accent focus:bg-surface focus:outline-none"
+          class="h-8.5 w-[min(100%,440px)] rounded-sm border border-transparent bg-transparent px-2.5 py-0 text-lg font-medium tracking-heading transition-[background-color,border-color] hover:bg-surface-2 focus:border-accent focus:bg-surface focus:outline-none"
           name="title"
           value={editor.diagram().title}
           readonly={!editor.editable()}

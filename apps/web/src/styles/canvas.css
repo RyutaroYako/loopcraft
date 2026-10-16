@@ -85,13 +85,13 @@
 
 .node.highlighted .node-body {
   stroke: var(--color-accent);
-  fill: #f0f8f7;
+  fill: var(--color-accent-tint);
 }
 
 .node.target .node-body {
   stroke: var(--color-accent);
   stroke-width: 2;
-  fill: #f0f8f7;
+  fill: var(--color-accent-tint);
 }
 
 .node.editing {
@@ -164,7 +164,7 @@
   height: 40px;
   padding: 0 14px;
   border: 1.5px solid var(--color-accent);
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   font-size: var(--text-md);
   font-weight: 500;
@@ -185,7 +185,7 @@
 
 .link-path {
   fill: none;
-  stroke: #8b8b94;
+  stroke: var(--color-link);
   stroke-width: 1.5;
   pointer-events: none;
   transition: stroke 0.2s var(--ease-out);
@@ -245,7 +245,7 @@
 }
 
 .link.negative .polarity circle {
-  fill: #fdf4f6;
+  fill: var(--color-negative-tint);
 }
 
 .polarity:hover circle,
@@ -267,7 +267,7 @@
 }
 
 .loop-marker-bg {
-  fill: rgb(255 255 255 / 0.9);
+  fill: var(--color-glass);
   stroke: var(--color-line);
   stroke-width: 1;
   transition: stroke 0.2s var(--ease-out);

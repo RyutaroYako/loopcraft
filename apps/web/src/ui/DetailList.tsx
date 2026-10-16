@@ -5,7 +5,7 @@ const MAX_ITEMS = 8;
 export function DetailList(props: { items: string[] }) {
   return (
     <>
-      <ul class="grid gap-0.5 font-mono text-detail wrap-anywhere text-ink-2">
+      <ul class="grid gap-0.5 font-mono text-xs wrap-anywhere text-ink-2">
         <For each={props.items.slice(0, MAX_ITEMS)}>{(item) => <li>{item}</li>}</For>
       </ul>
       <Show when={props.items.length > MAX_ITEMS}>
