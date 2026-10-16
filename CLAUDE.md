@@ -31,3 +31,11 @@ release. Add a tool name to select part of the graph. For example, run
 - **コード**には what を書く。何をしているかは、名前と構造で読めるようにする
 - **コミットメッセージ**には why を書く。なぜこの変更が必要だったか（何が困っていたか）
 - **コメント**には why not を書く。素直な書き方や他の選択肢を、なぜ採らなかったか。コードを読めば分かる what や、コミットに書くべき why はコメントにしない
+
+# スタイル（apps/web）
+
+- 新しく書く UI は Tailwind のユーティリティで書く。値は `src/styles/tokens.css` のトークン（`text-ink`, `text-sm`, `rounded-md`, `shadow-float` など）を使い、`[13.5px]` のような任意値はトークンにない場合だけにする
+- 余白は 4px 単位（`gap-6` = 24px）。`:root` が 14px のため、rem 基準の Tailwind 既定値は tokens.css で消してある
+- 色・文字サイズ・角丸を足すときは tokens.css に足す。components.css に値を直書きしない
+- キャンバスの SVG とアイコンは components.css のまま残してよい
+- 既存の components.css から Tailwind へ移すときは、テストや `screenshot.ts` が参照するクラス名（`.canvas-svg` など）を目印として残す
