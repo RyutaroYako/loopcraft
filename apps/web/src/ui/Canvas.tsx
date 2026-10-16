@@ -12,7 +12,8 @@ import {
   type LinkDraft,
 } from "./CanvasItems.tsx";
 import { EmptyState } from "./EmptyState.tsx";
-import { FitIcon, MinusIcon, PlusIcon, RedoIcon, UndoIcon } from "./icons.tsx";
+import { HistoryButtons } from "./HistoryButtons.tsx";
+import { FitIcon, MinusIcon, PlusIcon } from "./icons.tsx";
 
 interface DragBase {
   pointerId: number;
@@ -26,6 +27,7 @@ type Drag = DragBase &
     | { kind: "pan"; origin: Point }
     | { kind: "move"; id: VariableId; origin: Point; grab: Point; gesture: Gesture }
     | { kind: "connect"; from: VariableId }
+    | { kind: "tap"; id: VariableId }
     | { kind: "marker"; id: LoopId; offset: Point; gesture: Gesture }
   );
 
@@ -89,15 +91,15 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
   const onNodePointerDown = (event: PointerEvent, id: VariableId) => {
     if (!canStartDrag(event)) return;
-    const from = editor.connectingFrom();
-    if (from !== null) {
-      // 止めないと、押した変数にフォーカスが移り、選択がつないだ矢印からその変数に戻る
+    if (editor.connectingFrom() !== null) {
+      // preventDefault しないと、押した変数にフォーカスが移り、選択がつないだ矢印からその変数に戻る
       event.preventDefault();
-      editor.stopConnecting();
-      if (from !== id) editor.connect(from, id);
+      // 押した時点でつながないのは、2 本指の 1 本目やパンの始まりでも矢印ができてしまうため
+      startDrag(event, () => ({ kind: "tap", id }));
       return;
     }
-    editor.select({ kind: "variable", id });
+    // 指では押した時点で選ばないのは、2 本指の 1 本目だと、拡大縮小のつもりで選択が変わりシートまで上がるため
+    if (event.pointerType !== "touch") editor.select({ kind: "variable", id });
     if (editor.editingVariable() === id) return;
     editor.setEditingVariable(null);
     const variable = editor.current().variables.find((item) => item.id === id);
@@ -112,7 +114,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   };
 
   const onHandlePointerDown = (event: PointerEvent, from: VariableId) => {
-    // 点に触れても変数に触れたのと同じに扱うのは、指では点と変数を打ち分けられないため
+    // つなぐ途中に点からドラッグを始めないのは、指では点と変数を打ち分けられず、どちらもつなぐ先のつもりで触れるため
     if (editor.connectingFrom() !== null) return onNodePointerDown(event, from);
     if (!canStartDrag(event)) return;
     editor.setEditingVariable(null);
@@ -138,11 +140,16 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     if (!drag.moved) {
       if (Math.hypot(screen.x - drag.start.x, screen.y - drag.start.y) < DRAG_THRESHOLD) return;
       drag.moved = true;
-      // 押した時点で立てないのは、クリックのたびに薄さが切り替わってちらつくため
-      if (drag.kind === "move") setMoving(true);
+      if (drag.kind === "move") {
+        // 押した時点で立てないのは、クリックのたびに薄さが切り替わってちらつくため
+        setMoving(true);
+        editor.select({ kind: "variable", id: drag.id });
+      }
     }
     const point = editor.screenToWorld(screen);
     switch (drag.kind) {
+      case "tap":
+        return;
       case "pan": {
         setPanning(true);
         const x = drag.origin.x + screen.x - drag.start.x;
@@ -214,7 +221,18 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           editor.setFocusedLoop(null);
         }
         return;
+      case "tap": {
+        if (cancelled || finished.moved) return;
+        const from = editor.connectingFrom();
+        editor.stopConnecting();
+        if (from !== null && from !== finished.id) editor.connect(from, finished.id);
+        return;
+      }
       case "move":
+        if (!finished.moved && !cancelled) editor.select({ kind: "variable", id: finished.id });
+        if (cancelled) finished.gesture.cancel();
+        else finished.gesture.end();
+        return;
       case "marker":
         if (cancelled) finished.gesture.cancel();
         else finished.gesture.end();
@@ -389,10 +407,16 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
   const onTouchDown = (event: PointerEvent) => {
     if (event.pointerType !== "touch") return;
+    // 主の指で数え直すのは、キャンバスの外で離された指の pointerup が届かず、数が残ることがあるため
+    if (event.isPrimary) {
+      touches.clear();
+      pinch = undefined;
+    }
     touches.set(event.pointerId, screenPoint(event));
-    if (touches.size !== 2) return;
-    // 2 本目の指を通さないのは、乗った変数を選んだり動かし始めたりしないため
+    if (touches.size < 2) return;
+    // 2 本目以降の指を通さないのは、乗った変数を選んだり動かし始めたりしないため
     event.stopPropagation();
+    if (touches.size > 2) return;
     // 1 本目のドラッグを続けないのは、変数を動かしながら拡大縮小すると狙いが定まらないため
     cancelDrag();
     for (const id of touches.keys()) {
@@ -410,14 +434,16 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     touches.set(event.pointerId, screenPoint(event));
     if (!pinch || touches.size !== 2) return;
     const next = measurePinch();
-    editor.zoomAt(next.center, next.distance / Math.max(1, pinch.distance));
+    // 拡大縮小を先にしないのは、新しい中心で拡大してから動かすと、指の下の点が少しずつずれるため
     editor.panBy(next.center.x - pinch.center.x, next.center.y - pinch.center.y);
+    editor.zoomAt(next.center, next.distance / Math.max(1, pinch.distance));
     pinch = next;
   };
 
   const onTouchUp = (event: PointerEvent) => {
     touches.delete(event.pointerId);
-    if (touches.size < 2) pinch = undefined;
+    // 測り直さないと、3 本目の指が残ったとき、別の 2 本の距離と比べて倍率が跳ぶ
+    pinch = touches.size >= 2 ? measurePinch() : undefined;
   };
 
   const onWheel = (event: WheelEvent) => {
@@ -433,7 +459,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     svg = element;
     props.svgRef?.(element);
     element.addEventListener("wheel", onWheel, { passive: false });
-    // 捕捉段階で受けるのは、2 本目の指が変数の上に乗っても、変数より先に止めるため
+    // JSX の onPointerDown で受けないのは、変数のハンドラが先に伝播を止め、2 本目の指を数えられないため
     element.addEventListener("pointerdown", onTouchDown, true);
     element.addEventListener("pointermove", onTouchMove, true);
     element.addEventListener("pointerup", onTouchUp, true);
@@ -569,26 +595,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       {/* ツールバーの履歴と別に置くのは、狭い画面では親指の届く下端に操作を寄せるため */}
       <Show when={editor.editable()}>
         <div class="canvas-actions">
-          <div class="canvas-history" role="group" aria-label="履歴">
-            <button
-              type="button"
-              class="icon-button"
-              onClick={() => editor.undo()}
-              disabled={editor.historySize().undo === 0}
-              aria-label="元に戻す"
-            >
-              <UndoIcon />
-            </button>
-            <button
-              type="button"
-              class="icon-button"
-              onClick={() => editor.redo()}
-              disabled={editor.historySize().redo === 0}
-              aria-label="やり直す"
-            >
-              <RedoIcon />
-            </button>
-          </div>
+          <HistoryButtons class="canvas-history" />
           {/* 空のときに出さないのは、案内に同じボタンがあるため */}
           <Show when={!isEmpty()}>
             <button

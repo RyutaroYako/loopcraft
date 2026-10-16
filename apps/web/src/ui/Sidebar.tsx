@@ -25,7 +25,16 @@ type SheetSize = "peek" | "half" | "full";
 
 const SHEET_SIZES: SheetSize[] = ["peek", "half", "full"];
 const SHEET_TAP_SLOP = 6;
-const SHEET_SNAP_DISTANCE = 40;
+
+function followFinger(drag: { startY: number; startHeight: number }, event: PointerEvent) {
+  const height = drag.startHeight + drag.startY - event.clientY;
+  return Math.max(64, Math.min(window.innerHeight - 64, height));
+}
+
+/** styles.css の .sheet-* の高さと合わせる。CSS から読まないのは、dvh を含む値は px に解決されずに返るため */
+function sheetHeights(): Record<SheetSize, number> {
+  return { peek: 136, half: window.innerHeight / 2, full: window.innerHeight - 176 };
+}
 
 /** 狭い画面用に別の部品を作らないのは、中身も状態も同じで、並べ方だけが違うため */
 export function Sidebar() {
@@ -36,11 +45,6 @@ export function Sidebar() {
   let drag: { pointerId: number; startY: number; startHeight: number } | undefined;
   // click だけで切り替えないのは、ドラッグの後にも click が届き、決めた高さをさらに一段送るため
   let suppressClick = false;
-
-  const step = (delta: number) => {
-    const index = SHEET_SIZES.indexOf(size()) + delta;
-    setSize(SHEET_SIZES[Math.max(0, Math.min(SHEET_SIZES.length - 1, index))]!);
-  };
 
   createEffect(
     () => editor.selection(),
@@ -62,6 +66,8 @@ export function Sidebar() {
 
   const onPointerDown = (event: PointerEvent) => {
     if (event.button !== 0 || !sheet) return;
+    // 前のドラッグの印を持ち越さないのは、指で動かした後は click が届かず、印が次のタップを握りつぶすため
+    suppressClick = false;
     try {
       (event.currentTarget as Element).setPointerCapture(event.pointerId);
     } catch {
@@ -75,18 +81,24 @@ export function Sidebar() {
   };
   const onPointerMove = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const height = drag.startHeight + drag.startY - event.clientY;
-    setDragHeight(Math.max(64, Math.min(window.innerHeight - 64, height)));
+    setDragHeight(followFinger(drag, event));
   };
   const onPointerUp = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     const moved = drag.startY - event.clientY;
+    const released = followFinger(drag, event);
     drag = undefined;
     setDragHeight(null);
-    // 取り消しで click を捨てる印を立てないのは、click が届かず、次のタップを握りつぶすため
     if (event.type !== "pointerup" || Math.abs(moved) < SHEET_TAP_SLOP) return;
     suppressClick = true;
-    if (Math.abs(moved) >= SHEET_SNAP_DISTANCE) step(moved > 0 ? 1 : -1);
+    // 一段ずつにしないのは、上端近くまで引いても半分で止まり、指から離れて落ちるため
+    const heights = sheetHeights();
+    const nearest = SHEET_SIZES.reduce((best, candidate) =>
+      Math.abs(heights[candidate] - released) < Math.abs(heights[best] - released)
+        ? candidate
+        : best,
+    );
+    setSize(nearest);
   };
 
   return (
@@ -104,8 +116,7 @@ export function Sidebar() {
             suppressClick = false;
             return;
           }
-          if (size() === "full") setSize("peek");
-          else step(1);
+          setSize(SHEET_SIZES[(SHEET_SIZES.indexOf(size()) + 1) % SHEET_SIZES.length]!);
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

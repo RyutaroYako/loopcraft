@@ -141,7 +141,7 @@ function App(props: { startup: Startup }) {
           </main>
           <NoticeView />
           <Show when={dialog() === "menu"}>
-            {/* 他のダイアログへ切り替えた後に閉じた知らせが届いても、その切り替えを取り消さない */}
+            {/* 確かめずに閉じないのは、他のダイアログへ切り替えた後に閉じた知らせが届くと、その切り替えを取り消すため */}
             <MenuDialog
               onOpenDialog={setDialog}
               onClose={() => dialog() === "menu" && closeDialog()}

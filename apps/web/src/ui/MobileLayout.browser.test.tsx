@@ -29,7 +29,7 @@ async function atPhoneSize(
   try {
     mount(startup);
     await expect.element(node("社員数")).toBeVisible();
-    // 測って全体を表示するまで、要素の位置が定まらない
+    // すぐに操作しないのは、測って全体を表示するまで要素の位置が定まらないため
     for (let frame = 0; frame < 3; frame++) {
       await new Promise(requestAnimationFrame);
       flush();
@@ -40,7 +40,7 @@ async function atPhoneSize(
   }
 }
 
-function dragHandle(dy: number) {
+function dragHandle(dy: number, options: { click?: boolean } = {}) {
   const handle = document.querySelector(".sheet-handle")!;
   const rect = handle.getBoundingClientRect();
   const init = { pointerId: 7, pointerType: "touch", isPrimary: true, bubbles: true };
@@ -53,8 +53,8 @@ function dragHandle(dy: number) {
   flush();
   const during = sheetHeight();
   handle.dispatchEvent(new PointerEvent("pointerup", { ...init, clientX: x, clientY: y + dy }));
-  // 実際の指の操作と同じく、離した後に click が届く
-  handle.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  // マウスでは離した後に click が届き、指で動かしたときは届かない
+  if (options.click ?? true) handle.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   flush();
   return during;
 }
@@ -84,6 +84,16 @@ describe("狭い画面", () => {
       await expect.poll(() => sheet().classList.contains("sheet-half")).toBe(true);
       dragHandle(80);
       await expect.poll(() => sheet().classList.contains("sheet-peek")).toBe(true);
+
+      // 上端近くまで引けば、途中で止まらず全体まで広げる
+      dragHandle(-(window.innerHeight - 220));
+      await expect.poll(() => sheet().classList.contains("sheet-full")).toBe(true);
+
+      // click の届かない指のドラッグの後でも、次のタップで切り替わる
+      dragHandle(window.innerHeight, { click: false });
+      await expect.poll(() => sheet().classList.contains("sheet-peek")).toBe(true);
+      await button("パネルを広げる").click();
+      await expect.poll(() => sheet().classList.contains("sheet-half")).toBe(true);
     });
   });
 
@@ -279,5 +289,70 @@ describe("メニュー", () => {
         { readonly: true },
       ),
     );
+  });
+});
+
+describe("指での操作の取り違え", () => {
+  it("2 本指の 1 本目が乗った変数は選ばず、3 本目の指も無視して倍率を跳ばさない", async () => {
+    await atPhoneSize(async () => {
+      const svg = document.querySelector(".canvas-svg")!;
+      const profit = nodeElement("profit");
+      const a = centerOf(profit);
+      const b = canvasPoint(40, 40);
+      touch("pointerdown", profit, 1, a);
+      touch("pointerdown", svg, 2, b);
+      expect(document.querySelector(".node.selected")).toBeNull();
+
+      const staff = nodeElement("staff");
+      touch("pointerdown", staff, 3, centerOf(staff));
+      expect(document.querySelector(".node.selected")).toBeNull();
+      const before = scale();
+      // 1 本目を離しても、残った 2 本で測り直すので倍率は変わらない
+      touch("pointerup", svg, 1, a);
+      touch("pointermove", svg, 2, b);
+      expect(scale()).toBe(before);
+      touch("pointerup", svg, 2, b);
+      touch("pointerup", svg, 3, centerOf(staff));
+      expect(sheet().classList.contains("sheet-peek")).toBe(true);
+    });
+  });
+
+  it("つなぐ途中で変数に指を置いて拡大縮小しても、矢印はできない", async () => {
+    await atPhoneSize(async () => {
+      const links = () => document.querySelectorAll("[data-link-id]").length;
+      const before = links();
+      await node("利益").click();
+      await button("キャンバスで矢印を引く").click();
+      const svg = document.querySelector(".canvas-svg")!;
+      const training = nodeElement("training");
+      touch("pointerdown", training, 1, centerOf(training));
+      touch("pointerdown", svg, 2, canvasPoint(40, 40));
+      touch("pointerup", svg, 2, canvasPoint(40, 40));
+      touch("pointerup", svg, 1, centerOf(training));
+      expect(links()).toBe(before);
+      expect(document.querySelector(".connect-banner")).not.toBeNull();
+    });
+  });
+
+  it("元の変数を消して戻しても、つなぐ途中には戻らない。別の項目を選ぶとつなぐのをやめる", async () => {
+    await atPhoneSize(async () => {
+      const banner = () => document.querySelector(".connect-banner");
+      await node("利益").click();
+      await button("キャンバスで矢印を引く").click();
+      await userEvent.keyboard("{Delete}");
+      await expect.poll(banner).toBeNull();
+      await button("元に戻す").click();
+      await expect.element(node("利益")).toBeInTheDocument();
+      expect(banner()).toBeNull();
+
+      nodeElement("profit").focus();
+      await button("キャンバスで矢印を引く").click();
+      await expect.poll(banner).not.toBeNull();
+      await page
+        .getByRole("button", { name: /成長エンジン/ })
+        .first()
+        .click();
+      await expect.poll(banner).toBeNull();
+    });
   });
 });

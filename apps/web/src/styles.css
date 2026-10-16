@@ -1172,7 +1172,7 @@ button.save-status.warning .save-dot {
   }
 }
 
-/* 指では 9px の点に当たらないので、当たり判定と見た目の点を大きくする */
+/* 見た目どおりの大きさにしないのは、指では 9px の点に当たらないため */
 @media (pointer: coarse) {
   .node-handle-hit {
     r: 22px;
@@ -1182,7 +1182,7 @@ button.save-status.warning .save-dot {
     r: 7px;
   }
 
-  /* 見えない点に当たらないようにする。ホバーの無い指では、選んだ変数の点しか見えない */
+  /* 選んでいない変数の点で受けないのは、ホバーの無い指では点が見えず、変数を押したつもりのタップを吸うため */
   .node:not(.selected) .node-handle {
     pointer-events: none;
   }
@@ -1231,7 +1231,7 @@ button.save-status.warning .save-dot {
   font-size: 15px;
 }
 
-/* 広い画面ではツールバーに全部並ぶので、メニューとシートの取っ手と下端の操作は要らない */
+/* 広い画面で出さないのは、ツールバーに全部並び、一覧もキャンバスの横に並ぶため */
 .toolbar-more,
 .sheet-handle,
 .canvas-actions {
@@ -1892,7 +1892,7 @@ button.save-status.warning .save-dot {
     height: calc(100dvh - 56px - 120px);
   }
 
-  /* 指で動かしている間に遅れて付いてくると、取っ手が指から離れる */
+  /* 指で動かしている間も遷移を残さないのは、遅れて付いてきて取っ手が指から離れるため */
   .sidebar[style*="height"] {
     transition: none;
   }
@@ -1926,7 +1926,7 @@ button.save-status.warning .save-dot {
     background: var(--line-strong);
   }
 
-  /* 選んでいないときは一覧を先に見せる。図の概要は広げたときに読めれば足りる */
+  /* 選んでいないときに図の概要を先に出さないのは、一覧の方がよく使い、概要は広げたときに読めれば足りるため */
   .inspector {
     order: 2;
     overflow: visible;
@@ -1984,7 +1984,7 @@ button.save-status.warning .save-dot {
     height: 44px;
   }
 
-  /* 右上の全体表示と重ならないように空ける */
+  /* 右端まで広げないのは、右上の全体表示と重なるため */
   .connect-banner {
     right: 64px;
   }
@@ -2009,7 +2009,7 @@ button.save-status.warning .save-dot {
     background: var(--accent-strong);
   }
 
-  /* 拡大縮小はピンチで足りるので、全体表示だけを残して右上に寄せる */
+  /* 拡大縮小のボタンを出さないのは、ピンチで足りるため。全体表示は下端の操作と重ならない右上に寄せる */
   .zoom-controls {
     top: 12px;
     right: 12px;
@@ -2052,7 +2052,7 @@ button.save-status.warning .save-dot {
     height: 44px;
   }
 
-  /* 下から出すのは、親指で項目に届くようにするため */
+  /* 画面の中央に出さないのは、上の方の項目に親指が届かないため */
   .menu-dialog {
     width: 100%;
     max-width: none;

@@ -175,6 +175,11 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   function show(next: Diagram) {
     present = next;
     setDiagram(next);
+    // 隠すだけにしないのは、やり直しで元の変数が戻ると、つなぐ途中の状態まで黙って戻るため
+    const source = connectingSource();
+    if (source !== null && !next.variables.some((variable) => variable.id === source)) {
+      setConnectingSource(null);
+    }
   }
 
   function commit(next: Diagram, coalesceKey?: string) {
@@ -283,6 +288,11 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   }
 
   function select(next: Selection | null) {
+    // 別の項目を選んでもつなぐ途中のままにしないのは、案内がシートに隠れ、次のタップで思わぬ矢印ができるため
+    const source = connectingSource();
+    if (source !== null && !(next?.kind === "variable" && next.id === source)) {
+      setConnectingSource(null);
+    }
     setSelection(next);
     if (next) setFocusedLoop(null);
   }
@@ -363,12 +373,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
       setEditingVariableSignal(null);
     }
   }
-
-  // 消えた変数のまま待たせないのは、元に戻すや削除で元の変数が無くなることがあるため
-  const connectingFrom = () => {
-    const id = connectingSource();
-    return id !== null && variableById().has(id) ? id : null;
-  };
 
   function startConnecting(id: VariableId) {
     if (!isEditable) return;
@@ -529,7 +533,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     editingVariable,
     hoveredLoop,
     focusedLoop,
-    connectingFrom,
+    connectingFrom: connectingSource,
     viewport,
     notice,
 

@@ -1,6 +1,7 @@
 import { Show, useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
 import { AutosaveIndicator } from "./AutosaveIndicator.tsx";
+import { HistoryButtons, mod } from "./HistoryButtons.tsx";
 import * as edit from "@loopcraft/core/edit";
 import {
   FileIcon,
@@ -10,13 +11,8 @@ import {
   LogoMark,
   MoreIcon,
   OpenIcon,
-  RedoIcon,
   SaveIcon,
-  UndoIcon,
 } from "./icons.tsx";
-
-const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
-const mod = isMac ? "⌘" : "Ctrl+";
 
 export type DialogKind = "import" | "export" | "screenshot" | "menu";
 
@@ -56,28 +52,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
         </span>
       </Show>
       <AutosaveIndicator />
-      <div class="toolbar-group" role="group" aria-label="履歴">
-        <button
-          type="button"
-          class="icon-button"
-          onClick={() => editor.undo()}
-          disabled={!editor.editable() || editor.historySize().undo === 0}
-          title={`元に戻す (${mod}Z)`}
-          aria-label="元に戻す"
-        >
-          <UndoIcon />
-        </button>
-        <button
-          type="button"
-          class="icon-button"
-          onClick={() => editor.redo()}
-          disabled={!editor.editable() || editor.historySize().redo === 0}
-          title={`やり直す (${mod}Shift+Z)`}
-          aria-label="やり直す"
-        >
-          <RedoIcon />
-        </button>
-      </div>
+      <HistoryButtons class="toolbar-group" />
       <Show when={editor.editable()}>
         <button
           type="button"
