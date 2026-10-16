@@ -1,4 +1,14 @@
-import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createMemo,
+  createSignal,
+  untrack,
+  useContext,
+} from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
 import { canvasElement, EditorContext, type Editor } from "../editor/editor.ts";
 import type { LoopEntry } from "@loopcraft/core/loops";
@@ -9,11 +19,42 @@ import * as edit from "@loopcraft/core/edit";
 import { defaultCurvature } from "@loopcraft/core/geometry";
 import type { LoopKind } from "@loopcraft/core/loop";
 import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
+import { createBottomSheet, SheetHandle } from "./BottomSheet.tsx";
 import { ArrowRightIcon, PinIcon, TrashIcon } from "./icons.tsx";
 
+/** 狭い画面用に別の部品を作らないのは、中身も状態も同じで、並べ方だけが違うため */
 export function Sidebar() {
+  const editor = useContext(EditorContext);
+  const sheet = createBottomSheet();
+
+  createEffect(
+    () => editor.selection(),
+    (selection) => {
+      // 畳んだままにしないのは、選んだ項目の編集欄がシートの外に隠れるため
+      if (selection && untrack(sheet.size) === "peek") sheet.setSize("half");
+    },
+    { defer: true },
+  );
+
+  createEffect(
+    () => editor.connectingFrom(),
+    (from) => {
+      // 開いたままにしないのは、つなぐ先の変数がシートの下に隠れるため
+      if (from !== null) sheet.setSize("peek");
+    },
+    { defer: true },
+  );
+
   return (
-    <aside class="sidebar">
+    <aside
+      class={[
+        "sidebar",
+        { dragging: sheet.dragging(), "has-selection": editor.selection() !== null },
+      ]}
+      data-size={sheet.size()}
+      style={{ "--sheet-height": `${sheet.height()}px` }}
+    >
+      <SheetHandle sheet={sheet} />
       <Inspector />
       <Browser />
     </aside>
@@ -395,6 +436,16 @@ function VariableInspector(props: { id: VariableId }) {
         placeholder="例: 売上"
         onInput={(label) => update({ label }, "label")}
       />
+      <Show when={editor.editable()}>
+        <button
+          type="button"
+          class="button connect-start"
+          onClick={() => editor.startConnecting(props.id)}
+        >
+          <ArrowRightIcon />
+          キャンバスで矢印を引く
+        </button>
+      </Show>
       <Field
         name="variable-description"
         label="説明"
