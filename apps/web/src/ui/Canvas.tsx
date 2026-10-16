@@ -458,7 +458,10 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   const isEmpty = () => editor.diagram().variables.length === 0;
 
   return (
-    <div class="canvas" ref={(element) => (container = element)}>
+    <div
+      class="group/canvas relative min-h-0 min-w-0 overflow-hidden bg-canvas"
+      ref={(element) => (container = element)}
+    >
       <svg
         ref={bindSvg}
         class={[
@@ -537,13 +540,18 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
       <Show when={editor.connectingFrom()} keyed>
         {(from) => (
-          <div class="connect-banner">
-            <p role="status">
+          // 狭い画面で右端まで広げないのは、右上の全体表示と重なるため
+          <div class="connect-banner absolute top-3 right-3 left-3 z-3 flex max-w-[480px] animate-[rise_0.3s_var(--ease-out)_both] items-center gap-3 rounded-lg bg-accent py-2.5 pr-2.5 pl-4 text-on-strong shadow-float max-md:right-16">
+            <p class="grid min-w-0 flex-1 font-medium" role="status">
               「{editor.variableById().get(from)?.label || "名称未設定"}
               」からつなぐ先を選ぶ
-              <span class="connect-banner-note">空いた所なら新しい変数につなぐ</span>
+              <span class="text-sm font-normal opacity-85">空いた所なら新しい変数につなぐ</span>
             </p>
-            <button type="button" class="button small" onClick={() => editor.stopConnecting()}>
+            <button
+              type="button"
+              class="button small border-[rgb(255_255_255/0.4)] bg-transparent text-on-strong enabled:hover:border-on-strong enabled:hover:bg-[rgb(255_255_255/0.12)]"
+              onClick={() => editor.stopConnecting()}
+            >
               やめる
             </button>
           </div>
@@ -562,13 +570,17 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
       {/* ツールバーの履歴と別に置くのは、狭い画面では親指の届く下端に操作を寄せるため */}
       <Show when={editor.editable()}>
-        <div class="canvas-actions">
-          <HistoryButtons class="canvas-history" />
+        <div class="absolute right-4 bottom-4 flex max-md:right-3 max-md:bottom-7 max-md:left-3 max-md:pointer-events-none max-md:items-center max-md:justify-between max-md:gap-2 max-md:*:pointer-events-auto">
+          {/* 広い画面で出さないのは、ツールバーに同じボタンがあるため */}
+          <HistoryButtons
+            class="hidden rounded-xl border border-line bg-glass p-0.5 shadow-float backdrop-blur-[8px] max-md:flex"
+            buttonClass="size-11"
+          />
           {/* 空のときに出さないのは、案内に同じボタンがあるため */}
           <Show when={!isEmpty()}>
             <button
               type="button"
-              class="button primary canvas-add"
+              class="button primary ml-auto h-12 rounded-xl border-accent bg-accent pr-4.5 pl-3.5 text-lg shadow-[0_10px_24px_-10px_rgb(15_118_110/0.6)] enabled:hover:border-accent-strong enabled:hover:bg-accent-strong"
               title="空いた所のダブルクリックでも追加できます"
               onClick={() => editor.addVariableAt(editor.viewCenter())}
             >
@@ -579,23 +591,38 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         </div>
       </Show>
 
-      <div class="zoom-controls" role="toolbar" aria-label="表示倍率">
+      {/*
+        狭い画面で拡大縮小のボタンを出さないのは、ピンチで足りるため。全体表示は下端の操作と重ならない右上に寄せる。
+        空のときに出さないのは、全体表示は押せず、右上で案内の見出しと重なるため
+      */}
+      <div
+        class="absolute bottom-4 left-4 flex items-center gap-0.5 rounded-lg border border-line bg-glass p-1 shadow-float backdrop-blur-[8px] max-md:top-3 max-md:right-3 max-md:bottom-auto max-md:left-auto max-md:group-has-[.empty-state]/canvas:hidden max-md:*:not-last:hidden"
+        role="toolbar"
+        aria-label="表示倍率"
+      >
         <button
           type="button"
-          class="icon-button"
+          class="icon-button max-md:size-10"
           onClick={() => editor.zoomBy(1 / 1.2)}
           title="縮小"
         >
           <MinusIcon />
         </button>
-        <span class="zoom-value">{Math.round(editor.viewport().zoom * 100)}%</span>
-        <button type="button" class="icon-button" onClick={() => editor.zoomBy(1.2)} title="拡大">
-          <PlusIcon />
-        </button>
-        <span class="zoom-divider" />
+        <span class="zoom-value min-w-11.5 text-center font-mono text-sm text-ink-2">
+          {Math.round(editor.viewport().zoom * 100)}%
+        </span>
         <button
           type="button"
-          class="icon-button"
+          class="icon-button max-md:size-10"
+          onClick={() => editor.zoomBy(1.2)}
+          title="拡大"
+        >
+          <PlusIcon />
+        </button>
+        <span class="mx-1 h-4.5 w-px bg-line" />
+        <button
+          type="button"
+          class="icon-button max-md:size-10"
           onClick={() => editor.fitView()}
           title="全体を表示"
           disabled={isEmpty()}
@@ -605,7 +632,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       </div>
 
       <Show when={!isEmpty() && !editor.editable()}>
-        <p class="canvas-hint">
+        <p class="pointer-events-none absolute right-4 bottom-4.5 flex gap-3.5 text-sm text-muted max-md:hidden">
           <span>ドラッグで移動、Ctrl+ホイールで拡大縮小</span>
         </p>
       </Show>

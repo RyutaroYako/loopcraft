@@ -4,7 +4,7 @@ import { pickJsonFile } from "../editor/file.ts";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import { OpenIcon, PlusIcon, SparkIcon } from "./icons.tsx";
 
-// empty-state はスタイルを持たないが、.canvas:has(.empty-state) で拡大縮小の操作を隠す目印として残す
+// empty-state はスタイルを持たないが、Canvas が group-has-[.empty-state] で拡大縮小の操作を隠す目印として残す
 const sectionClass =
   "empty-state absolute top-[clamp(32px,14%,140px)] left-[clamp(24px,9%,120px)] grid max-w-[520px] animate-rise gap-6 bg-[radial-gradient(closest-side,var(--color-canvas)_70%,transparent)] py-7 pr-8 pointer-events-none max-md:top-4 max-md:gap-3.5 max-md:py-3";
 const titleClass =
