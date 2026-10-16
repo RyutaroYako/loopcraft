@@ -3,152 +3,6 @@
   font-size: 12.5px;
 }
 
-.app {
-  display: grid;
-  grid-template-rows: 56px minmax(0, 1fr);
-  height: 100dvh;
-  overflow: hidden;
-}
-
-.workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 368px;
-  min-height: 0;
-}
-
-.toolbar {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-auto-columns: auto;
-  grid-auto-flow: column;
-  align-items: center;
-  gap: 12px;
-  padding: 0 12px 0 16px;
-  border-bottom: 1px solid var(--color-line);
-  background: var(--color-surface);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 12px;
-  border-right: 1px solid var(--color-line);
-  color: var(--color-accent);
-}
-
-.brand-name {
-  font-size: var(--text-md);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--color-ink);
-}
-
-.title-field {
-  min-width: 0;
-}
-
-.title-field input {
-  width: min(100%, 440px);
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  font-size: var(--text-lg);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  transition:
-    background-color 0.2s var(--ease-out),
-    border-color 0.2s var(--ease-out);
-}
-
-.title-field input:hover {
-  background: var(--color-surface-2);
-}
-
-.title-field input:focus {
-  outline: none;
-  border-color: var(--color-accent);
-  background: var(--color-surface);
-}
-
-.save-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  font-size: var(--text-sm);
-  color: var(--color-muted);
-  white-space: nowrap;
-}
-
-.save-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  opacity: 0.7;
-}
-
-button.save-status {
-  border-color: rgb(190 52 85 / 0.3);
-  background: var(--color-negative-soft);
-  font-weight: 500;
-  color: var(--color-negative);
-  transition: transform 0.2s var(--ease-out);
-}
-
-button.save-status:active {
-  transform: translateY(1px) scale(0.98);
-}
-
-button.save-status .save-dot {
-  background: var(--color-negative);
-  opacity: 1;
-  animation: save-pulse 1.6s var(--ease-out) infinite;
-}
-
-button.save-status.warning {
-  border-color: var(--color-warning-line);
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
-}
-
-button.save-status.warning .save-dot {
-  background: var(--color-warning-dot);
-}
-
-.mode-badge-short {
-  display: none;
-}
-
-.mode-badge {
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--color-surface-2);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-ink-2);
-  white-space: nowrap;
-}
-
-.toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.toolbar-file {
-  gap: 4px;
-  padding-left: 12px;
-  border-left: 1px solid var(--color-line);
-}
-
 .canvas {
   position: relative;
   min-width: 0;
@@ -420,27 +274,6 @@ button.save-status.warning .save-dot {
   color: var(--color-muted);
 }
 
-.drop-overlay {
-  position: fixed;
-  inset: 12px;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  border: 1.5px dashed var(--color-accent);
-  border-radius: 16px;
-  background: rgb(250 250 250 / 0.88);
-  font-size: var(--text-lg);
-  font-weight: 500;
-  color: var(--color-accent-strong);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s var(--ease-out);
-}
-
-.dropping .drop-overlay {
-  opacity: 1;
-}
-
 .connect-banner {
   position: absolute;
   top: 12px;
@@ -527,7 +360,6 @@ button.save-status.warning .save-dot {
 }
 
 /* 広い画面で出さないのは、ツールバーに全部並び、一覧もキャンバスの横に並ぶため */
-.toolbar-more,
 .sheet-handle,
 .sheet-expand,
 .canvas-history {
@@ -1140,12 +972,6 @@ button.save-status.warning .save-dot {
 }
 
 @media (max-width: 767px) {
-  /* ページごとスクロールさせないのは、キャンバスのパンとページのスクロールが同じ指の操作で取り合うため */
-  .workspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-  }
-
   .sidebar {
     position: relative;
     z-index: 2;
@@ -1315,27 +1141,6 @@ button.save-status.warning .save-dot {
     height: 40px;
   }
 
-  .toolbar {
-    gap: 4px;
-    padding: 0 8px 0 12px;
-  }
-
-  .brand {
-    padding-right: 8px;
-  }
-
-  .toolbar-history,
-  .toolbar-layout,
-  .toolbar-file {
-    display: none;
-  }
-
-  .toolbar-more {
-    display: inline-grid;
-    width: 44px;
-    height: 44px;
-  }
-
   /* 画面の中央に出さないのは、上の方の項目に親指が届かないため */
   .menu-dialog {
     width: 100%;
@@ -1345,20 +1150,7 @@ button.save-status.warning .save-dot {
     border-radius: 18px 18px 0 0;
   }
 
-  .button-label,
-  .brand-name,
-  .canvas-hint,
-  .save-status.ok .save-label,
-  .mode-badge-long {
+  .canvas-hint {
     display: none;
-  }
-
-  .mode-badge {
-    display: inline-flex;
-    padding: 4px 6px;
-  }
-
-  .mode-badge-short {
-    display: inline-flex;
   }
 }

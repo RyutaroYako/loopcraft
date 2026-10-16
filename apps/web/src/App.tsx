@@ -117,7 +117,10 @@ function App(props: { startup: Startup }) {
         }}
       >
         <div
-          class={["app", { dropping: dropping(), viewing: !editor.editable() }]}
+          class={[
+            "app group grid h-dvh grid-rows-[56px_minmax(0,1fr)] overflow-hidden",
+            { dropping: dropping(), viewing: !editor.editable() },
+          ]}
           onDragOver={(event) => {
             if (!hasFiles(event) || dialog() !== null) return;
             event.preventDefault();
@@ -135,7 +138,8 @@ function App(props: { startup: Startup }) {
           }}
         >
           <Toolbar readonly={readonly} onOpenDialog={setDialog} />
-          <main class="workspace">
+          {/* 狭い画面でページごとスクロールさせないのは、キャンバスのパンとページのスクロールが同じ指の操作で取り合うため */}
+          <main class="grid min-h-0 grid-cols-[minmax(0,1fr)_368px] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto]">
             <Canvas svgRef={(svg) => (canvasSvg = svg)} />
             <Sidebar />
           </main>
@@ -156,7 +160,10 @@ function App(props: { startup: Startup }) {
           <Show when={dialog() === "screenshot"}>
             <ScreenshotDialog capture={() => captureDiagram(canvasSvg!)} onClose={closeDialog} />
           </Show>
-          <div class="drop-overlay" aria-hidden="true">
+          <div
+            class="pointer-events-none fixed inset-3 z-30 grid place-items-center rounded-[16px] border-[1.5px] border-dashed border-accent bg-[rgb(250_250_250/0.88)] text-lg font-medium text-accent-strong opacity-0 transition-opacity group-[.dropping]:opacity-100"
+            aria-hidden="true"
+          >
             <p>JSON ファイルをドロップして読み込む</p>
           </div>
         </div>

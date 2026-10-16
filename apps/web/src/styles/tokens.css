@@ -68,6 +68,8 @@
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 14px;
+  /* rounded-full にしないのは、計算値が 999px でなく無限大になり、移行前と見比べられなくなるため */
+  --radius-pill: 999px;
 
   --shadow-float: 0 1px 2px rgb(24 24 27 / 0.04), 0 8px 24px -12px rgb(24 24 27 / 0.18);
 
