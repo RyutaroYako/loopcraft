@@ -12,7 +12,7 @@ import {
   type LinkDraft,
 } from "./CanvasItems.tsx";
 import { EmptyState } from "./EmptyState.tsx";
-import { FitIcon, MinusIcon, PlusIcon } from "./icons.tsx";
+import { FitIcon, MinusIcon, PlusIcon, RedoIcon, UndoIcon } from "./icons.tsx";
 
 interface DragBase {
   pointerId: number;
@@ -483,6 +483,43 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
             onClose={closeMenu}
           />
         )}
+      </Show>
+
+      {/* ツールバーの履歴と別に置くのは、狭い画面では親指の届く下端に操作を寄せるため */}
+      <Show when={editor.editable()}>
+        <div class="canvas-actions">
+          <div class="canvas-history" role="group" aria-label="履歴">
+            <button
+              type="button"
+              class="icon-button"
+              onClick={() => editor.undo()}
+              disabled={editor.historySize().undo === 0}
+              aria-label="元に戻す"
+            >
+              <UndoIcon />
+            </button>
+            <button
+              type="button"
+              class="icon-button"
+              onClick={() => editor.redo()}
+              disabled={editor.historySize().redo === 0}
+              aria-label="やり直す"
+            >
+              <RedoIcon />
+            </button>
+          </div>
+          {/* 空のときに出さないのは、案内に同じボタンがあるため */}
+          <Show when={!isEmpty()}>
+            <button
+              type="button"
+              class="button primary canvas-add"
+              onClick={() => editor.addVariableAt(editor.viewCenter())}
+            >
+              <PlusIcon />
+              変数を追加
+            </button>
+          </Show>
+        </div>
       </Show>
 
       <div class="zoom-controls" role="toolbar" aria-label="表示倍率">

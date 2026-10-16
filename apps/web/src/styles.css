@@ -1118,6 +1118,12 @@ button.save-status.warning .save-dot {
   opacity: 1;
 }
 
+/* 広い画面では一覧とキャンバスが並ぶので、シートの取っ手と下端の操作は要らない */
+.sheet-handle,
+.canvas-actions {
+  display: none;
+}
+
 .sidebar {
   display: grid;
   /* 中身の高さで分けないのは、選択で検査パネルが伸び縮みし、ループ一覧がカーソルの下で動くため */
@@ -1740,21 +1746,166 @@ button.save-status.warning .save-dot {
     padding-bottom: 12px;
   }
 
-  .app {
-    height: auto;
-    min-height: 100dvh;
-    overflow: visible;
-  }
-
+  /* ページごとスクロールさせないのは、キャンバスのパンとページのスクロールが同じ指の操作で取り合うため */
   .workspace {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 64dvh auto;
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .sidebar {
-    grid-template-rows: auto auto;
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    height: 136px;
+    margin-top: -16px;
+    padding-bottom: env(safe-area-inset-bottom);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-left: 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow:
+      0 -1px 0 var(--line),
+      0 -12px 32px -16px rgb(24 24 27 / 0.22);
+    transition: height 0.3s var(--ease-out);
+  }
+
+  .sidebar.sheet-half {
+    height: 50dvh;
+  }
+
+  .sidebar.sheet-full {
+    height: calc(100dvh - 56px - 120px);
+  }
+
+  /* 指で動かしている間に遅れて付いてくると、取っ手が指から離れる */
+  .sidebar[style*="height"] {
+    transition: none;
+  }
+
+  /* 縮ませないのは、シートの高さに押し込められて一覧と概要が重なるため。スクロールはシート全体で受ける */
+  .sidebar > *,
+  .sidebar .loop-items {
+    flex: none;
+    overflow: visible;
+  }
+
+  .sheet-handle {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 100%;
+    height: 24px;
+    border: 0;
+    background: var(--surface);
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .sheet-grip {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line-strong);
+  }
+
+  /* 選んでいないときは一覧を先に見せる。図の概要は広げたときに読めれば足りる */
+  .inspector {
+    order: 2;
+    overflow: visible;
     border-top: 1px solid var(--line);
+    border-bottom: 0;
+  }
+
+  .has-selection .inspector {
+    order: 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .browser {
+    order: 1;
+  }
+
+  .browser-tabs {
+    padding-top: 0;
+  }
+
+  .browser-tab,
+  .browser-search input {
+    min-height: 40px;
+  }
+
+  .canvas-actions {
+    position: absolute;
+    right: 12px;
+    bottom: 28px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  .canvas-actions > * {
+    pointer-events: auto;
+  }
+
+  .canvas-history {
+    display: flex;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgb(255 255 255 / 0.92);
+    box-shadow: var(--shadow-float);
+    backdrop-filter: blur(8px);
+  }
+
+  .canvas-history .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .canvas-add.button {
+    height: 48px;
+    margin-left: auto;
+    padding: 0 18px 0 14px;
+    border-color: var(--accent);
+    border-radius: 14px;
+    background: var(--accent);
+    font-size: 15px;
+    box-shadow: 0 10px 24px -10px rgb(15 118 110 / 0.6);
+  }
+
+  .canvas-add.button:hover:not(:disabled) {
+    border-color: var(--accent-strong);
+    background: var(--accent-strong);
+  }
+
+  /* 拡大縮小はピンチで足りるので、全体表示だけを残して右上に寄せる */
+  .zoom-controls {
+    top: 12px;
+    right: 12px;
+    bottom: auto;
+    left: auto;
+  }
+
+  /* 空のときに出さないのは、全体表示は押せず、右上で案内の見出しと重なるため */
+  .canvas:has(.empty-state) .zoom-controls {
+    display: none;
+  }
+
+  .zoom-controls > :not(:last-child) {
+    display: none;
+  }
+
+  .zoom-controls .icon-button {
+    width: 40px;
+    height: 40px;
   }
 
   .toolbar {
@@ -1764,6 +1915,10 @@ button.save-status.warning .save-dot {
 
   .brand {
     padding-right: 8px;
+  }
+
+  .toolbar-group[aria-label="履歴"] {
+    display: none;
   }
 
   .toolbar-file {

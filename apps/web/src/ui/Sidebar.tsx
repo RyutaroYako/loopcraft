@@ -1,4 +1,13 @@
-import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createMemo,
+  createSignal,
+  useContext,
+} from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
 import { canvasElement, EditorContext, type Editor } from "../editor/editor.ts";
 import type { LoopEntry } from "@loopcraft/core/loops";
@@ -11,9 +20,90 @@ import type { LoopKind } from "@loopcraft/core/loop";
 import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
 import { ArrowRightIcon, PinIcon, TrashIcon } from "./icons.tsx";
 
+type SheetSize = "peek" | "half" | "full";
+
+const SHEET_SIZES: SheetSize[] = ["peek", "half", "full"];
+const SHEET_TAP_SLOP = 6;
+const SHEET_SNAP_DISTANCE = 40;
+
+/** 狭い画面用に別の部品を作らないのは、中身も状態も同じで、並べ方だけが違うため */
 export function Sidebar() {
+  const editor = useContext(EditorContext);
+  const [size, setSize] = createSignal<SheetSize>("peek");
+  const [dragHeight, setDragHeight] = createSignal<number | null>(null);
+  let sheet: HTMLElement | undefined;
+  let drag: { pointerId: number; startY: number; startHeight: number } | undefined;
+  // click だけで切り替えないのは、ドラッグの後にも click が届き、決めた高さをさらに一段送るため
+  let suppressClick = false;
+
+  const step = (delta: number) => {
+    const index = SHEET_SIZES.indexOf(size()) + delta;
+    setSize(SHEET_SIZES[Math.max(0, Math.min(SHEET_SIZES.length - 1, index))]!);
+  };
+
+  createEffect(
+    () => editor.selection(),
+    (selection) => {
+      // 畳んだままにしないのは、選んだ項目の編集欄がシートの外に隠れるため
+      if (selection && size() === "peek") setSize("half");
+    },
+    { defer: true },
+  );
+
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.button !== 0 || !sheet) return;
+    try {
+      (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    } catch {
+      // 既に離されたポインタはキャプチャできないが、取っ手の上で動かす分には追える
+    }
+    drag = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startHeight: sheet.getBoundingClientRect().height,
+    };
+  };
+  const onPointerMove = (event: PointerEvent) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const height = drag.startHeight + drag.startY - event.clientY;
+    setDragHeight(Math.max(64, Math.min(window.innerHeight - 64, height)));
+  };
+  const onPointerUp = (event: PointerEvent) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const moved = drag.startY - event.clientY;
+    drag = undefined;
+    setDragHeight(null);
+    // 取り消しで click を捨てる印を立てないのは、click が届かず、次のタップを握りつぶすため
+    if (event.type !== "pointerup" || Math.abs(moved) < SHEET_TAP_SLOP) return;
+    suppressClick = true;
+    if (Math.abs(moved) >= SHEET_SNAP_DISTANCE) step(moved > 0 ? 1 : -1);
+  };
+
   return (
-    <aside class="sidebar">
+    <aside
+      ref={(element) => (sheet = element)}
+      class={["sidebar", `sheet-${size()}`, { "has-selection": editor.selection() !== null }]}
+      style={dragHeight() === null ? undefined : { height: `${dragHeight()}px` }}
+    >
+      <button
+        type="button"
+        class="sheet-handle"
+        aria-label={size() === "full" ? "パネルを畳む" : "パネルを広げる"}
+        onClick={() => {
+          if (suppressClick) {
+            suppressClick = false;
+            return;
+          }
+          if (size() === "full") setSize("peek");
+          else step(1);
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        <span class="sheet-grip" aria-hidden="true" />
+      </button>
       <Inspector />
       <Browser />
     </aside>
