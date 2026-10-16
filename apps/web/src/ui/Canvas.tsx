@@ -541,8 +541,8 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       <Show when={editor.connectingFrom()} keyed>
         {(from) => (
           // 狭い画面で右端まで広げないのは、右上の全体表示と重なるため
-          <div
-            data-testid="connect-banner"
+          <section
+            aria-label="矢印を引く"
             class={[
               "absolute top-3 right-3 left-3 z-3 max-w-[480px] animate-[rise_0.3s_var(--ease-out)_both] max-md:right-16",
               "flex items-center gap-3 rounded-lg bg-accent py-2.5 pr-2.5 pl-4 text-on-strong shadow-float",
@@ -560,7 +560,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
             >
               やめる
             </button>
-          </div>
+          </section>
         )}
       </Show>
 
@@ -625,7 +625,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         >
           <MinusIcon />
         </button>
-        <span data-testid="zoom-value" class="min-w-11.5 text-center font-mono text-sm text-ink-2">
+        <span class="min-w-11.5 text-center font-mono text-sm text-ink-2">
           {Math.round(editor.viewport().zoom * 100)}%
         </span>
         <button

@@ -16,7 +16,7 @@ export function NoticeView() {
             notice.tone === "error" ? "border-negative-line" : "border-line",
           ]}
           role={notice.tone === "error" ? "alert" : "status"}
-          data-testid="notice"
+          aria-label="お知らせ"
         >
           <div class="grid min-w-0 flex-1 gap-1.5 pt-1">
             <p class={["font-semibold", { "text-negative": notice.tone === "error" }]}>

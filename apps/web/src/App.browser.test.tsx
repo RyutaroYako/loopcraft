@@ -124,12 +124,12 @@ describe("キーボード", () => {
 describe("ファイルのドロップ", () => {
   it("JSON ファイルをドロップすると読み込み、ファイル以外は無視する", async () => {
     mount(browserStartup(createEmptyDiagram()));
-    const app = document.querySelector("[data-testid=app]")!;
+    const app = document.querySelector("main")!;
     const transfer = new DataTransfer();
     transfer.items.add(jsonFile(createSampleDiagram()));
     const dropping = () => {
       flush();
-      return app.hasAttribute("data-dropping");
+      return document.querySelector("[data-dropping]") !== null;
     };
     app.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true }));
     expect(dropping()).toBe(false);

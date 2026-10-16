@@ -34,7 +34,8 @@ async function settle() {
 }
 
 const heading = (name: string) => page.getByRole("heading", { name, exact: true });
-const zoomValue = () => document.querySelector("[data-testid=zoom-value]")!.textContent;
+const zoomValue = () =>
+  document.querySelector('[role=toolbar][aria-label="表示倍率"]')!.textContent;
 const offset = (point: { x: number; y: number }, dx: number, dy: number) => ({
   x: point.x + dx,
   y: point.y + dy,

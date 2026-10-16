@@ -121,7 +121,6 @@ function App(props: { startup: Startup }) {
             "group/app grid h-dvh grid-rows-[56px_minmax(0,1fr)] overflow-hidden",
             { viewing: !editor.editable() },
           ]}
-          data-testid="app"
           data-dropping={dropping() ? "" : undefined}
           onDragOver={(event) => {
             if (!hasFiles(event) || dialog() !== null) return;

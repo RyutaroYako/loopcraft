@@ -4,9 +4,10 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import {
   browserStartup,
   canvasPoint,
-  fileStartup,
   centerOf,
   cleanup,
+  expandButton,
+  fileStartup,
   mount,
   node,
   nodeElement,
@@ -128,7 +129,9 @@ describe("狭い画面", () => {
       await node("社員数").click();
       await expect.element(bar()).toBeVisible();
       expect(sheet().dataset.sheetSize).toBe("peek");
-      expect(document.querySelector("[data-testid=selection-title]")?.textContent).toBe("社員数");
+      expect(document.querySelector('section[aria-label="選んだ項目"] h2')?.textContent).toBe(
+        "社員数",
+      );
 
       await bar().getByRole("button", { name: "名前を変える" }).click();
       await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
@@ -137,9 +140,7 @@ describe("狭い画面", () => {
       await button("詳しく").click();
       await expect.poll(() => sheet().dataset.sheetSize).toBe("half");
       await expect.element(bar()).toBeVisible();
-      await expect
-        .poll(() => getComputedStyle(document.querySelector("[data-testid=sheet-expand]")!).display)
-        .toBe("none");
+      await expect.poll(() => getComputedStyle(expandButton()).display).toBe("none");
       const name = page.getByRole("textbox", { name: "名前", exact: true });
       await expect.element(name).toBeVisible();
       const tabs = document.querySelector("[role=tablist]")!;
@@ -277,7 +278,8 @@ describe("指での操作", () => {
       await expect.poll(() => sheet().dataset.sheetSize).toBe("peek");
       await expect
         .poll(
-          () => document.querySelector("[data-testid=connect-banner] [role=status]")?.textContent,
+          () =>
+            document.querySelector('section[aria-label="矢印を引く"] [role=status]')?.textContent,
         )
         .toMatch(/^「利益」からつなぐ先を選ぶ/);
 
@@ -287,7 +289,7 @@ describe("指での操作", () => {
       touch("pointerup", document.querySelector(".canvas-svg")!, 1, centerOf(handle));
       expect(links()).toBe(before + 1);
       await expect.element(page.getByRole("heading", { name: "関連", exact: true })).toBeVisible();
-      expect(document.querySelector("[data-testid=connect-banner]")).toBeNull();
+      expect(document.querySelector('section[aria-label="矢印を引く"]')).toBeNull();
 
       // 押さずにフォーカスで選ぶのは、下端のボタンが変数に重なるため
       nodeElement("profit").focus();
@@ -305,7 +307,7 @@ describe("指での操作", () => {
     await atPhoneSize(async () => {
       const links = () => document.querySelectorAll("[data-link-id]").length;
       const before = links();
-      const banner = () => document.querySelector("[data-testid=connect-banner]");
+      const banner = () => document.querySelector('section[aria-label="矢印を引く"]');
       const start = async () => {
         await node("利益").click();
         await button("矢印を引く").click();
@@ -428,13 +430,13 @@ describe("指での操作の取り違え", () => {
       touch("pointerup", svg, 2, canvasPoint(40, 40));
       touch("pointerup", svg, 1, centerOf(training));
       expect(links()).toBe(before);
-      expect(document.querySelector("[data-testid=connect-banner]")).not.toBeNull();
+      expect(document.querySelector('section[aria-label="矢印を引く"]')).not.toBeNull();
     });
   });
 
   it("元の変数を消して戻しても、つなぐ途中には戻らない。別の項目を選ぶとつなぐのをやめる", async () => {
     await atPhoneSize(async () => {
-      const banner = () => document.querySelector("[data-testid=connect-banner]");
+      const banner = () => document.querySelector('section[aria-label="矢印を引く"]');
       await node("利益").click();
       await button("矢印を引く").click();
       await userEvent.keyboard("{Delete}");

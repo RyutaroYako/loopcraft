@@ -90,15 +90,15 @@ function SelectionBar(props: { expandable: boolean; onExpand: () => void }) {
   };
   return (
     <Show when={editor.selection()}>
-      <div class="grid gap-0.5 border-b border-line bg-surface px-4 pt-3 pb-2 max-md:sticky max-md:top-6 max-md:z-1 max-md:flex-none max-md:pt-0">
+      <section
+        class="grid gap-0.5 border-b border-line bg-surface px-4 pt-3 pb-2 max-md:sticky max-md:top-6 max-md:z-1 max-md:flex-none max-md:pt-0"
+        aria-label="選んだ項目"
+      >
         <div class="flex items-center justify-between gap-2">
-          <p data-testid="selection-title" class="min-w-0 truncate text-lg font-semibold">
-            {title()}
-          </p>
+          <h2 class="min-w-0 truncate text-lg font-semibold">{title()}</h2>
           {/* 広い画面で出さないのは、一覧がキャンバスの横に並び、広げるものが無いため */}
           <button
             type="button"
-            data-testid="sheet-expand"
             class={["button ghost small hidden", { "max-md:inline-flex": props.expandable }]}
             onClick={props.onExpand}
           >
@@ -127,7 +127,7 @@ function SelectionBar(props: { expandable: boolean; onExpand: () => void }) {
             </For>
           </div>
         </Show>
-      </div>
+      </section>
     </Show>
   );
 }

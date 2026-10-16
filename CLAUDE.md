@@ -40,4 +40,4 @@ release. Add a tool name to select part of the graph. For example, run
 - 同じプロパティのユーティリティを 1 つの要素に重ねない（`bg-transparent` と `bg-accent` など）。勝ち負けは書いた順でなく生成順で決まるので、状態で変えるときは条件で片方だけ付ける
 - `group` は名前付き（`group/item` など）で使う。名前が無いと、外側の別の `group` の hover まで拾う
 - CSS に残すのは、複数の画面で使う部品（`primitives.css` の `.button` `.field` など）と、キャンバスの SVG・アイコン（`canvas.css`）だけ
-- テストやコードから要素を探すときは、クラス名でなく role・`aria-*`・`data-*` を使う（状態は `aria-current` `aria-pressed`、意味の無い所だけ `data-testid`）。クラスは見た目のためだけに使う。キャンバスの SVG は canvas.css の状態クラス（`.node.selected` など）で探してよい
+- テストやコードから要素を探すときは、クラス名でなく role・`aria-*`・`data-*` を使う（状態は `aria-current` `aria-pressed`、領域は `<section aria-label>`）。`data-testid` で済ませず、取れないときは要素に役割と名前を付ける。クラスは見た目のためだけに使う。キャンバスの SVG は canvas.css の状態クラス（`.node.selected` など）で探してよい

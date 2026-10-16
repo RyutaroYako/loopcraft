@@ -6,6 +6,7 @@ import {
   browserStartup,
   captureDownloads,
   cleanup,
+  expandButton,
   fileStartup,
   mount,
   node,
@@ -96,9 +97,7 @@ describe("変数", () => {
     nodeElement("profit").focus();
     await expect.element(bar).toBeVisible();
     expect(listTop()).toBe(before);
-    expect(getComputedStyle(document.querySelector("[data-testid=sheet-expand]")!).display).toBe(
-      "none",
-    );
+    expect(getComputedStyle(expandButton()).display).toBe("none");
 
     const links = () => document.querySelectorAll("[data-link-id]").length;
     const linkCount = links();
