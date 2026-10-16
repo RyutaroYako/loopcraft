@@ -8,6 +8,7 @@ import {
   LockIcon,
   LayoutIcon,
   LogoMark,
+  MoreIcon,
   OpenIcon,
   RedoIcon,
   SaveIcon,
@@ -17,7 +18,7 @@ import {
 const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 const mod = isMac ? "⌘" : "Ctrl+";
 
-export type DialogKind = "import" | "export" | "screenshot";
+export type DialogKind = "import" | "export" | "screenshot" | "menu";
 
 export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogKind) => void }) {
   const editor = useContext(EditorContext);
@@ -80,7 +81,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
       <Show when={editor.editable()}>
         <button
           type="button"
-          class="button ghost"
+          class="button ghost toolbar-layout"
           onClick={() => editor.autoLayout()}
           disabled={editor.diagram().variables.length < 2}
           aria-label="整列"
@@ -135,6 +136,15 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           <span class="button-label">JSON を書き出す</span>
         </button>
       </div>
+      <button
+        type="button"
+        class="icon-button toolbar-more"
+        onClick={() => props.onOpenDialog("menu")}
+        aria-label="メニュー"
+        aria-haspopup="dialog"
+      >
+        <MoreIcon />
+      </button>
     </header>
   );
 }

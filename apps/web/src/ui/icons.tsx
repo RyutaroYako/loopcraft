@@ -144,6 +144,14 @@ export const ArrowRightIcon = () => (
   </Icon>
 );
 
+export const MoreIcon = () => (
+  <Icon>
+    <circle cx="4.5" cy="10" r="0.9" fill="currentColor" />
+    <circle cx="10" cy="10" r="0.9" fill="currentColor" />
+    <circle cx="15.5" cy="10" r="0.9" fill="currentColor" />
+  </Icon>
+);
+
 export const LogoMark = () => (
   <svg class="logo-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path

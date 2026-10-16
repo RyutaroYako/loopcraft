@@ -6,6 +6,7 @@ import { captureDiagram } from "./editor/screenshot.ts";
 import { resolveStartup, type Startup } from "./editor/startup.ts";
 import { Canvas } from "./ui/Canvas.tsx";
 import { ExportDialog, ImportDialog } from "./ui/JsonDialogs.tsx";
+import { MenuDialog } from "./ui/MenuDialog.tsx";
 import { NoticeView } from "./ui/NoticeView.tsx";
 import { ScreenshotDialog } from "./ui/ScreenshotDialog.tsx";
 import { Sidebar } from "./ui/Sidebar.tsx";
@@ -139,6 +140,13 @@ function App(props: { startup: Startup }) {
             <Sidebar />
           </main>
           <NoticeView />
+          <Show when={dialog() === "menu"}>
+            {/* 他のダイアログへ切り替えた後に閉じた知らせが届いても、その切り替えを取り消さない */}
+            <MenuDialog
+              onOpenDialog={setDialog}
+              onClose={() => dialog() === "menu" && closeDialog()}
+            />
+          </Show>
           <Show when={dialog() === "import"}>
             <ImportDialog onClose={closeDialog} />
           </Show>

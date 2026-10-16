@@ -1188,7 +1188,51 @@ button.save-status.warning .save-dot {
   }
 }
 
-/* 広い画面では一覧とキャンバスが並ぶので、シートの取っ手と下端の操作は要らない */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 52px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 15px;
+  text-align: left;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.menu-item-note {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.menu-dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.menu-dialog .dialog-body {
+  gap: 0;
+  padding: 4px 8px 8px;
+}
+
+.menu-dialog .dialog-footer .button {
+  flex: 1;
+  height: 48px;
+  font-size: 15px;
+}
+
+/* 広い画面ではツールバーに全部並ぶので、メニューとシートの取っ手と下端の操作は要らない */
+.toolbar-more,
 .sheet-handle,
 .canvas-actions {
   display: none;
@@ -1996,17 +2040,25 @@ button.save-status.warning .save-dot {
     padding-right: 8px;
   }
 
-  .toolbar-group[aria-label="履歴"] {
+  .toolbar-group[aria-label="履歴"],
+  .toolbar-layout,
+  .toolbar-file {
     display: none;
   }
 
-  .toolbar-file {
-    padding-left: 4px;
+  .toolbar-more {
+    display: inline-grid;
+    width: 44px;
+    height: 44px;
   }
 
-  .toolbar-file .button {
-    width: 34px;
-    padding: 0;
+  /* 下から出すのは、親指で項目に届くようにするため */
+  .menu-dialog {
+    width: 100%;
+    max-width: none;
+    margin: auto 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-radius: 18px 18px 0 0;
   }
 
   .button-label,

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import {
   browserStartup,
   canvasPoint,
+  fileStartup,
   centerOf,
   cleanup,
   mount,
@@ -19,11 +20,14 @@ const button = (name: string) => page.getByRole("button", { name, exact: true })
 const sheet = () => document.querySelector<HTMLElement>(".sidebar")!;
 const sheetHeight = () => sheet().getBoundingClientRect().height;
 
-async function atPhoneSize(run: () => Promise<void>) {
+async function atPhoneSize(
+  run: () => Promise<void>,
+  startup = browserStartup(createSampleDiagram()),
+) {
   const original = { width: window.innerWidth, height: window.innerHeight };
   await page.viewport(390, 664);
   try {
-    mount(browserStartup(createSampleDiagram()));
+    mount(startup);
     await expect.element(node("社員数")).toBeVisible();
     // 測って全体を表示するまで、要素の位置が定まらない
     for (let frame = 0; frame < 3; frame++) {
@@ -223,5 +227,57 @@ describe("指での操作", () => {
       await expect.poll(banner).toBeNull();
       expect(links()).toBeLessThan(before);
     });
+  });
+});
+
+describe("メニュー", () => {
+  const dialog = (name: string) => page.getByRole("dialog", { name });
+  // 前方一致にするのは、項目名に続く補足も名前に含めて読み上げるため
+  const menuItem = (name: string) =>
+    dialog("メニュー").getByRole("button", { name: new RegExp(`^${name}`) });
+
+  it("ツールバーから外したファイル操作を、メニューから選ぶ", async () => {
+    await atPhoneSize(async () => {
+      await expect.element(page.getByRole("button", { name: "新規" })).not.toBeInTheDocument();
+
+      await button("メニュー").click();
+      await menuItem("整列").click();
+      await expect.element(dialog("メニュー")).not.toBeInTheDocument();
+      await expect.element(button("元に戻す")).not.toBeDisabled();
+
+      await button("メニュー").click();
+      await menuItem("新規").click();
+      await expect.poll(() => document.querySelectorAll("[data-variable-id]").length).toBe(0);
+      await button("元に戻す").click();
+
+      for (const [item, title] of [
+        ["読み込み", "JSON を読み込む"],
+        ["画像", "画像として書き出す"],
+        ["JSON を書き出す", "JSON を書き出す"],
+      ] as const) {
+        await button("メニュー").click();
+        await menuItem(item).click();
+        await expect.element(dialog(title)).toBeVisible();
+        await expect.element(dialog("メニュー")).not.toBeInTheDocument();
+        await dialog(title).getByRole("button", { name: "閉じる" }).click();
+        await expect.element(dialog(title)).not.toBeInTheDocument();
+      }
+    });
+  });
+
+  it("読み取り専用では、編集する項目を出さない", async () => {
+    await atPhoneSize(
+      async () => {
+        await button("メニュー").click();
+        await expect.element(menuItem("画像")).toBeVisible();
+        await expect.element(menuItem("整列")).not.toBeInTheDocument();
+        await expect.element(menuItem("読み込み")).not.toBeInTheDocument();
+        await expect.element(button("変数を追加")).not.toBeInTheDocument();
+      },
+      fileStartup(
+        { status: "ok", revision: "r", diagram: createSampleDiagram() },
+        { readonly: true },
+      ),
+    );
   });
 });
