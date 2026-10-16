@@ -180,9 +180,9 @@ describe("関連", () => {
     await button(/同じ向きに動く/).click();
     // チェックボックスを直接押さないのは、見た目のスイッチの裏に隠れているため
     await page.getByText("遅れがある").click();
-    await expect.element(page.getByRole("checkbox", { name: /遅れがある/ })).toBeChecked();
+    await expect.element(page.getByRole("switch", { name: /遅れがある/ })).toBeChecked();
     await page.getByText("遅れがある").click();
-    await expect.element(page.getByRole("checkbox", { name: /遅れがある/ })).not.toBeChecked();
+    await expect.element(page.getByRole("switch", { name: /遅れがある/ })).not.toBeChecked();
     await writeAndClearDescription(
       (diagram) => diagram.links.find((item) => item.id === "l_sales")?.description,
     );

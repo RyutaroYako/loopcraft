@@ -12,6 +12,7 @@ catalog:
   "@types/node": 24.19.2
   "@vitest/browser-playwright": 5.0.3
   "@vitest/coverage-v8": 5.0.3
+  axe-core: 4.14.0
   modern-screenshot: 4.7.0
   tailwindcss: 4.3.3
   typescript: 7.0.2
