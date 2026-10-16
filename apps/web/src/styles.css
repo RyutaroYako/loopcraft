@@ -735,6 +735,11 @@ button.save-status.warning .save-dot {
   outline: none;
 }
 
+/* 薄い背景だけにしないのは、白地との差が小さく、キーボードではどの項目が選ばれているか読めないため */
+.context-menu-item:focus-visible {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
 .context-menu-item:disabled {
   color: var(--faint);
 }
@@ -1306,9 +1311,7 @@ button.save-status.warning .save-dot {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  transition:
-    border-color 0.2s var(--ease-out),
-    box-shadow 0.2s var(--ease-out);
+  transition: border-color 0.2s var(--ease-out);
 }
 
 .field input {
