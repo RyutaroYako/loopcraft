@@ -333,7 +333,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     () => [editor.diagram(), editor.viewport()],
     () => {
       if (!menu()) return;
-      closeMenu(document.activeElement?.closest(".context-menu") != null);
+      closeMenu(document.activeElement?.closest("[role=menu]") != null);
     },
     { defer: true },
   );
@@ -459,7 +459,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
   return (
     <div
-      class="group/canvas relative min-h-0 min-w-0 overflow-hidden bg-canvas"
+      class="relative min-h-0 min-w-0 overflow-hidden bg-canvas"
       ref={(element) => (container = element)}
     >
       <svg
@@ -542,8 +542,9 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         {(from) => (
           // 狭い画面で右端まで広げないのは、右上の全体表示と重なるため
           <div
+            data-testid="connect-banner"
             class={[
-              "connect-banner absolute top-3 right-3 left-3 z-3 max-w-[480px] animate-[rise_0.3s_var(--ease-out)_both] max-md:right-16",
+              "absolute top-3 right-3 left-3 z-3 max-w-[480px] animate-[rise_0.3s_var(--ease-out)_both] max-md:right-16",
               "flex items-center gap-3 rounded-lg bg-accent py-2.5 pr-2.5 pl-4 text-on-strong shadow-float",
             ]}
           >
@@ -610,7 +611,8 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         class={[
           "absolute bottom-4 left-4 flex items-center gap-0.5 rounded-lg border border-line bg-glass p-1 shadow-float backdrop-blur-[8px]",
           "max-md:top-3 max-md:right-3 max-md:bottom-auto max-md:left-auto",
-          "max-md:group-has-[.empty-state]/canvas:hidden max-md:*:not-last:hidden",
+          "max-md:*:not-last:hidden",
+          { "max-md:hidden": isEmpty() },
         ]}
         role="toolbar"
         aria-label="表示倍率"
@@ -623,7 +625,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
         >
           <MinusIcon />
         </button>
-        <span class="zoom-value min-w-11.5 text-center font-mono text-sm text-ink-2">
+        <span data-testid="zoom-value" class="min-w-11.5 text-center font-mono text-sm text-ink-2">
           {Math.round(editor.viewport().zoom * 100)}%
         </span>
         <button

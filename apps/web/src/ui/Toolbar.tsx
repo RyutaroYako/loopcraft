@@ -50,7 +50,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           <span class="max-md:hidden" aria-hidden="true">
             読み取り専用
           </span>
-          <span class="mode-badge-short hidden max-md:inline-flex" aria-hidden="true">
+          <span class="hidden max-md:inline-flex" aria-hidden="true">
             <LockIcon />
           </span>
           <span class="sr-only">読み取り専用。編集も保存もできません</span>

@@ -42,7 +42,7 @@ export function Sidebar() {
       class={[
         // 中身の高さで分けないのは、選択で検査パネルが伸び縮みし、ループ一覧がカーソルの下で動くため。
         // 狭い画面で縮ませないのは、シートの高さに押し込められて一覧と概要が重なるため。スクロールはシート全体で受ける
-        "sidebar grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] border-l border-line bg-surface",
+        "grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] border-l border-line bg-surface",
         "max-md:relative max-md:z-2 max-md:-mt-4 max-md:h-(--sheet-height) max-md:pb-[env(safe-area-inset-bottom)]",
         "max-md:flex max-md:flex-col max-md:overflow-y-auto max-md:overscroll-contain max-md:*:flex-none max-md:*:overflow-visible",
         "max-md:rounded-t-sheet max-md:border-l-0 max-md:shadow-sheet",
@@ -51,7 +51,7 @@ export function Sidebar() {
           ? "max-md:transition-none"
           : "max-md:transition-[height] max-md:duration-300",
       ]}
-      data-size={sheet.size()}
+      data-sheet-size={sheet.size()}
       style={{ "--sheet-height": `${sheet.height()}px` }}
     >
       <SheetHandle sheet={sheet} />
@@ -92,14 +92,14 @@ function SelectionBar(props: { expandable: boolean; onExpand: () => void }) {
     <Show when={editor.selection()}>
       <div class="grid gap-0.5 border-b border-line bg-surface px-4 pt-3 pb-2 max-md:sticky max-md:top-6 max-md:z-1 max-md:flex-none max-md:pt-0">
         <div class="flex items-center justify-between gap-2">
-          <p class="selection-bar-title min-w-0 truncate text-lg font-semibold">{title()}</p>
+          <p data-testid="selection-title" class="min-w-0 truncate text-lg font-semibold">
+            {title()}
+          </p>
           {/* 広い画面で出さないのは、一覧がキャンバスの横に並び、広げるものが無いため */}
           <button
             type="button"
-            class={[
-              "button ghost small sheet-expand hidden",
-              { "max-md:inline-flex": props.expandable },
-            ]}
+            data-testid="sheet-expand"
+            class={["button ghost small hidden", { "max-md:inline-flex": props.expandable }]}
             onClick={props.onExpand}
           >
             詳しく
@@ -150,10 +150,10 @@ function Browser() {
     document.getElementById(`browser-tab-${next}`)?.focus();
   };
   return (
-    <section class="browser flex min-h-0 flex-col max-md:order-1">
+    <section class="flex min-h-0 flex-col max-md:order-1">
       {/* 他と同じ 20px にしないのは、タブ自体の内側の余白があり、文字が下の一覧より右にずれるため */}
       <div
-        class="browser-tabs flex gap-1 px-2 pt-3 pb-2 max-md:pt-0"
+        class="flex gap-1 px-2 pt-3 pb-2 max-md:pt-0"
         role="tablist"
         aria-label="一覧"
         onKeyDown={onKeyDown}
@@ -269,11 +269,7 @@ function VariableList(props: { hidden: boolean }) {
           <For each={visible()} keyed={(variable) => variable.id}>
             {(variable, index) => (
               <li
-                class={[
-                  "variable-item",
-                  itemClass,
-                  { [`active ${activeItemClass}`]: selectedId() === variable().id },
-                ]}
+                class={[itemClass, { [activeItemClass]: selectedId() === variable().id }]}
                 style={{ "--index": String(Math.min(index(), 12)) }}
               >
                 <button
@@ -319,11 +315,12 @@ function Inspector() {
     // 選んでいないときに狭い画面で図の概要を先に出さないのは、一覧の方がよく使い、概要は広げたときに読めれば足りるため
     <section
       class={[
-        "inspector min-h-0 flex-1 overflow-y-auto outline-none max-md:overflow-visible max-md:border-line",
+        "min-h-0 flex-1 overflow-y-auto outline-none max-md:overflow-visible max-md:border-line",
         editor.selection() === null
           ? "max-md:order-2 max-md:border-t"
           : "max-md:order-0 max-md:border-b",
       ]}
+      id="inspector"
       aria-label="選択中の項目"
       tabindex="-1"
     >
@@ -621,7 +618,7 @@ function RelationPicker(props: {
   const [chosen, setChosen] = createSignal<VariableId | "">("");
   const valid = () => props.candidates.some((candidate) => candidate.id === chosen());
   return (
-    <div class="relation-picker mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] gap-1">
+    <div class="mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] gap-1">
       <select
         class={[
           "h-7 w-full min-w-0 cursor-pointer rounded-xs border border-dashed border-line-strong px-1.5 text-sm text-muted transition-[border-color]",
@@ -770,7 +767,7 @@ function LinkInspector(props: { id: LinkId }) {
       <Show when={editor.editable()}>
         {/* 曲がり具合を付ける操作が無いのに戻す操作を置くのは、以前の版や JSON で付いたものを戻す手段がここしか無いため */}
         <Show when={customCurvature()}>
-          <div class="inline-actions -mt-1.5 flex gap-2">
+          <div class="-mt-1.5 flex gap-2">
             <button
               type="button"
               class="button ghost small"
@@ -829,7 +826,7 @@ function LoopInspector(props: { id: LoopId }) {
   );
 }
 
-const inspectorElement = () => document.querySelector<HTMLElement>(".inspector");
+const inspectorElement = () => document.getElementById("inspector");
 
 const inspectorBodyClass =
   "grid animate-[rise_0.35s_var(--ease-out)_both] gap-4.5 px-5 pt-5 pb-4.5";
@@ -841,8 +838,7 @@ const itemClass =
 /** before: を常に付けないのは、Tailwind が before: の付いた要素すべてに content を足し、選んでいない行にも印が出るため */
 const activeItemClass =
   "bg-surface-2 before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:rounded-full before:bg-accent";
-const itemMainClass =
-  "loop-item-main grid min-w-0 items-center gap-3 py-2.25 pr-1 pl-2.5 text-left";
+const itemMainClass = "grid min-w-0 items-center gap-3 py-2.25 pr-1 pl-2.5 text-left";
 const routeEndClass =
   "rounded-full border border-line bg-surface px-2.5 py-1 text-base font-medium text-ink transition-[border-color] hover:border-accent";
 const itemTitleClass = "truncate text-base font-medium";
@@ -967,12 +963,9 @@ function LoopItem(props: { entry: LoopEntry; index: number }) {
   };
   return (
     <li
-      class={[
-        "loop-item group/item",
-        itemClass,
-        props.entry.kind,
-        { featured: !!props.entry.featured, [`active ${activeItemClass}`]: active() },
-      ]}
+      class={["group/item", itemClass, { [activeItemClass]: active() }]}
+      data-loop-key={props.entry.key}
+      data-kind={props.entry.kind}
       style={{ "--index": String(Math.min(props.index, 12)) }}
       onPointerEnter={() => editor.setHoveredLoop(props.entry.key)}
       onPointerLeave={() => editor.setHoveredLoop(null)}
@@ -980,6 +973,7 @@ function LoopItem(props: { entry: LoopEntry; index: number }) {
       <button
         type="button"
         class={[itemMainClass, "grid-cols-[30px_minmax(0,1fr)_auto]"]}
+        aria-current={active() ? "true" : undefined}
         onClick={choose}
       >
         <span
@@ -1004,7 +998,7 @@ function LoopItem(props: { entry: LoopEntry; index: number }) {
       <button
         type="button"
         class={[
-          "icon-button pin mr-1.5 enabled:hover:text-ink",
+          "icon-button mr-1.5 enabled:hover:text-ink",
           props.entry.featured ? "text-accent" : "text-faint",
         ]}
         aria-pressed={pressedState(!!props.entry.featured)}

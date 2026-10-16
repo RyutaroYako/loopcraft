@@ -34,7 +34,7 @@ async function settle() {
 }
 
 const heading = (name: string) => page.getByRole("heading", { name, exact: true });
-const zoomValue = () => document.querySelector(".zoom-value")!.textContent;
+const zoomValue = () => document.querySelector("[data-testid=zoom-value]")!.textContent;
 const offset = (point: { x: number; y: number }, dx: number, dy: number) => ({
   x: point.x + dx,
   y: point.y + dy,
@@ -272,9 +272,12 @@ describe("取り消しと例外的な操作", () => {
 
   it("見出したループのピンを押すと見出しを外す", async () => {
     await open();
-    const featured = () => document.querySelectorAll(".loop-item.featured").length;
+    const featured = () =>
+      document.querySelectorAll('[data-loop-key] [aria-pressed="true"]').length;
     const before = featured();
-    await page.elementLocator(document.querySelector(".loop-item.featured .pin")!).click();
+    await page
+      .elementLocator(document.querySelector('[data-loop-key] [aria-pressed="true"]')!)
+      .click();
     await expect.poll(featured).toBe(before - 1);
   });
 });
@@ -380,7 +383,7 @@ describe("表示", () => {
       .element(page.getByRole("button", { name: "名称未設定", exact: true }))
       .toBeVisible();
     expect(document.querySelectorAll(".delay-mark").length).toBeGreaterThan(0);
-    const item = document.querySelector(".loop-item")!;
+    const item = document.querySelector("[data-loop-key]")!;
     item.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
     item.dispatchEvent(new PointerEvent("pointerenter"));
     flush();
@@ -545,7 +548,7 @@ describe("右クリックのメニュー", () => {
     await settle();
     const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
     document.querySelector(".grid-bg")!.dispatchEvent(event);
-    expect(document.querySelector(".context-menu")).toBeNull();
+    expect(document.querySelector("[role=menu]")).toBeNull();
     expect(event.defaultPrevented).toBe(false);
   });
 });

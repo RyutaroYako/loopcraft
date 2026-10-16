@@ -51,7 +51,7 @@ export function ContextMenu(props: {
         element = node;
         queueMicrotask(() => buttons()[0]?.focus());
       }}
-      class="context-menu absolute z-20 grid rounded-md border border-line bg-surface p-1 shadow-float"
+      class="absolute z-20 grid rounded-md border border-line bg-surface p-1 shadow-float"
       role="menu"
       aria-label={props.menu.label}
       style={{ left: `${left()}px`, top: `${top()}px`, width: `${MENU_WIDTH}px` }}

@@ -79,7 +79,7 @@ export function fileStartup(
 
 export const canvas = () => page.getByRole("group", { name: "システム図のキャンバス" });
 export const node = (name: string) => page.getByRole("button", { name, exact: true });
-export const notice = () => document.querySelector(".notice");
+export const notice = () => document.querySelector("[data-testid=notice]");
 
 export function nodeElement(id: string) {
   return document.querySelector<SVGGElement>(`[data-variable-id="${id}"]`)!;

@@ -22,7 +22,7 @@ import {
 
 afterEach(cleanup);
 
-const loopItems = () => document.querySelectorAll(".loop-item");
+const loopItems = () => document.querySelectorAll("[data-loop-key]");
 const ok = (diagram = createSampleDiagram()) => ({
   status: "ok" as const,
   diagram,
@@ -124,12 +124,12 @@ describe("キーボード", () => {
 describe("ファイルのドロップ", () => {
   it("JSON ファイルをドロップすると読み込み、ファイル以外は無視する", async () => {
     mount(browserStartup(createEmptyDiagram()));
-    const app = document.querySelector(".app")!;
+    const app = document.querySelector("[data-testid=app]")!;
     const transfer = new DataTransfer();
     transfer.items.add(jsonFile(createSampleDiagram()));
     const dropping = () => {
       flush();
-      return app.classList.contains("dropping");
+      return app.hasAttribute("data-dropping");
     };
     app.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true }));
     expect(dropping()).toBe(false);
@@ -221,7 +221,10 @@ describe("serve で開いたとき", () => {
       mount(fileStartup(ok(), { readonly: true }));
       await expect.element(page.getByText("読み取り専用", { exact: true })).not.toBeVisible();
       await expect
-        .poll(() => document.querySelector(".mode-badge-short svg")?.getBoundingClientRect().width)
+        .poll(
+          () =>
+            document.querySelector('[title^="loopcraft serve"] svg')?.getBoundingClientRect().width,
+        )
         .toBeGreaterThan(0);
     } finally {
       await page.viewport(original.width, original.height);

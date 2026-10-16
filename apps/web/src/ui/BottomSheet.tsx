@@ -82,7 +82,7 @@ export function SheetHandle(props: { sheet: ReturnType<typeof createBottomSheet>
     // 広い画面で出さないのは、一覧がキャンバスの横に並び、引き出すものが無いため
     <button
       type="button"
-      class="sheet-handle sticky top-0 z-1 hidden h-6 w-full flex-none cursor-grab touch-none place-items-center bg-surface max-md:grid"
+      class="sticky top-0 z-1 hidden h-6 w-full flex-none cursor-grab touch-none place-items-center bg-surface max-md:grid"
       aria-label={props.sheet.size() === "full" ? "パネルを畳む" : "パネルを広げる"}
       onClick={handle.onClick}
       onPointerDown={handle.onPointerDown}
