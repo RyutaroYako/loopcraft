@@ -88,6 +88,26 @@ describe("図の概要", () => {
 });
 
 describe("変数", () => {
+  it("広い画面でも、選んだ項目の操作から矢印を引き、下端のボタンで変数を足す", async () => {
+    await open();
+    const bar = page.getByRole("toolbar", { name: "選んだ項目の操作" });
+    nodeElement("profit").focus();
+    await expect.element(bar).toBeVisible();
+    expect(getComputedStyle(document.querySelector(".sheet-expand")!).display).toBe("none");
+
+    const links = () => document.querySelectorAll("[data-link-id]").length;
+    const before = links();
+    await bar.getByRole("button", { name: "矢印を引く" }).click();
+    await node("教育コスト").click();
+    expect(links()).toBe(before + 1);
+    await expect.element(heading("関連")).toBeVisible();
+
+    const variables = () => document.querySelectorAll("[data-variable-id]").length;
+    const count = variables();
+    await button("変数を追加").click();
+    expect(variables()).toBe(count + 1);
+  });
+
   it("名前と説明を書き換え、原因と結果を辿って追加し、削除する", async () => {
     await open();
     nodeElement("sales").focus();
@@ -231,8 +251,9 @@ describe("ループ", () => {
       (diagram) => diagram.loops.find((item) => item.id === "p_growth")?.description,
     );
     await button("記号の位置を戻す").click();
-    await inspector()
-      .getByRole("button", { name: /見出しを外す/ })
+    await page
+      .getByRole("toolbar", { name: "選んだ項目の操作" })
+      .getByRole("button", { name: "見出しを外す" })
       .click();
     await expect.element(heading("図の概要")).toBeVisible();
 

@@ -19,8 +19,9 @@ import { defaultCurvature } from "@loopcraft/core/geometry";
 import type { LoopKind } from "@loopcraft/core/loop";
 import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
 import { createBottomSheet, SheetHandle } from "./BottomSheet.tsx";
-import { togglePolarityLabel } from "./linkLabels.ts";
-import { ArrowRightIcon, PinIcon, TrashIcon } from "./icons.tsx";
+import type { MenuItem } from "./ContextMenu.tsx";
+import { linkActions, loopActions, variableActions } from "./itemActions.ts";
+import { ArrowRightIcon, PinIcon } from "./icons.tsx";
 
 /** 狭い画面用に別の部品を作らないのは、中身も状態も同じで、並べ方だけが違うため */
 export function Sidebar() {
@@ -56,79 +57,47 @@ export function Sidebar() {
 
 function SelectionBar(props: { onExpand: () => void }) {
   const editor = useContext(EditorContext);
-  const variableId = () => {
-    const selection = editor.selection();
-    return selection?.kind === "variable" ? selection.id : undefined;
-  };
-  const link = () => {
-    const selection = editor.selection();
-    return selection?.kind === "link" ? editor.linkById().get(selection.id) : undefined;
-  };
   const title = () => {
     const selection = editor.selection();
     if (!selection) return "";
     if (selection.kind === "variable") return labelOf(editor, selection.id);
     if (selection.kind === "link") {
-      const current = link();
-      return `${labelOf(editor, current?.from)} → ${labelOf(editor, current?.to)}`;
+      const link = editor.linkById().get(selection.id);
+      return `${labelOf(editor, link?.from)} → ${labelOf(editor, link?.to)}`;
     }
     return editor.loopEntryByLoopId().get(selection.id)?.featured?.loop.name || "ループ";
+  };
+  const actions = (): MenuItem[] => {
+    const selection = editor.selection();
+    if (!selection || !editor.editable()) return [];
+    if (selection.kind === "variable") return variableActions(editor, selection.id);
+    if (selection.kind === "link") return linkActions(editor, selection.id);
+    return loopActions(editor, selection.id);
   };
   return (
     <Show when={editor.selection()}>
       <div class="selection-bar" role="toolbar" aria-label="選んだ項目の操作">
         <div class="selection-bar-head">
           <p class="selection-bar-title">{title()}</p>
-          <button type="button" class="button ghost small" onClick={props.onExpand}>
+          <button type="button" class="button ghost small sheet-expand" onClick={props.onExpand}>
             詳しく
           </button>
         </div>
         <div class="selection-bar-actions">
-          <Show when={editor.editable()}>
-            <Show when={variableId()} keyed>
-              {(id) => (
-                <>
-                  <button
-                    type="button"
-                    class="button ghost small"
-                    onClick={() => editor.setEditingVariable(id)}
-                  >
-                    名前を変える
-                  </button>
-                  <button
-                    type="button"
-                    class="button ghost small"
-                    onClick={() => editor.startConnecting(id)}
-                  >
-                    <ArrowRightIcon />
-                    矢印を引く
-                  </button>
-                </>
-              )}
-            </Show>
-            {/* 矢印そのものでキーにしないのは、極性を変えるたびにボタンが作り直され、フォーカスが外れるため */}
-            <Show when={link()?.id} keyed>
-              {(id) => (
-                <button
-                  type="button"
-                  class="button ghost small"
-                  onClick={() => editor.commit(edit.togglePolarity(editor.current(), id))}
-                >
-                  {togglePolarityLabel(editor.linkById().get(id)?.polarity)}
-                </button>
-              )}
-            </Show>
-            <Show when={editor.selection()?.kind !== "loop"}>
+          {/* 項目でキーにしないのは、極性を変えるたびに一覧が作り直され、押したボタンからフォーカスが外れるため */}
+          <For each={actions()} keyed={false}>
+            {(action) => (
               <button
                 type="button"
-                class="button ghost small danger-text"
-                onClick={() => editor.deleteSelection()}
+                class={["button ghost small", { "danger-text": action().danger }]}
+                disabled={action().disabled}
+                title={action().shortcut && `${action().shortcut} キーでも操作できます`}
+                onClick={() => action().run()}
               >
-                <TrashIcon />
-                削除
+                {action().label}
               </button>
-            </Show>
-          </Show>
+            )}
+          </For>
         </div>
       </div>
     </Show>
@@ -510,16 +479,6 @@ function VariableInspector(props: { id: VariableId }) {
         placeholder="例: 売上"
         onInput={(label) => update({ label }, "label")}
       />
-      <Show when={editor.editable()}>
-        <button
-          type="button"
-          class="button connect-start"
-          onClick={() => editor.startConnecting(props.id)}
-        >
-          <ArrowRightIcon />
-          キャンバスで矢印を引く
-        </button>
-      </Show>
       <Field
         name="variable-description"
         label="説明"
@@ -548,9 +507,6 @@ function VariableInspector(props: { id: VariableId }) {
           onAdd={(other) => editor.connect(props.id, other)}
         />
       </div>
-      <Show when={editor.editable()}>
-        <DeleteButton label="変数を削除" />
-      </Show>
     </div>
   );
 }
@@ -754,7 +710,6 @@ function LinkInspector(props: { id: LinkId }) {
             </button>
           </div>
         </Show>
-        <DeleteButton label="関連を削除" />
       </Show>
     </div>
   );
@@ -796,35 +751,11 @@ function LoopInspector(props: { id: LoopId }) {
         <LoopPath links={entry()?.links ?? []} variables={entry()?.variables ?? []} />
         <span class="field-hint">{kindExplanation(negatives())}</span>
       </div>
-      <Show when={editor.editable()}>
-        <div class="inline-actions">
-          <button
-            type="button"
-            class="button ghost small"
-            disabled={loop()?.marker === undefined}
-            onClick={() => update({ marker: undefined })}
-          >
-            記号の位置を戻す
-          </button>
-        </div>
-        <DeleteButton label="見出しを外す" />
-      </Show>
     </div>
   );
 }
 
 const inspectorElement = () => document.querySelector<HTMLElement>(".inspector");
-
-function DeleteButton(props: { label: string }) {
-  const editor = useContext(EditorContext);
-  return (
-    <button type="button" class="button danger" onClick={() => editor.deleteSelection()}>
-      <TrashIcon />
-      {props.label}
-      <kbd>Delete</kbd>
-    </button>
-  );
-}
 
 function pressedState(value: boolean) {
   return value ? "true" : "false";

@@ -3,7 +3,7 @@ import { EditorContext, type Gesture } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
 import type { LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
 import { ContextMenu, type MenuItem, type MenuState } from "./ContextMenu.tsx";
-import { togglePolarityLabel } from "./linkLabels.ts";
+import { linkActions, variableActions } from "./itemActions.ts";
 import {
   InlineLabelEditor,
   LinkDraftView,
@@ -263,49 +263,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   const [menu, setMenu] = createSignal<MenuState | null>(null);
   let menuOrigin: HTMLElement | SVGElement | undefined;
 
-  const variableMenu = (id: VariableId): MenuItem[] => [
-    {
-      label: "名前を変える",
-      shortcut: "F2",
-      run: () => editor.setEditingVariable(id),
-    },
-    {
-      label: "変数を削除",
-      shortcut: "Delete",
-      danger: true,
-      run: () => {
-        editor.select({ kind: "variable", id });
-        editor.deleteSelection();
-      },
-    },
-  ];
-
-  const linkMenu = (id: LinkId): MenuItem[] => {
-    const link = editor.linkById().get(id);
-    return [
-      {
-        label: togglePolarityLabel(link?.polarity),
-        run: () => editor.commit(edit.togglePolarity(editor.current(), id)),
-      },
-      {
-        label: link?.delay ? "遅れを外す" : "遅れを付ける",
-        run: () =>
-          editor.commit(
-            edit.updateLink(editor.current(), id, { delay: link?.delay ? undefined : true }),
-          ),
-      },
-      {
-        label: "関連を削除",
-        shortcut: "Delete",
-        danger: true,
-        run: () => {
-          editor.select({ kind: "link", id });
-          editor.deleteSelection();
-        },
-      },
-    ];
-  };
-
   const canvasMenu = (point: Point): MenuItem[] => [
     {
       label: "ここに変数を追加",
@@ -352,11 +309,11 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       const id = node.dataset.variableId as VariableId;
       editor.select({ kind: "variable", id });
       const label = editor.variableById().get(id)?.label || "名称未設定";
-      setMenu({ ...position, label: `「${label}」の操作`, items: variableMenu(id) });
+      setMenu({ ...position, label: `「${label}」の操作`, items: variableActions(editor, id) });
     } else if (link) {
       const id = link.dataset.linkId as LinkId;
       editor.select({ kind: "link", id });
-      setMenu({ ...position, label: "関連の操作", items: linkMenu(id) });
+      setMenu({ ...position, label: "関連の操作", items: linkActions(editor, id) });
     } else {
       setMenu({
         ...position,
@@ -612,6 +569,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
             <button
               type="button"
               class="button primary canvas-add"
+              title="空いた所のダブルクリックでも追加できます"
               onClick={() => editor.addVariableAt(editor.viewCenter())}
             >
               <PlusIcon />
@@ -655,15 +613,8 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
             </p>
           }
         >
-          <p class="canvas-hint for-touch">
+          <p class="canvas-hint">
             <span>変数を選ぶと、名前の変更・矢印・削除ができます</span>
-          </p>
-          <p class="canvas-hint for-mouse">
-            <span>ダブルクリックで変数を追加</span>
-            <span>右端の点をドラッグで関連</span>
-            <span>
-              <kbd>Delete</kbd> で削除
-            </span>
           </p>
         </Show>
       </Show>

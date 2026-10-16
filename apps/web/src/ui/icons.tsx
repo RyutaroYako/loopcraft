@@ -103,13 +103,6 @@ export const FitIcon = () => (
   </Icon>
 );
 
-export const TrashIcon = () => (
-  <Icon>
-    <path d="M3.5 5.5h13M8 5.5V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" />
-    <path d="M5 5.5 5.75 16a1.25 1.25 0 0 0 1.25 1.15h6a1.25 1.25 0 0 0 1.25-1.15L15 5.5" />
-  </Icon>
-);
-
 export const PinIcon = (props: { filled?: boolean }) => (
   <Icon>
     <path

@@ -136,8 +136,9 @@ describe("狭い画面", () => {
 
       await bar().getByRole("button", { name: "詳しく" }).click();
       await expect.poll(() => sheet().dataset.size).toBe("half");
+      await expect.element(bar()).toBeVisible();
       await expect
-        .poll(() => getComputedStyle(document.querySelector(".selection-bar")!).display)
+        .poll(() => getComputedStyle(document.querySelector(".sheet-expand")!).display)
         .toBe("none");
       const name = page.getByRole("textbox", { name: "名前", exact: true });
       await expect.element(name).toBeVisible();
@@ -149,7 +150,7 @@ describe("狭い画面", () => {
       await button("パネルを広げる").click();
       await button("パネルを畳む").click();
       await expect.poll(() => sheet().dataset.size).toBe("peek");
-      await bar().getByRole("button", { name: "削除" }).click();
+      await bar().getByRole("button", { name: "変数を削除" }).click();
       await expect.element(node("社員数")).not.toBeInTheDocument();
     });
   });
@@ -272,7 +273,7 @@ describe("指での操作", () => {
       const links = () => document.querySelectorAll("[data-link-id]").length;
       const before = links();
       await node("利益").click();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       await expect.poll(() => sheet().dataset.size).toBe("peek");
       await expect
         .poll(() => document.querySelector(".connect-banner [role=status]")?.textContent)
@@ -288,7 +289,7 @@ describe("指での操作", () => {
 
       // 押さずにフォーカスで選ぶのは、下端のボタンが変数に重なるため
       nodeElement("profit").focus();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       const empty = canvasPoint(30, 30);
       const svg = document.querySelector(".canvas-svg")!;
       touch("pointerdown", svg, 2, empty);
@@ -305,7 +306,7 @@ describe("指での操作", () => {
       const banner = () => document.querySelector(".connect-banner");
       const start = async () => {
         await node("利益").click();
-        await button("キャンバスで矢印を引く").click();
+        await button("矢印を引く").click();
         await expect.poll(banner).not.toBeNull();
       };
 
@@ -413,7 +414,7 @@ describe("指での操作の取り違え", () => {
       const links = () => document.querySelectorAll("[data-link-id]").length;
       const before = links();
       await node("利益").click();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       const svg = document.querySelector(".canvas-svg")!;
       const training = nodeElement("training");
       touch("pointerdown", training, 1, centerOf(training));
@@ -429,7 +430,7 @@ describe("指での操作の取り違え", () => {
     await atPhoneSize(async () => {
       const banner = () => document.querySelector(".connect-banner");
       await node("利益").click();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       await userEvent.keyboard("{Delete}");
       await expect.poll(banner).toBeNull();
       await button("元に戻す").click();
@@ -437,7 +438,7 @@ describe("指での操作の取り違え", () => {
       expect(banner()).toBeNull();
 
       nodeElement("profit").focus();
-      await button("キャンバスで矢印を引く").click();
+      await button("矢印を引く").click();
       await expect.poll(banner).not.toBeNull();
       await page
         .getByRole("button", { name: /成長エンジン/ })

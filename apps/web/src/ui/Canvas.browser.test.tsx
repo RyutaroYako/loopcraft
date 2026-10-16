@@ -444,6 +444,8 @@ describe("右クリックのメニュー", () => {
     await expect.element(menu("「売上」の操作")).toBeVisible();
     await expect.element(menuItem(/名前を変える/)).toHaveFocus();
     await userEvent.keyboard("{ArrowDown}");
+    await expect.element(menuItem(/矢印を引く/)).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
     await expect.element(menuItem(/変数を削除/)).toHaveFocus();
     await userEvent.keyboard("{ArrowDown}");
     await expect.element(menuItem(/名前を変える/)).toHaveFocus();

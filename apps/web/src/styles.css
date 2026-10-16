@@ -193,25 +193,6 @@ kbd {
   font-size: 12px;
 }
 
-.button.danger {
-  justify-content: flex-start;
-  border-color: transparent;
-  background: transparent;
-  color: var(--negative);
-  padding: 0 8px;
-  margin-left: -8px;
-  justify-self: start;
-}
-
-.button.danger:hover {
-  background: var(--negative-soft);
-  border-color: transparent;
-}
-
-.button.danger kbd {
-  margin-left: 4px;
-}
-
 .icon-button {
   display: inline-grid;
   place-items: center;
@@ -810,23 +791,12 @@ button.save-status.warning .save-dot {
 .canvas-hint {
   position: absolute;
   right: 16px;
-  bottom: 18px;
+  bottom: 76px;
   display: flex;
   gap: 14px;
   font-size: 12px;
   color: var(--muted);
   pointer-events: none;
-}
-
-.canvas-hint span + span::before {
-  content: "";
-  display: inline-block;
-  width: 3px;
-  height: 3px;
-  margin-right: 14px;
-  border-radius: 50%;
-  background: var(--faint);
-  vertical-align: middle;
 }
 
 .empty-state {
@@ -1160,18 +1130,6 @@ button.save-status.warning .save-dot {
   background: rgb(255 255 255 / 0.12);
 }
 
-/* 指で操るときだけ出すのは、マウスなら変数の右端の点をドラッグする方が早いため */
-.connect-start {
-  display: none;
-  justify-self: start;
-}
-
-@media (max-width: 767px), (pointer: coarse) {
-  .connect-start {
-    display: inline-flex;
-  }
-}
-
 /* 見た目どおりの大きさにしないのは、指では 9px の点に当たらないため */
 @media (pointer: coarse) {
   .node-handle-hit {
@@ -1234,57 +1192,82 @@ button.save-status.warning .save-dot {
 /* 広い画面で出さないのは、ツールバーに全部並び、一覧もキャンバスの横に並ぶため */
 .toolbar-more,
 .sheet-handle,
-.canvas-actions,
-.selection-bar {
+.sheet-expand,
+.canvas-history {
   display: none;
 }
 
-/* 文言を 1 つにまとめないのは、ダブルクリックや右クリックが指では使えず、案内が嘘になるため。
-   表示する側を display で指定しないのは、要素ごとの display（flex など）を上書きしてしまうため */
-@media not (pointer: coarse) {
-  .for-touch {
-    display: none !important;
-  }
+.canvas-actions {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
 }
 
-@media (pointer: coarse) {
-  .for-mouse {
-    display: none !important;
-  }
+.canvas-add.button {
+  height: 48px;
+  margin-left: auto;
+  padding: 0 18px 0 14px;
+  border-color: var(--accent);
+  border-radius: 14px;
+  background: var(--accent);
+  font-size: 15px;
+  box-shadow: 0 10px 24px -10px rgb(15 118 110 / 0.6);
 }
 
-/* 履歴をここに出さないのは、広い画面ではツールバーに既にあるため */
-@media (pointer: coarse) and (min-width: 768px) {
-  .canvas-actions {
-    position: absolute;
-    right: 16px;
-    bottom: 16px;
-    display: flex;
-  }
+.canvas-add.button:hover:not(:disabled) {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
 
-  .canvas-history {
-    display: none;
-  }
+.selection-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  gap: 2px;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
 
-  .canvas-add.button {
-    height: 48px;
-  }
+.selection-bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 
-  .canvas-hint {
-    bottom: 76px;
-  }
+.selection-bar-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 折り返さないのは、狭い画面では畳んだシートの高さに収まらず、2 段目の操作が隠れるため */
+.selection-bar-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 4px;
+  margin-left: -8px;
 }
 
 .sidebar {
   display: grid;
   /* 中身の高さで分けないのは、選択で検査パネルが伸び縮みし、ループ一覧がカーソルの下で動くため */
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
   min-height: 0;
   border-left: 1px solid var(--line);
   background: var(--surface);
 }
 
+/* 行を指定しないと、操作バーが無いときに検査パネルが 1 行目の auto に詰まる */
 .inspector {
+  grid-row: 2;
   overflow-y: auto;
   outline: none;
   border-bottom: 1px solid var(--line);
@@ -1642,11 +1625,6 @@ button.save-status.warning .save-dot {
   margin-top: -6px;
 }
 
-.relations + .button.danger,
-.inline-actions + .button.danger {
-  margin-top: -4px;
-}
-
 .loop-list {
   display: flex;
   flex-direction: column;
@@ -1658,6 +1636,7 @@ button.save-status.warning .save-dot {
 }
 
 .browser {
+  grid-row: 3;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1948,42 +1927,18 @@ button.save-status.warning .save-dot {
     cursor: grab;
   }
 
-  /* 広げたときに出さないのは、検査パネルに同じ名前と操作が並ぶため */
-  .sidebar[data-size="peek"] .selection-bar {
-    position: sticky;
+  .sidebar .selection-bar {
     top: 24px;
-    z-index: 1;
-    display: grid;
     flex: none;
-    gap: 2px;
-    padding: 0 16px 6px;
-    border-bottom: 1px solid var(--line);
-    background: var(--surface);
+    padding-top: 0;
   }
 
-  .selection-bar-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+  .sheet-expand {
+    display: inline-flex;
   }
 
-  .selection-bar-title {
-    min-width: 0;
-    overflow: hidden;
-    font-size: 15px;
-    font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* 折り返さないのは、畳んだシートの高さに収まらず、2 段目の操作が隠れるため */
-  .selection-bar-actions {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 4px;
-    margin-left: -8px;
+  .sidebar:not([data-size="peek"]) .sheet-expand {
+    display: none;
   }
 
   .selection-bar-actions .button {
@@ -2058,26 +2013,6 @@ button.save-status.warning .save-dot {
   /* 右端まで広げないのは、右上の全体表示と重なるため */
   .connect-banner {
     right: 64px;
-  }
-
-  .connect-start {
-    height: 44px;
-  }
-
-  .canvas-add.button {
-    height: 48px;
-    margin-left: auto;
-    padding: 0 18px 0 14px;
-    border-color: var(--accent);
-    border-radius: 14px;
-    background: var(--accent);
-    font-size: 15px;
-    box-shadow: 0 10px 24px -10px rgb(15 118 110 / 0.6);
-  }
-
-  .canvas-add.button:hover:not(:disabled) {
-    border-color: var(--accent-strong);
-    background: var(--accent-strong);
   }
 
   /* 拡大縮小のボタンを出さないのは、ピンチで足りるため。全体表示は下端の操作と重ならない右上に寄せる */
