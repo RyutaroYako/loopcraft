@@ -14,41 +14,62 @@ export function EmptyState() {
     <Show
       when={editor.editable()}
       fallback={
-        <section class="empty-state" aria-labelledby="empty-title">
+        <section
+          class="empty-state absolute top-[clamp(32px,14%,140px)] left-[clamp(24px,9%,120px)] grid max-w-[520px] animate-rise gap-6 bg-[radial-gradient(closest-side,var(--canvas)_70%,transparent)] py-7 pr-8 pointer-events-none max-md:top-4 max-md:gap-3.5 max-md:py-3"
+          aria-labelledby="empty-title"
+        >
           <p class="eyebrow">Causal Loop Diagram</p>
-          <h2 id="empty-title">まだ変数がありません</h2>
-          <p class="empty-note">
-            読み取り専用で開いています。編集するには<code>--readonly</code>
+          <h2
+            id="empty-title"
+            class="max-w-[19ch] text-[clamp(24px,3vw,30px)] leading-tight font-semibold tracking-[-0.02em] text-balance [word-break:auto-phrase]"
+          >
+            まだ変数がありません
+          </h2>
+          <p class="max-w-[40ch] text-ink-2 [word-break:auto-phrase] max-md:[@media(max-height:760px)]:hidden">
+            読み取り専用で開いています。編集するには
+            <code class="mx-[0.25em] font-mono whitespace-nowrap">--readonly</code>
             を付けずに開き直してください。
           </p>
         </section>
       }
     >
-      <section class="empty-state" aria-labelledby="empty-title">
+      <section
+        class="empty-state absolute top-[clamp(32px,14%,140px)] left-[clamp(24px,9%,120px)] grid max-w-[520px] animate-rise gap-6 bg-[radial-gradient(closest-side,var(--canvas)_70%,transparent)] py-7 pr-8 pointer-events-none max-md:top-4 max-md:gap-3.5 max-md:py-3"
+        aria-labelledby="empty-title"
+      >
         <p class="eyebrow">Causal Loop Diagram</p>
-        <h2 id="empty-title">最初の変数を置いて、つながりを描きはじめる</h2>
-        <p class="empty-note">変数は、売上や社員数のように増えたり減ったりするものです</p>
-        <ol class="empty-steps">
-          <li>
-            <span class="step-index">01</span>
+        <h2
+          id="empty-title"
+          class="max-w-[19ch] text-[clamp(24px,3vw,30px)] leading-tight font-semibold tracking-[-0.02em] text-balance [word-break:auto-phrase]"
+        >
+          最初の変数を置いて、つながりを描きはじめる
+        </h2>
+        <p class="max-w-[40ch] text-ink-2 [word-break:auto-phrase] max-md:[@media(max-height:760px)]:hidden">
+          変数は、売上や社員数のように増えたり減ったりするものです
+        </p>
+        <ol class="grid gap-2.5 border-y border-line py-3.5 text-ink-2 max-md:[@media(max-height:760px)]:hidden">
+          <li class="grid grid-cols-[32px_1fr] items-baseline animate-rise">
+            <span class="font-mono text-[11px] text-accent">01</span>
             <span>
-              下の<strong>「変数を追加」</strong>で変数を置く
+              下の<strong class="font-semibold text-ink">「変数を追加」</strong>で変数を置く
             </span>
           </li>
-          <li>
-            <span class="step-index">02</span>
+          <li class="grid grid-cols-[32px_1fr] items-baseline animate-rise [animation-delay:80ms]">
+            <span class="font-mono text-[11px] text-accent">02</span>
             <span>
-              変数を選んで<strong>「矢印を引く」</strong>から、因果の矢印を引く
+              変数を選んで<strong class="font-semibold text-ink">「矢印を引く」</strong>
+              から、因果の矢印を引く
             </span>
           </li>
-          <li>
-            <span class="step-index">03</span>
+          <li class="grid grid-cols-[32px_1fr] items-baseline animate-rise [animation-delay:160ms]">
+            <span class="font-mono text-[11px] text-accent">03</span>
             <span>
-              矢印が輪になると<strong>ループを自動で検出</strong>。主張したいものを見出す
+              矢印が輪になると<strong class="font-semibold text-ink">ループを自動で検出</strong>
+              。主張したいものを見出す
             </span>
           </li>
         </ol>
-        <div class="empty-actions">
+        <div class="flex flex-wrap gap-2 *:pointer-events-auto">
           <button
             type="button"
             class="button primary"

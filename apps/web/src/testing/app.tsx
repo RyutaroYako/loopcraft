@@ -6,7 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import App from "../App.tsx";
 import type { Startup } from "../editor/startup.ts";
 import type { DocumentStore, ReloadResult, SaveResult, WatchHandlers } from "../editor/store.ts";
-import "../styles.css";
+import "../app.css";
 
 let dispose: (() => void) | undefined;
 

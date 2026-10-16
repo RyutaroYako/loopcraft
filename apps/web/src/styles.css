@@ -1,7 +1,4 @@
 :root {
-  --font-sans: "Geist Variable", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
-  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
-
   --ink: #18181b;
   --ink-2: #3f3f46;
   --muted: #71717a;
@@ -19,7 +16,6 @@
   --negative-soft: rgb(190 52 85 / 0.08);
 
   --shadow-float: 0 1px 2px rgb(24 24 27 / 0.04), 0 8px 24px -12px rgb(24 24 27 / 0.18);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
   font-family: var(--font-sans);
   font-size: 14px;
@@ -484,18 +480,6 @@ button.save-status.warning .save-dot {
   display: none;
 }
 
-.empty-note {
-  max-width: 40ch;
-  color: var(--ink-2);
-  word-break: auto-phrase;
-}
-
-.empty-note code {
-  margin: 0 0.25em;
-  font-family: var(--font-mono);
-  white-space: nowrap;
-}
-
 .node.dimmed,
 .link.dimmed,
 .loop-marker.dimmed {
@@ -792,75 +776,6 @@ button.save-status.warning .save-dot {
   font-size: 12px;
   color: var(--muted);
   pointer-events: none;
-}
-
-.empty-state {
-  position: absolute;
-  top: clamp(32px, 14%, 140px);
-  left: clamp(24px, 9%, 120px);
-  display: grid;
-  gap: 24px;
-  max-width: 520px;
-  padding: 28px 32px 28px 0;
-  background: radial-gradient(closest-side, var(--canvas) 70%, transparent);
-  animation: rise 0.6s var(--ease-out) both;
-  /* 案内全体で受け取らないのは、案内の上でもダブルクリックで変数を足せるようにするため */
-  pointer-events: none;
-}
-
-.empty-actions .button {
-  pointer-events: auto;
-}
-
-.empty-state h2 {
-  word-break: auto-phrase;
-  max-width: 19ch;
-  font-size: clamp(24px, 3vw, 30px);
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-
-.empty-steps {
-  display: grid;
-  gap: 10px;
-  padding: 14px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  color: var(--ink-2);
-}
-
-.empty-steps li {
-  display: grid;
-  grid-template-columns: 32px 1fr;
-  align-items: baseline;
-  animation: rise 0.6s var(--ease-out) both;
-}
-
-.empty-steps li:nth-child(2) {
-  animation-delay: 80ms;
-}
-
-.empty-steps li:nth-child(3) {
-  animation-delay: 160ms;
-}
-
-.empty-steps strong {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.step-index {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--accent);
-}
-
-.empty-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 @keyframes rise {
@@ -1852,23 +1767,7 @@ button.save-status.warning .save-dot {
   stroke-linejoin: round;
 }
 
-/* 詰めるだけで済ませないのは、低い画面ではそれでもボタンが拡大縮小の操作と重なるため */
-@media (max-width: 767px) and (max-height: 760px) {
-  .empty-state .empty-steps,
-  .empty-state .empty-note {
-    display: none;
-  }
-}
-
 @media (max-width: 767px) {
-  /* 広い画面と同じ余白では、ボタンが下の拡大縮小の操作と重なる */
-  .empty-state {
-    top: 16px;
-    gap: 14px;
-    padding-top: 12px;
-    padding-bottom: 12px;
-  }
-
   /* ページごとスクロールさせないのは、キャンバスのパンとページのスクロールが同じ指の操作で取り合うため */
   .workspace {
     grid-template-columns: minmax(0, 1fr);

@@ -1,0 +1,39 @@
+/* preflight を読み込まないのは、styles.css が独自のリセットを持ち、二重にすると既存の見た目が崩れるため */
+/* styles.css を components レイヤーに入れるのは、レイヤー外に置くと詳細度に関係なく utilities より優先され、ol { padding: 0 } のような要素指定にさえ負けるため */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "./styles.css" layer(components);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Tailwind 既定の色を消すのは、styles.css のトークン以外の色が紛れ込まないようにするため */
+/* spacing を px で持つのは、:root の font-size が 14px で、既定の 0.25rem だと gap-6 が 24px でなく 21px になるため */
+@theme {
+  --color-*: initial;
+  --spacing: 4px;
+  --animate-rise: rise 0.6s var(--ease-out) both;
+}
+
+/* static にするのは、utilities から使われなくても styles.css が var() で参照するため */
+@theme static {
+  --font-sans: "Geist Variable", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* inline にするのは、値を styles.css の変数に委ね、色の定義を一箇所に保つため */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-canvas: var(--canvas);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+}
