@@ -1,7 +1,7 @@
 import { Show, createSignal, onCleanup, onSettled, useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
 import { downloadBlob, fileNameOf } from "../editor/file.ts";
-import { CopyButton, Dialog } from "./Dialog.tsx";
+import { CopyButton, Dialog, DialogError, DialogSpacer } from "./Dialog.tsx";
 import { SaveIcon } from "./icons.tsx";
 
 type Shot =
@@ -49,7 +49,7 @@ export function ScreenshotDialog(props: { capture: () => Promise<Blob>; onClose:
   return (
     <Dialog
       title="画像として書き出す"
-      class="screenshot-dialog"
+      width="w-[min(960px,calc(100vw-32px))]"
       onClose={props.onClose}
       footer={
         <>
@@ -65,7 +65,7 @@ export function ScreenshotDialog(props: { capture: () => Promise<Blob>; onClose:
             <SaveIcon />
             PNG を保存
           </button>
-          <span class="dialog-spacer" />
+          <DialogSpacer />
           <CopyButton
             disabled={!blob()}
             copy={() => navigator.clipboard.write([new ClipboardItem({ "image/png": blob()! })])}
@@ -73,23 +73,20 @@ export function ScreenshotDialog(props: { capture: () => Promise<Blob>; onClose:
         </>
       }
     >
-      <div class="screenshot-preview">
+      <div class="grid min-h-60 place-items-center rounded-md border border-line bg-canvas p-4">
         <Show when={shot().status === "capturing"}>
-          <p class="screenshot-status">画像を作っています…</p>
+          <p class="text-base text-muted">画像を作っています…</p>
         </Show>
         <Show when={failed()} keyed>
-          {(current) => (
-            <div class="dialog-error" role="alert">
-              <p>画像を作れませんでした</p>
-              <ul>
-                <li>{current.error}</li>
-              </ul>
-            </div>
-          )}
+          {(current) => <DialogError title="画像を作れませんでした" errors={[current.error]} />}
         </Show>
         <Show when={ready()} keyed>
           {(current) => (
-            <img src={current.url} alt={`${editor.current().title || "無題のシステム図"} の画像`} />
+            <img
+              class="block max-h-[calc(100dvh-280px)] max-w-full object-contain"
+              src={current.url}
+              alt={`${editor.current().title || "無題のシステム図"} の画像`}
+            />
           )}
         </Show>
       </div>
