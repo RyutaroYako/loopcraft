@@ -211,13 +211,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     switch (finished.kind) {
       case "pan":
         if (!finished.moved && !cancelled) {
-          const from = editor.connectingFrom();
-          if (from !== null) {
-            editor.stopConnecting();
-            const point = worldPoint(event);
-            editor.connectToNewVariable(from, { x: Math.round(point.x), y: Math.round(point.y) });
-            return;
-          }
           editor.select(null);
           editor.setFocusedLoop(null);
         }
@@ -241,20 +234,9 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
       case "connect": {
         setLinkDraft(null);
         if (cancelled || !finished.moved) return;
-        const point = worldPoint(event);
-        const target = nodeAt(point);
-        if (target === finished.from) return;
-        if (target) {
-          editor.connect(finished.from, target);
-          return;
-        }
-        const origin = editor.boxes().get(finished.from)?.center;
-        if (origin && Math.hypot(point.x - origin.x, point.y - origin.y) > 60) {
-          editor.connectToNewVariable(finished.from, {
-            x: Math.round(point.x),
-            y: Math.round(point.y),
-          });
-        }
+        // 空いた所で離しても変数を足さないのは、つなぎ損ねたときに名前の無い変数が勝手にできるため
+        const target = nodeAt(worldPoint(event));
+        if (target && target !== finished.from) editor.connect(finished.from, target);
         return;
       }
     }
@@ -551,7 +533,7 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
             <p class="grid min-w-0 flex-1 font-medium" role="status">
               「{editor.variableById().get(from)?.label || "名称未設定"}
               」からつなぐ先を選ぶ
-              <span class="text-sm font-normal opacity-85">空いた所なら新しい変数につなぐ</span>
+              <span class="text-sm font-normal opacity-85">空いた所を押すとやめる</span>
             </p>
             <button
               type="button"

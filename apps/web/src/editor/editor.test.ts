@@ -135,7 +135,6 @@ describe("読み取り専用", () => {
     editor.beginGesture().preview(edit.setTitle(before, "y"));
     expect(editor.addVariableAt({ x: 0, y: 0 })).toBeUndefined();
     editor.connect(vid("staff"), vid("profit"));
-    editor.connectToNewVariable(vid("staff"), { x: 0, y: 0 });
     editor.select({ kind: "variable", id: vid("staff") });
     editor.deleteSelection();
     editor.featureLoop([lid("l_sales")]);
@@ -196,18 +195,6 @@ describe("編集の操作", () => {
     editor.connect(vid("staff"), vid("staff"));
     flush();
     expect(editor.selection()).toEqual({ kind: "link", id: "l_sales" });
-  });
-
-  it("関連を引いた先に新しい変数を作る", () => {
-    const editor = setup();
-    editor.connectToNewVariable(vid("staff"), { x: 9, y: 9 });
-    flush();
-    const added = editor.diagram().variables.at(-1)!;
-    expect(editor.editingVariable()).toBe(added.id);
-    expect(editor.diagram().links.at(-1)).toMatchObject({ from: "staff", to: added.id });
-    editor.connectToNewVariable(vid("ghost"), { x: 0, y: 0 });
-    flush();
-    expect(editor.diagram().variables.at(-1)).toBe(added);
   });
 
   it("選んでいるものを消す", () => {
