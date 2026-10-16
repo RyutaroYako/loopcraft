@@ -6,5 +6,4 @@
 @import "./styles/base.css" layer(base);
 @import "./styles/primitives.css" layer(components);
 @import "./styles/canvas.css" layer(components);
-@import "./styles/components.css" layer(components);
 @import "tailwindcss/utilities.css" layer(utilities);

@@ -40,16 +40,25 @@ export function Sidebar() {
   return (
     <aside
       class={[
-        "sidebar",
-        { dragging: sheet.dragging(), "has-selection": editor.selection() !== null },
+        // 中身の高さで分けないのは、選択で検査パネルが伸び縮みし、ループ一覧がカーソルの下で動くため。
+        // 狭い画面で縮ませないのは、シートの高さに押し込められて一覧と概要が重なるため。スクロールはシート全体で受ける
+        "sidebar grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] border-l border-line bg-surface max-md:relative max-md:z-2 max-md:-mt-4 max-md:flex max-md:h-(--sheet-height) max-md:flex-col max-md:overflow-y-auto max-md:overscroll-contain max-md:rounded-[18px_18px_0_0] max-md:border-l-0 max-md:pb-[env(safe-area-inset-bottom)] max-md:shadow-[0_-1px_0_var(--color-line),0_-12px_32px_-16px_rgb(24_24_27/0.22)] max-md:*:flex-none max-md:*:overflow-visible",
+        // 指で動かしている間も遷移を残さないのは、遅れて付いてきて取っ手が指から離れるため
+        sheet.dragging()
+          ? "max-md:transition-none"
+          : "max-md:transition-[height] max-md:duration-300",
       ]}
       data-size={sheet.size()}
       style={{ "--sheet-height": `${sheet.height()}px` }}
     >
       <SheetHandle sheet={sheet} />
       {/* 選んだときにシートを上げないのは、動かそうと触れた変数や、その行き先がシートの下に隠れるため */}
-      <div class="sidebar-top">
-        <SelectionBar onExpand={() => sheet.setSize("half")} />
+      {/*
+        操作バーをグリッドの 1 行にしないのは、選ぶたびに行が増減し、ループ一覧がカーソルの下で動くため。
+        狭い画面で包みを残さないのは、上端の操作バーをシート全体のスクロールに対して貼り付けるため
+      */}
+      <div class="flex min-h-0 flex-col border-b border-line max-md:contents max-md:*:flex-none max-md:*:overflow-visible">
+        <SelectionBar expandable={sheet.size() === "peek"} onExpand={() => sheet.setSize("half")} />
         <Inspector />
       </div>
       <Browser />
@@ -57,7 +66,7 @@ export function Sidebar() {
   );
 }
 
-function SelectionBar(props: { onExpand: () => void }) {
+function SelectionBar(props: { expandable: boolean; onExpand: () => void }) {
   const editor = useContext(EditorContext);
   const title = () => {
     const selection = editor.selection();
@@ -78,15 +87,28 @@ function SelectionBar(props: { onExpand: () => void }) {
   };
   return (
     <Show when={editor.selection()}>
-      <div class="selection-bar">
-        <div class="selection-bar-head">
-          <p class="selection-bar-title">{title()}</p>
-          <button type="button" class="button ghost small sheet-expand" onClick={props.onExpand}>
+      <div class="grid gap-0.5 border-b border-line bg-surface px-4 pt-3 pb-2 max-md:sticky max-md:top-6 max-md:z-1 max-md:flex-none max-md:pt-0">
+        <div class="flex items-center justify-between gap-2">
+          <p class="selection-bar-title min-w-0 truncate text-lg font-semibold">{title()}</p>
+          {/* 広い画面で出さないのは、一覧がキャンバスの横に並び、広げるものが無いため */}
+          <button
+            type="button"
+            class={[
+              "button ghost small sheet-expand hidden",
+              { "max-md:inline-flex": props.expandable },
+            ]}
+            onClick={props.onExpand}
+          >
             詳しく
           </button>
         </div>
         <Show when={actions().length > 0}>
-          <div class="selection-bar-actions" role="toolbar" aria-label="選んだ項目の操作">
+          {/* 狭い画面で折り返さないのは、畳んだシートの高さに収まらず、2 段目の操作が隠れるため */}
+          <div
+            class="-ml-2 flex flex-wrap gap-1 max-md:flex-nowrap max-md:overflow-x-auto max-md:*:min-h-10"
+            role="toolbar"
+            aria-label="選んだ項目の操作"
+          >
             {/* 項目でキーにしないのは、極性を変えるたびに一覧が作り直され、押したボタンからフォーカスが外れるため */}
             <For each={actions()} keyed={false}>
               {(action) => (
@@ -125,8 +147,14 @@ function Browser() {
     document.getElementById(`browser-tab-${next}`)?.focus();
   };
   return (
-    <section class="browser">
-      <div class="browser-tabs" role="tablist" aria-label="一覧" onKeyDown={onKeyDown}>
+    <section class="browser flex min-h-0 flex-col max-md:order-1">
+      {/* 他と同じ 20px にしないのは、タブ自体の内側の余白があり、文字が下の一覧より右にずれるため */}
+      <div
+        class="browser-tabs flex gap-1 px-2 pt-3 pb-2 max-md:pt-0"
+        role="tablist"
+        aria-label="一覧"
+        onKeyDown={onKeyDown}
+      >
         <For each={tabs}>
           {(item) => (
             <button
@@ -136,13 +164,18 @@ function Browser() {
               aria-controls={`browser-panel-${item.value}`}
               aria-selected={tab() === item.value ? "true" : "false"}
               tabindex={tab() === item.value ? 0 : -1}
-              class={["browser-tab", { active: tab() === item.value }]}
+              class={[
+                "inline-flex h-7.5 items-center gap-1.5 rounded-sm border-0 px-3 py-0 text-base font-medium transition-[background-color,color] max-md:min-h-10",
+                tab() === item.value
+                  ? "bg-surface-2 text-ink"
+                  : "bg-transparent text-muted hover:text-ink",
+              ]}
               onClick={() => setTab(item.value)}
             >
               {item.label}
-              <span class="browser-tab-count">
+              <span class="font-mono text-[11.5px] text-muted">
                 {item.count()}
-                <span class="visually-hidden">件</span>
+                <span class="sr-only">件</span>
               </span>
             </button>
           )}
@@ -202,16 +235,17 @@ function VariableList(props: { hidden: boolean }) {
   };
   return (
     <div
-      class="loop-list"
+      class="flex min-h-0 flex-col"
       role="tabpanel"
       hidden={props.hidden}
       id="browser-panel-variables"
       aria-labelledby="browser-tab-variables"
     >
       <Show when={editor.diagram().variables.length > 0}>
-        <label class="browser-search">
-          <span class="visually-hidden">変数を名前で絞り込む</span>
+        <label class="block px-5 pb-2.5">
+          <span class="sr-only">変数を名前で絞り込む</span>
           <input
+            class="h-8 w-full rounded-sm border border-line bg-surface px-2.5 py-0 text-base text-ink max-md:min-h-10"
             type="search"
             name="variable-search"
             placeholder="名前で絞り込む"
@@ -223,29 +257,33 @@ function VariableList(props: { hidden: boolean }) {
       <Show
         when={visible().length > 0}
         fallback={
-          <p class="loop-empty">
+          <p class={emptyClass}>
             {editor.diagram().variables.length === 0
               ? "変数を追加すると、ここに並びます"
               : "名前が一致する変数はありません"}
           </p>
         }
       >
-        <ul class="loop-items">
+        <ul class={itemsClass}>
           <For each={visible()} keyed={(variable) => variable.id}>
             {(variable, index) => (
               <li
-                class={["variable-item", { active: selectedId() === variable().id }]}
+                class={[
+                  "variable-item",
+                  itemClass,
+                  { [`active ${activeItemClass}`]: selectedId() === variable().id },
+                ]}
                 style={{ "--index": String(Math.min(index(), 12)) }}
               >
                 <button
                   type="button"
-                  class="loop-item-main"
+                  class={[itemMainClass, "grid-cols-[minmax(0,1fr)]"]}
                   aria-current={selectedId() === variable().id ? "true" : undefined}
                   onClick={() => choose(variable().id)}
                 >
-                  <span class="loop-item-text">
-                    <span class="loop-item-title">{variable().label || "名称未設定"}</span>
-                    <span class="loop-item-route">
+                  <span class="grid min-w-0">
+                    <span class={itemTitleClass}>{variable().label || "名称未設定"}</span>
+                    <span class={itemRouteClass}>
                       原因 {degrees().get(variable().id)?.causes ?? 0} ・ 結果{" "}
                       {degrees().get(variable().id)?.effects ?? 0}
                     </span>
@@ -277,7 +315,17 @@ function Inspector() {
     return selection?.kind === "loop" ? selection.id : undefined;
   };
   return (
-    <section class="inspector" aria-label="選択中の項目" tabindex="-1">
+    // 選んでいないときに狭い画面で図の概要を先に出さないのは、一覧の方がよく使い、概要は広げたときに読めれば足りるため
+    <section
+      class={[
+        "inspector min-h-0 flex-1 overflow-y-auto outline-none max-md:overflow-visible max-md:border-line",
+        editor.selection() === null
+          ? "max-md:order-2 max-md:border-t"
+          : "max-md:order-0 max-md:border-b",
+      ]}
+      aria-label="選択中の項目"
+      tabindex="-1"
+    >
       <Switch fallback={<DiagramInspector />}>
         <Match when={selectedVariable()} keyed>
           {(id) => <VariableInspector id={id} />}
@@ -295,9 +343,9 @@ function Inspector() {
 
 function SectionHeading(props: { kicker: string; title: string }) {
   return (
-    <header class="section-heading">
+    <header class="grid gap-0.5">
       <p class="eyebrow">{props.kicker}</p>
-      <h2>{props.title}</h2>
+      <h2 class="text-xl font-semibold tracking-[-0.015em]">{props.title}</h2>
     </header>
   );
 }
@@ -353,7 +401,7 @@ function DiagramInspector() {
   const editor = useContext(EditorContext);
   const autosave = useContext(AutosaveContext);
   return (
-    <div class="inspector-body">
+    <div class={inspectorBodyClass}>
       <SectionHeading kicker="Diagram" title="図の概要" />
       <Field
         name="diagram-description"
@@ -406,17 +454,19 @@ function BackupList() {
   };
   return (
     <Show when={backups().length > 0}>
-      <div class="backup-list" ref={(element) => (list = element)}>
+      <div class="grid gap-1.5 border-t border-line pt-3.5" ref={(element) => (list = element)}>
         <p class="field-label">退避したデータ</p>
-        <p class="visually-hidden" aria-live="polite">
+        <p class="sr-only" aria-live="polite">
           {confirming() ? "削除すると元に戻せません。「削除する」か「やめる」を選んでください" : ""}
         </p>
         <p class="field-hint">開けなかった前回の図です。書き出して内容を確かめられます</p>
         <ul>
           <For each={backups()} keyed={(backup) => backup.key}>
             {(backup) => (
-              <li>
-                <span class="backup-date">{backup().savedAt.toLocaleString("ja-JP")}</span>
+              <li class="flex items-center gap-1">
+                <span class="flex-1 font-mono text-sm text-ink-2">
+                  {backup().savedAt.toLocaleString("ja-JP")}
+                </span>
                 {/*
                   確認用のボタンに差し替えないのは、押したボタンのフォーカスが失われるため。
                   差し替えなければ、「削除」を押すと同じ位置の「やめる」にフォーカスが乗る
@@ -473,7 +523,7 @@ function VariableInspector(props: { id: VariableId }) {
   const update = (patch: Parameters<typeof edit.updateVariable>[2], key: string) =>
     editor.commit(edit.updateVariable(editor.current(), props.id, patch), `${key}:${props.id}`);
   return (
-    <div class="inspector-body">
+    <div class={inspectorBodyClass}>
       <SectionHeading kicker="Variable" title="変数" />
       <Field
         name="variable-label"
@@ -490,7 +540,7 @@ function VariableInspector(props: { id: VariableId }) {
         multiline
         onInput={(description) => update({ description: description || undefined }, "description")}
       />
-      <div class="relations">
+      <div class="grid grid-cols-2 gap-4">
         <RelationList
           title="原因"
           empty="この変数に影響する矢印はありません"
@@ -529,20 +579,23 @@ function RelationList(props: {
 }) {
   const editor = useContext(EditorContext);
   return (
-    <div class="relation-list">
+    <div class="grid content-start gap-1.5">
       <p class="field-label">{props.title}</p>
-      <Show when={props.links.length > 0} fallback={<p class="muted">{props.empty}</p>}>
-        <ul>
+      <Show
+        when={props.links.length > 0}
+        fallback={<p class="text-[12.5px] text-muted">{props.empty}</p>}
+      >
+        <ul class="grid gap-0.5">
           <For each={props.links}>
             {(link) => (
               <li>
                 <button
                   type="button"
-                  class="relation"
+                  class="-ml-1.5 flex w-full items-center gap-2 rounded-xs border-0 bg-transparent px-1.5 py-1.25 text-left text-base hover:bg-surface-2"
                   onClick={() => editor.select({ kind: "link", id: link.id })}
                 >
                   <PolarityGlyph polarity={link.polarity} />
-                  <span>{props.labelOf(link)}</span>
+                  <span class="truncate">{props.labelOf(link)}</span>
                 </button>
               </li>
             )}
@@ -567,9 +620,9 @@ function RelationPicker(props: {
   const [chosen, setChosen] = createSignal<VariableId | "">("");
   const valid = () => props.candidates.some((candidate) => candidate.id === chosen());
   return (
-    <div class="relation-picker">
+    <div class="relation-picker mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] gap-1">
       <select
-        class="relation-add"
+        class="h-7 w-full min-w-0 cursor-pointer rounded-[7px] border border-dashed border-line-strong bg-transparent px-1.5 py-0 text-[12.5px] text-muted transition-[border-color] hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink"
         name={props.label}
         aria-label={props.label}
         onChange={(event) => setChosen(event.currentTarget.value as VariableId | "")}
@@ -604,7 +657,12 @@ function RelationPicker(props: {
 
 function PolarityGlyph(props: { polarity: "+" | "-" }) {
   return (
-    <span class={["polarity-glyph", props.polarity === "+" ? "positive" : "negative"]}>
+    <span
+      class={[
+        "inline-grid size-4.5 flex-none place-items-center rounded-[5px] font-mono text-sm font-semibold",
+        props.polarity === "+" ? "bg-surface-2 text-ink" : "bg-negative-soft text-negative",
+      ]}
+    >
       {props.polarity === "+" ? "+" : "−"}
     </span>
   );
@@ -631,23 +689,31 @@ function LinkInspector(props: { id: LinkId }) {
     if (id) editor.select({ kind: "variable", id });
   };
   return (
-    <div class="inspector-body">
+    <div class={inspectorBodyClass}>
       <SectionHeading kicker="Link" title="関連" />
-      <p class="link-route">
-        <button type="button" class="route-end" onClick={() => selectEnd("from")}>
+      <p class="flex flex-wrap items-center gap-2 text-faint">
+        <button
+          type="button"
+          class="rounded-pill border border-line bg-surface px-2.5 py-1 text-base font-medium text-ink transition-[border-color] hover:border-accent"
+          onClick={() => selectEnd("from")}
+        >
           {from()}
         </button>
         <ArrowRightIcon />
-        <button type="button" class="route-end" onClick={() => selectEnd("to")}>
+        <button
+          type="button"
+          class="rounded-pill border border-line bg-surface px-2.5 py-1 text-base font-medium text-ink transition-[border-color] hover:border-accent"
+          onClick={() => selectEnd("to")}
+        >
           {to()}
         </button>
       </p>
       <fieldset class="field">
         <legend class="field-label">極性</legend>
-        <div class="segmented">
+        <div class="grid grid-cols-2 gap-1 rounded-md bg-surface-2 p-1">
           <button
             type="button"
-            class={{ active: link()?.polarity === "+" }}
+            class={segmentClass(link()?.polarity === "+")}
             aria-pressed={pressedState(link()?.polarity === "+")}
             disabled={!editor.editable()}
             onClick={() => update({ polarity: "+" })}
@@ -657,7 +723,7 @@ function LinkInspector(props: { id: LinkId }) {
           </button>
           <button
             type="button"
-            class={{ active: link()?.polarity === "-" }}
+            class={segmentClass(link()?.polarity === "-")}
             aria-pressed={pressedState(link()?.polarity === "-")}
             disabled={!editor.editable()}
             onClick={() => update({ polarity: "-" })}
@@ -672,17 +738,21 @@ function LinkInspector(props: { id: LinkId }) {
             : `${from()}が増えると${to()}も増える`}
         </span>
       </fieldset>
-      <label class="toggle">
+      <label class="relative grid cursor-pointer grid-cols-[auto_1fr] items-start gap-3">
         <input
+          class="peer pointer-events-none absolute opacity-0"
           name="delay"
           type="checkbox"
           checked={link()?.delay ?? false}
           disabled={!editor.editable()}
           onChange={(event) => update({ delay: event.currentTarget.checked || undefined })}
         />
-        <span class="toggle-track" aria-hidden="true" />
+        <span
+          class="relative mt-px h-4.5 w-8 rounded-[9px] bg-line-strong transition-[background-color] duration-250 peer-checked:bg-accent peer-focus-visible:outline-[1.5px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent after:absolute after:top-0.5 after:left-0.5 after:size-3.5 after:rounded-[50%] after:bg-surface after:shadow-[0_1px_2px_rgb(24_24_27/0.2)] after:transition-[transform] after:duration-250 after:content-[''] peer-checked:after:transform-[translateX(14px)]"
+          aria-hidden="true"
+        />
         <span>
-          <span class="toggle-label">遅れがある</span>
+          <span class="block text-base font-medium">遅れがある</span>
           <span class="field-hint">影響が現れるまで時間がかかる関連に二重線を付けます</span>
         </span>
       </label>
@@ -699,7 +769,7 @@ function LinkInspector(props: { id: LinkId }) {
       <Show when={editor.editable()}>
         {/* 曲がり具合を付ける操作が無いのに戻す操作を置くのは、以前の版や JSON で付いたものを戻す手段がここしか無いため */}
         <Show when={customCurvature()}>
-          <div class="inline-actions">
+          <div class="inline-actions -mt-1.5 flex gap-2">
             <button
               type="button"
               class="button ghost small"
@@ -727,7 +797,7 @@ function LoopInspector(props: { id: LoopId }) {
   const update = (patch: Parameters<typeof edit.updateLoop>[2], key?: string) =>
     editor.commit(edit.updateLoop(editor.current(), props.id, patch), key);
   return (
-    <div class="inspector-body">
+    <div class={inspectorBodyClass}>
       <SectionHeading
         kicker={entry()?.featured?.badge ?? "Loop"}
         title={kindLabel(entry()?.kind ?? "reinforcing")}
@@ -760,6 +830,37 @@ function LoopInspector(props: { id: LoopId }) {
 
 const inspectorElement = () => document.querySelector<HTMLElement>(".inspector");
 
+const inspectorBodyClass =
+  "grid animate-[rise_0.35s_var(--ease-out)_both] gap-4.5 px-5 pt-5 pb-4.5";
+const emptyClass =
+  "grid content-start justify-items-start gap-2.5 px-5 py-2 text-[12.5px] text-muted";
+const itemsClass =
+  "grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto px-2.5 pb-5 max-md:flex-none max-md:overflow-visible";
+const itemClass =
+  "relative grid animate-[rise_0.4s_var(--ease-out)_calc(var(--index)*35ms)_both] grid-cols-[minmax(0,1fr)_auto] items-center rounded-md transition-[background-color] hover:bg-surface-2";
+/** before: を常に付けないのは、Tailwind が before: の付いた要素すべてに content を足し、選んでいない行にも印が出るため */
+const activeItemClass =
+  "bg-surface-2 before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:rounded-[1px] before:bg-accent";
+const itemMainClass =
+  "loop-item-main grid min-w-0 items-center gap-3 border-0 bg-transparent py-2.25 pr-1 pl-2.5 text-left";
+const itemTitleClass = "truncate text-[13.5px] font-medium";
+const itemRouteClass = "truncate text-sm text-muted";
+
+function segmentClass(active: boolean) {
+  return [
+    "inline-flex h-8 items-center justify-center gap-1.5 rounded-[7px] border text-[12.5px] font-medium transition-[background-color,color]",
+    active
+      ? "border-line bg-surface text-ink shadow-[0_1px_2px_rgb(24_24_27/0.06)]"
+      : "border-transparent bg-transparent text-muted",
+  ];
+}
+
+function badgeColor(kind: LoopKind, featured: boolean) {
+  if (featured)
+    return kind === "reinforcing" ? "bg-accent text-on-strong" : "bg-ink-2 text-on-strong";
+  return kind === "reinforcing" ? "bg-accent-soft text-accent" : "bg-surface-2 text-ink-2";
+}
+
 function pressedState(value: boolean) {
   return value ? "true" : "false";
 }
@@ -783,11 +884,11 @@ function LoopPath(props: { links: LinkId[]; variables: VariableId[] }) {
     })),
   );
   return (
-    <ol class="loop-path">
+    <ol class="relative grid gap-0.5 pl-3.5 before:absolute before:top-2.5 before:bottom-2.5 before:left-0.75 before:border-l before:border-dashed before:border-line-strong before:content-[''] after:pt-0.5 after:text-[11.5px] after:text-faint after:content-['先頭に戻る']">
       <For each={steps()} keyed={false}>
         {(step) => (
-          <li>
-            <span class="loop-path-label">{step().label}</span>
+          <li class="relative flex items-center justify-between gap-2 py-1 text-base before:absolute before:-left-3.5 before:size-1.75 before:rounded-[50%] before:border-[1.5px] before:border-accent before:bg-surface before:content-['']">
+            <span>{step().label}</span>
             <PolarityGlyph polarity={step().polarity} />
           </li>
         )}
@@ -800,21 +901,21 @@ function LoopList(props: { hidden: boolean }) {
   const editor = useContext(EditorContext);
   return (
     <div
-      class="loop-list"
+      class="flex min-h-0 flex-col"
       role="tabpanel"
       hidden={props.hidden}
       id="browser-panel-loops"
       aria-labelledby="browser-tab-loops"
     >
       <Show when={editor.detection().truncated}>
-        <p class="loop-warning">
+        <p class="mx-5 mb-2.5 rounded-sm bg-warning-soft px-2.5 py-2 text-sm text-warning">
           ループが多すぎるため、先頭の {editor.detection().loops.length} 件だけを表示しています
         </p>
       </Show>
       <Show
         when={editor.loopEntries().length > 0}
         fallback={
-          <div class="loop-empty">
+          <div class={emptyClass}>
             <svg viewBox="0 0 64 40" aria-hidden="true" class="loop-empty-art">
               <path d="M14 20a10 10 0 1 1 10 10h-6" />
               <path d="M50 20a10 10 0 1 1-10-10h6" />
@@ -825,7 +926,7 @@ function LoopList(props: { hidden: boolean }) {
           </div>
         }
       >
-        <ul class="loop-items">
+        <ul class={itemsClass}>
           <For each={editor.loopEntries()} keyed={(entry) => entry.key}>
             {(entry, index) => <LoopItem entry={entry()} index={index()} />}
           </For>
@@ -856,31 +957,45 @@ function LoopItem(props: { entry: LoopEntry; index: number }) {
   return (
     <li
       class={[
-        "loop-item",
+        "loop-item group/item",
+        itemClass,
         props.entry.kind,
-        { featured: !!props.entry.featured, active: active() },
+        { featured: !!props.entry.featured, [`active ${activeItemClass}`]: active() },
       ]}
       style={{ "--index": String(Math.min(props.index, 12)) }}
       onPointerEnter={() => editor.setHoveredLoop(props.entry.key)}
       onPointerLeave={() => editor.setHoveredLoop(null)}
     >
-      <button type="button" class="loop-item-main" onClick={choose}>
-        <span class="loop-badge">
+      <button
+        type="button"
+        class={[itemMainClass, "grid-cols-[30px_minmax(0,1fr)_auto]"]}
+        onClick={choose}
+      >
+        <span
+          class={[
+            "grid size-7.5 place-items-center rounded-sm font-mono text-sm font-semibold group-hover/item:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.4)]",
+            badgeColor(props.entry.kind, !!props.entry.featured),
+            { "shadow-[inset_0_0_0_1px_rgb(255_255_255/0.4)]": active() },
+          ]}
+        >
           {props.entry.featured?.badge ?? (props.entry.kind === "reinforcing" ? "R" : "B")}
         </span>
-        <span class="loop-item-text">
-          <span class="loop-item-title">
+        <span class="grid min-w-0">
+          <span class={[itemTitleClass, { "text-ink-2": !props.entry.featured }]}>
             {props.entry.featured?.loop.name || kindLabel(props.entry.kind)}
           </span>
-          <span class="loop-item-route">{labels().join(" → ")}</span>
+          <span class={itemRouteClass}>{labels().join(" → ")}</span>
         </span>
-        <span class="loop-length" title="ループを構成する関連の数">
+        <span class="font-mono text-xs text-faint" title="ループを構成する関連の数">
           {props.entry.links.length}
         </span>
       </button>
       <button
         type="button"
-        class={["icon-button", "pin", { pinned: !!props.entry.featured }]}
+        class={[
+          "icon-button pin mr-1.5 enabled:hover:text-ink",
+          props.entry.featured ? "text-accent" : "text-faint",
+        ]}
         aria-pressed={pressedState(!!props.entry.featured)}
         title={props.entry.featured ? "見出しを外す" : "このループを見出す"}
         aria-label={props.entry.featured ? "見出しを外す" : "このループを見出す"}

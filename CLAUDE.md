@@ -36,6 +36,8 @@ release. Add a tool name to select part of the graph. For example, run
 
 - 新しく書く UI は Tailwind のユーティリティで書く。値は `src/styles/tokens.css` のトークン（`text-ink`, `text-sm`, `rounded-md`, `shadow-float` など）を使い、`[13.5px]` のような任意値はトークンにない場合だけにする
 - 余白は 4px 単位（`gap-6` = 24px）。`:root` が 14px のため、rem 基準の Tailwind 既定値は tokens.css で消してある
-- 色・文字サイズ・角丸を足すときは tokens.css に足す。components.css に値を直書きしない
-- キャンバスの SVG とアイコンは components.css のまま残してよい
-- 既存の components.css から Tailwind へ移すときは、テストや `screenshot.ts` が参照するクラス名（`.canvas-svg` など）を目印として残す
+- 色・文字サイズ・角丸を足すときは tokens.css に足す。CSS に値を直書きしない
+- 同じプロパティのユーティリティを 1 つの要素に重ねない（`bg-transparent` と `bg-accent` など）。勝ち負けは書いた順でなく生成順で決まるので、状態で変えるときは条件で片方だけ付ける
+- `group` は名前付き（`group/item` など）で使う。名前が無いと、外側の別の `group` の hover まで拾う
+- CSS に残すのは、複数の画面で使う部品（`primitives.css` の `.button` `.field` など）と、キャンバスの SVG・アイコン（`canvas.css`）だけ
+- テストや `screenshot.ts` が参照するクラス名（`.canvas-svg` `.loop-item.active` など）は、スタイルを持たない目印として残す

@@ -13,15 +13,6 @@ kbd {
   color: var(--color-muted);
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 .icon {
   width: 18px;
   height: 18px;
@@ -131,6 +122,18 @@ kbd {
 .field {
   display: grid;
   gap: 6px;
+}
+
+.field-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink-2);
+}
+
+.field-hint {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
 }
 
 .field input,

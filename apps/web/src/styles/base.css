@@ -22,6 +22,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
   color: inherit;
@@ -65,4 +66,9 @@ ul {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ブラウザ既定の [hidden] に任せないのは、flex などのユーティリティの display に負けて隠れなくなるため */
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none !important;
 }

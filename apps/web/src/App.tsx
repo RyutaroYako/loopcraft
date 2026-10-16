@@ -118,7 +118,7 @@ function App(props: { startup: Startup }) {
       >
         <div
           class={[
-            "app group grid h-dvh grid-rows-[56px_minmax(0,1fr)] overflow-hidden",
+            "app group/app grid h-dvh grid-rows-[56px_minmax(0,1fr)] overflow-hidden",
             { dropping: dropping(), viewing: !editor.editable() },
           ]}
           onDragOver={(event) => {
@@ -161,7 +161,7 @@ function App(props: { startup: Startup }) {
             <ScreenshotDialog capture={() => captureDiagram(canvasSvg!)} onClose={closeDialog} />
           </Show>
           <div
-            class="pointer-events-none fixed inset-3 z-30 grid place-items-center rounded-[16px] border-[1.5px] border-dashed border-accent bg-[rgb(250_250_250/0.88)] text-lg font-medium text-accent-strong opacity-0 transition-opacity group-[.dropping]:opacity-100"
+            class="pointer-events-none fixed inset-3 z-30 grid place-items-center rounded-[16px] border-[1.5px] border-dashed border-accent bg-[rgb(250_250_250/0.88)] text-lg font-medium text-accent-strong opacity-0 transition-opacity group-[.dropping]/app:opacity-100"
             aria-hidden="true"
           >
             <p>JSON ファイルをドロップして読み込む</p>

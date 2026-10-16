@@ -1,9 +1,9 @@
 /*
  * デザイントークン。Tailwind のユーティリティ（bg-surface, text-sm, rounded-md など）と
- * components.css の var(--color-ink) などは、どちらもここだけを参照する。
+ * primitives.css や canvas.css の var(--color-ink) などは、どちらもここだけを参照する。
  */
 
-/* static にするのは、ユーティリティから使われていなくても components.css が var() で参照するため */
+/* static にするのは、ユーティリティから使われていなくても primitives.css や canvas.css が var() で参照するため */
 @theme static {
   /* Tailwind 既定の色・文字・角丸・影・幅を消すのは、トークン外の値が紛れ込むのを防ぎ、rem 基準の値（:root が 14px なので 12.5% 小さくなる）を使わせないため */
   --color-*: initial;
