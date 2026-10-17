@@ -1,5 +1,5 @@
 import type { Diagram } from "@loopcraft/core/schema";
-import { storeDiagram, watchOtherTabs } from "./storage.ts";
+import { loadStoredDiagram, storeDiagram, watchOtherTabs } from "./storage.ts";
 
 export type SaveResult =
   | { ok: true }
@@ -8,10 +8,7 @@ export type SaveResult =
   /** ページを読み込み直すまで保存できない（serve を止めた・起動し直したなど） */
   | { ok: false; reason: "disconnected" };
 
-export type ReloadResult =
-  | { ok: true; diagram: Diagram }
-  /** 読み直せない保存先では problems が空 */
-  | { ok: false; problems: string[] };
+export type ReloadResult = { ok: true; diagram: Diagram } | { ok: false; problems: string[] };
 
 export interface WatchHandlers {
   change(): void;
@@ -37,7 +34,13 @@ export const createBrowserStore = (): DocumentStore => {
       return result.ok ? { ok: true } : { ok: false, reason: "failed", error: result.error };
     },
     watch: (handlers) => watchOtherTabs(() => handlers.change()),
-    // 取り込まずに再読み込みを促すのは、別のタブの内容を黙って取り込むと、このタブの取り消し履歴と食い違うため
-    reload: async () => ({ ok: false, problems: [] }),
+    reload: async () => {
+      const stored = loadStoredDiagram();
+      if (stored.status === "ok") return { ok: true, diagram: stored.diagram };
+      if (stored.status === "empty")
+        return { ok: false, problems: ["保存されていた図が消されました"] };
+      if (stored.status === "invalid") return { ok: false, problems: stored.errors };
+      return { ok: false, problems: [String(stored.error)] };
+    },
   };
 };

@@ -49,7 +49,7 @@ export const createNotices = (context: {
       ]
     : [];
 
-  const reloadFromFile = run(async (autosave) => {
+  const reloadSaved = run(async (autosave) => {
     const result = await autosave.reload();
     if (!result.ok) explain({ kind: "suspended", reason: "external", problems: result.problems });
   });
@@ -86,30 +86,20 @@ export const createNotices = (context: {
       };
     }
     if (status.reason === "external") {
-      return store.kind === "browser"
-        ? {
-            tone: "error",
-            title: "別のタブでこの図が保存されました",
-            details: [
-              "上書きを防ぐため、このタブの自動保存を止めています",
-              "別のタブの内容を使うときは、このタブを再読み込みしてください",
-            ],
-            actions: [{ label: "このタブの内容で保存し直す", run: run((a) => a.resume()) }],
-          }
-        : {
-            tone: "error",
-            title: `${fileName} がほかの場所で変更されました`,
-            details: [
-              "上書きを防ぐため、自動保存を止めています",
-              ...(status.problems?.length
-                ? ["ファイルの内容を読み込めませんでした:", ...status.problems]
-                : []),
-            ],
-            actions: [
-              { label: "ファイルの内容を読み込む", run: reloadFromFile },
-              ...overwrite("この画面の内容で上書き"),
-            ],
-          };
+      return {
+        tone: "error",
+        title: "ほかの場所で図が変更されました",
+        details: [
+          "上書きを防ぐため、自動保存を止めています",
+          ...(status.problems?.length
+            ? ["保存されている内容を読み込めませんでした:", ...status.problems]
+            : []),
+        ],
+        actions: [
+          { label: "保存されている内容を読み込む", run: reloadSaved },
+          ...overwrite("この画面の内容で上書き"),
+        ],
+      };
     }
     if (startup.kind === "file") {
       const { loaded } = startup;
@@ -178,7 +168,7 @@ export const createNotices = (context: {
     },
 
     reloaded() {
-      editor.notify({ tone: "info", title: `${fileName} の変更を読み込みました` });
+      editor.notify({ tone: "info", title: "ほかの場所での変更を読み込みました" });
     },
 
     unwatched(detail: string | undefined) {

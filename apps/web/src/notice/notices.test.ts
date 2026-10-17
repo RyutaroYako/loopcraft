@@ -61,7 +61,7 @@ describe("createNotices", () => {
       problems: ["ファイルが削除されました"],
     });
     file.notices.explain({ kind: "suspended", reason: "external" });
-    file.run("ファイルの内容を読み込む");
+    file.run("保存されている内容を読み込む");
     await vi.waitFor(() => expect(file.shown()?.details).toContain("ファイルが削除されました"));
   });
 
@@ -99,7 +99,7 @@ describe("createNotices", () => {
     expect(viewer.shown()?.actions).toEqual([]);
     viewer.notices.explain({ kind: "suspended", reason: "external" });
     expect(viewer.shown()?.actions?.map((action) => action.label)).toEqual([
-      "ファイルの内容を読み込む",
+      "保存されている内容を読み込む",
     ]);
   });
 
@@ -139,23 +139,22 @@ describe("createNotices", () => {
     expect(file.autosave.resume).not.toHaveBeenCalled();
   });
 
-  it("外部での変更は、ブラウザなら保存し直し、ファイルなら読み込むか上書きを選べる", () => {
+  it("ほかの場所での変更は、保存先によらず読み込むか上書きを選べる", () => {
     const external: AutosaveStatus = { kind: "suspended", reason: "external" };
-    const browser = setup(browserStore, browserStartup);
-    browser.notices.explain(external);
-    expect(browser.shown()?.title).toBe("別のタブでこの図が保存されました");
-    browser.run("このタブの内容で保存し直す");
-    expect(browser.autosave.resume).toHaveBeenCalledOnce();
-    dispose();
-
-    const file = setup(fileStore, fileStartup({ status: "missing" }));
-    file.notices.explain(external);
-    expect(file.shown()?.title).toBe("a.json がほかの場所で変更されました");
-    file.run("ファイルの内容を読み込む");
-    expect(file.autosave.reload).toHaveBeenCalledOnce();
-    file.notices.explain(external);
-    file.run("この画面の内容で上書き");
-    expect(file.autosave.resume).toHaveBeenCalledOnce();
+    for (const [store, startup] of [
+      [browserStore, browserStartup],
+      [fileStore, fileStartup({ status: "missing" })],
+    ] as const) {
+      const target = setup(store, startup);
+      target.notices.explain(external);
+      expect(target.shown()?.title).toBe("ほかの場所で図が変更されました");
+      target.run("保存されている内容を読み込む");
+      expect(target.autosave.reload).toHaveBeenCalledOnce();
+      target.notices.explain(external);
+      target.run("この画面の内容で上書き");
+      expect(target.autosave.resume).toHaveBeenCalledOnce();
+      dispose();
+    }
   });
 
   it("開けなかったファイルは、直すか上書きを選べる", () => {
@@ -197,7 +196,7 @@ describe("createNotices", () => {
     missing.notices.atStartup(undefined);
     expect(missing.shown()).toMatchObject({ tone: "info", title: "a.json はまだありません" });
     missing.notices.reloaded();
-    expect(missing.shown()?.title).toBe("a.json の変更を読み込みました");
+    expect(missing.shown()?.title).toBe("ほかの場所での変更を読み込みました");
     dispose();
 
     const fine = setup(

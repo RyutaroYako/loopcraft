@@ -1,5 +1,5 @@
 import * as edit from "@loopcraft/core/edit";
-import { createEmptyDiagram } from "@loopcraft/core/io";
+import { createEmptyDiagram, stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { LinkId } from "@loopcraft/core/schema";
 import { afterEach, describe, expect, it } from "vite-plus/test";
@@ -210,6 +210,22 @@ describe("案内", () => {
     }
   });
 
+  it("別のタブで保存された図を取り込み、取り消せる", async () => {
+    mount(browserStartup(createSampleDiagram()));
+    await expect.element(node("売上")).toBeVisible();
+    const title = page.getByRole("textbox", { name: "図のタイトル" });
+    const before = createSampleDiagram().title;
+    localStorage.setItem(
+      "loopcraft:document",
+      stringifyDiagram({ ...createSampleDiagram(), title: "別のタブで直した" }),
+    );
+    window.dispatchEvent(new StorageEvent("storage", { key: "loopcraft:document" }));
+    await expect.element(notice()).toMatchTextContent(/ほかの場所での変更を読み込みました/);
+    await expect.element(title).toHaveValue("別のタブで直した");
+    await userEvent.keyboard("{Control>}z{/Control}");
+    await expect.element(title).toHaveValue(before);
+  });
+
   it("serve の情報が読めなければ、ブラウザに保存することを知らせる", async () => {
     mount({ kind: "browser", stored: { status: "empty" }, sessionInvalid: true });
     await expect.element(notice()).toMatchTextContent(/loopcraft serve の情報を読めませんでした/);
@@ -310,7 +326,7 @@ describe("serve で開いたとき", () => {
     await expect.element(node("売上")).toBeVisible();
     control.reloadResult = { ok: true, diagram: { ...createSampleDiagram(), title: "外で直した" } };
     control.handlers().change();
-    await expect.element(notice()).toMatchTextContent(/growth\.json の変更を読み込みました/);
+    await expect.element(notice()).toMatchTextContent(/ほかの場所での変更を読み込みました/);
     await expect
       .element(page.getByRole("textbox", { name: "図のタイトル" }))
       .toHaveValue("外で直した");
