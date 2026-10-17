@@ -269,7 +269,7 @@ describe("指での操作", () => {
     });
   });
 
-  it("選んだ変数から、タップした変数や空いた所へ矢印を引く", async () => {
+  it("選んだ変数から、タップした変数へ矢印を引き、空いた所のタップではやめる", async () => {
     await atPhoneSize(async () => {
       const links = () => document.querySelectorAll("[data-link-id]").length;
       const before = links();
@@ -298,8 +298,8 @@ describe("指での操作", () => {
       const svg = document.querySelector(".canvas-svg")!;
       touch("pointerdown", svg, 2, empty);
       touch("pointerup", svg, 2, empty);
-      expect(links()).toBe(before + 2);
-      await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
+      expect(links()).toBe(before + 1);
+      expect(document.querySelector('section[aria-label="矢印を引く"]')).toBeNull();
     });
   });
 

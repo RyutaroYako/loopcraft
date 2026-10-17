@@ -130,7 +130,7 @@ describe("ポインタでの操作", () => {
     expect(Math.round(centerOf(nodeElement("profit")).x - start.x)).toBe(30);
   });
 
-  it("右端の点を引いて、別の変数か何もない所で離すと関連ができる", async () => {
+  it("右端の点を引いて、別の変数で離すと関連ができ、何もない所では何も足さない", async () => {
     await open(createEmptyDiagram());
     await userEvent.dblClick(canvas(), { position: { x: 300, y: 300 } });
     await userEvent.keyboard("原因{Enter}");
@@ -164,8 +164,8 @@ describe("ポインタでの操作", () => {
     expect(document.querySelectorAll(".link")).toHaveLength(1);
 
     dragFrom(handle, start, canvasPoint(500, 600));
-    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
-    expect(document.querySelectorAll(".link")).toHaveLength(2);
+    expect(document.querySelectorAll(".link")).toHaveLength(1);
+    expect(document.querySelectorAll(".node")).toHaveLength(2);
   });
 
   it("関連を選ぶと検査パネルに出し、曲がり具合のハンドルは出さない", async () => {

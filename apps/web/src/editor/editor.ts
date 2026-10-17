@@ -317,16 +317,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     }
   }
 
-  function connectToNewVariable(from: VariableId, position: Point) {
-    if (!isEditable) return;
-    const added = edit.addVariable(present, { label: "", position });
-    const linked = edit.addLink(added.diagram, { from, to: added.id });
-    if (!linked.ok) return;
-    commit(linked.diagram);
-    select({ kind: "variable", id: added.id });
-    setEditingVariable(added.id);
-  }
-
   function deleteSelection() {
     if (!isEditable) return;
     const selected = selection();
@@ -550,7 +540,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     notify,
     addVariableAt,
     connect,
-    connectToNewVariable,
     deleteSelection,
     featureLoop,
     unfeatureLoop,
