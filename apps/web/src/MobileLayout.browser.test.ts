@@ -131,9 +131,9 @@ describe("狭い画面", () => {
       await node("社員数").click();
       await expect.element(remove()).toBeVisible();
       expect(sheet().dataset.sheetSize).toBe("peek");
-      expect(document.querySelector('section[aria-label="選んだ項目"] h2')?.textContent).toBe(
-        "社員数",
-      );
+      expect(
+        document.querySelector('section[aria-label="選択中の項目の操作"] h2')?.textContent,
+      ).toBe("社員数");
 
       await button("詳しく").click();
       await expect.poll(() => sheet().dataset.sheetSize).toBe("half");

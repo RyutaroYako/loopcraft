@@ -108,13 +108,13 @@ describe("init", () => {
 });
 
 describe("loops", () => {
-  it("見出したループを番号付きで、残りを後に出す", async () => {
+  it("注目するループを番号付きで、残りを後に出す", async () => {
     const { context, stdout } = await createWorkspace();
     await writeSample(context.cwd);
     await loops("diagram.json", { format: "text" }, context);
     expect(stdout[0]).toBe("R1  成長エンジン");
     expect(stdout[1]).toBe("    社員数 → 売上 → 利益 → 採用数");
-    expect(stdout.at(-2)).toBe("B   バランスループ（見出していない）");
+    expect(stdout.at(-2)).toBe("B   バランスループ（注目していない）");
   });
 
   it("Markdown と JSON で出し、種類で絞り込める", async () => {

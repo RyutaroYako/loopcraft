@@ -20,12 +20,12 @@ const title = computed(() => {
   return editor.loopEntryByLoopId.value.get(selection.id)?.featured?.loop.name || "ループ";
 });
 const deleteLabel = computed(
-  () => ({ variable: "変数を削除", link: "関連を削除", loop: "見出しを外す" })[selection.kind],
+  () => ({ variable: "変数を削除", link: "関連を削除", loop: "注目から外す" })[selection.kind],
 );
 </script>
 
 <template>
-  <section class="selection-bar" aria-label="選んだ項目">
+  <section class="selection-bar" aria-label="選択中の項目の操作">
     <h2 class="title-heading">{{ title }}</h2>
     <div class="action-buttons">
       <!-- 広い画面で出さないのは、一覧がキャンバスの横に並び、広げるものが無いため -->

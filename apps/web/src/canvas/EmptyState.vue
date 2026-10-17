@@ -31,7 +31,7 @@ function openSample() {
 <template>
   <section v-if="editor.editable" class="empty-state" :aria-labelledby="titleId">
     <EyebrowLabel>Causal Loop Diagram</EyebrowLabel>
-    <h2 :id="titleId" class="title-heading">最初の変数を置いて、つながりを描きはじめる</h2>
+    <h2 :id="titleId" class="title-heading">変数を置いて、矢印でつなぐ</h2>
     <p class="lead-text">変数は、売上や社員数のように増えたり減ったりするものです</p>
     <ol class="step-list">
       <li class="step-item">
@@ -49,8 +49,8 @@ function openSample() {
       <li class="step-item">
         <span class="step-number">03</span>
         <span class="step-text"
-          >矢印が輪になると<strong class="step-keyword">ループを自動で検出</strong
-          >。主張したいものを見出す</span
+          >矢印が輪になると<strong class="step-keyword">ループが自動で現れる</strong
+          >ので、伝えたいものに注目する</span
         >
       </li>
     </ol>

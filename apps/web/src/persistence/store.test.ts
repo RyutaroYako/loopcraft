@@ -27,7 +27,7 @@ describe("createBrowserStore", () => {
     const store = createBrowserStore();
     expect(await store.reload()).toEqual({
       ok: false,
-      problems: ["保存されていた図が消されました"],
+      problems: ["保存されていた図が削除されています"],
     });
     await store.save(createSampleDiagram());
     expect(await store.reload()).toEqual({ ok: true, diagram: createSampleDiagram() });

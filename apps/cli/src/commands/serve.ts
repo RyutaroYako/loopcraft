@@ -70,7 +70,7 @@ export async function serve(
   if (options.sample)
     log.note(`  サンプルの図を表示しています。編集して保存すると ${shown} を作ります`);
   if (!options.readonly) {
-    log.note("  変更はこのファイルに自動で保存します。見せるだけなら --readonly を付けてください");
+    log.note("  変更はこのファイルに自動で保存します");
   }
   log.note("  Ctrl+C で終了します");
   if (options.open !== false && dependencies.openBrowser) {

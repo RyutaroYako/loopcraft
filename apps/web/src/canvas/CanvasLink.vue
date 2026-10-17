@@ -31,7 +31,7 @@ const delayPath = computed(() =>
 );
 const description = computed(() => {
   const polarity = link.polarity === "-" ? "マイナス" : "プラス";
-  return `${labelOf(editor, link.from)}から${labelOf(editor, link.to)}への関連、極性${polarity}。押すと切り替え`;
+  return `${labelOf(editor, link.from)}から${labelOf(editor, link.to)}への関連（${polarity}）`;
 });
 
 function select(event: PointerEvent) {

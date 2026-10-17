@@ -54,7 +54,7 @@ describe("runCli", () => {
   it("知らないコマンドや誤ったオプションは終了コード 2", async () => {
     const unknown = await run(["draw"]);
     expect(unknown.exitCode).toBe(2);
-    expect(unknown.stderr.join("\n")).toContain("知らないコマンドです: draw");
+    expect(unknown.stderr.join("\n")).toContain("不明なコマンドです: draw");
     expect((await run(["loops", "diagram.json", "--format", "csv"])).exitCode).toBe(2);
     expect((await run(["serve", "diagram.json", "--port", "abc"])).exitCode).toBe(2);
     expect((await run(["serve", "diagram.json", "--port", "70000"])).exitCode).toBe(2);

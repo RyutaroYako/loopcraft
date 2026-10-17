@@ -34,7 +34,7 @@ describe("ほかの場所での変更", () => {
     await events.next(": connected");
     await rm(dirname(file), { recursive: true, force: true });
     expect(await events.next("event: watch-error")).toContain("無くなりました");
-    expect(stderr.at(-1)).toMatch(/^⚠ ほかの場所での変更を見張れなくなりました/);
+    expect(stderr.at(-1)).toMatch(/^⚠ 外部の変更を検知できなくなりました/);
     events.close();
     const later = await openEvents(server);
     expect(await later.next("event: watch-error")).toContain("無くなりました");
@@ -84,7 +84,7 @@ describe("ほかの場所での変更", () => {
     await writeFile(file, stringifyDiagram({ ...createSampleDiagram(), title: "外部" }));
     const change = await events.next("event: change");
     expect(change).toContain(`"revision":"${revisionOf(await readFile(file, "utf8"))}"`);
-    expect(stderr).toContain("⚠ diagram.json がほかの場所で変更されました");
+    expect(stderr).toContain("⚠ diagram.json が外部で変更されました");
     events.close();
     expect((await send(server, "/api/events")).status).toBe(403);
   });

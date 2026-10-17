@@ -65,7 +65,7 @@ function setTitle(title: string) {
     />
     <HistoryButtons class="undo-redo-buttons" />
     <!-- 中くらいの幅でボタンの文字を消すのは、残すとタイトル欄が潰れ、右端のテーマの切り替えが画面からはみ出すため -->
-    <HintTooltip v-if="editor.editable" text="変数の配置を自動で整える（元に戻せます）">
+    <HintTooltip v-if="editor.editable" text="変数の配置を自動で整える">
       <BaseButton
         class="layout-button"
         variant="ghost"
@@ -85,7 +85,7 @@ function setTitle(title: string) {
             <span class="button-label">新規</span>
           </BaseButton>
         </HintTooltip>
-        <HintTooltip text="JSON を貼り付けるか、ファイルから読み込む">
+        <HintTooltip text="JSON の貼り付け・ファイルの読み込み">
           <BaseButton
             variant="ghost"
             aria-label="読み込み"
@@ -107,7 +107,7 @@ function setTitle(title: string) {
           <span class="button-label">画像</span>
         </BaseButton>
       </HintTooltip>
-      <HintTooltip :text="`JSON をコピーするか、ファイルに保存する（${mod}S でファイルに保存）`">
+      <HintTooltip :text="`JSON をコピー・保存（${mod}S）`">
         <BaseButton
           variant="primary"
           aria-label="JSON を書き出す"

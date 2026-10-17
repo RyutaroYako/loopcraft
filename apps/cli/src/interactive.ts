@@ -8,7 +8,7 @@ export type CommandName = "serve" | "validate" | "loops" | "schema";
 export const COMMANDS: { value: CommandName; label: string; hint: string }[] = [
   { value: "serve", label: "serve", hint: "ファイルをブラウザのエディタで開く" },
   { value: "validate", label: "validate", hint: "図の JSON を検証する" },
-  { value: "loops", label: "loops", hint: "図に含まれるループを一覧する" },
+  { value: "loops", label: "loops", hint: "図に含まれるループを一覧表示する" },
   { value: "schema", label: "schema", hint: "JSON Schema を出力する" },
 ];
 
