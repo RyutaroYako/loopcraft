@@ -8,18 +8,19 @@ catalogMode: prefer
 savePrefix: ""
 
 catalog:
+  # vitest と @vitest/* を最新にせず vite-plus が同梱する版に揃えるのは、ずれるとカバレッジの実行が止まるため
   "@tailwindcss/vite": 4.3.3
   "@types/node": 24.19.2
-  "@vitest/browser-playwright": 5.0.3
-  "@vitest/coverage-v8": 5.0.3
+  "@vitest/browser-playwright": 5.0.4
+  "@vitest/coverage-v8": 5.0.4
   axe-core: 4.14.0
   modern-screenshot: 4.7.0
   tailwindcss: 4.3.3
   typescript: 7.0.2
   valibot: 1.5.0
-  vite: npm:@voidzero-dev/vite-plus-core@1.1.0
-  vite-plus: 1.1.0
-  vitest: 5.0.3
+  vite: npm:@voidzero-dev/vite-plus-core@1.2.0
+  vite-plus: 1.2.0
+  vitest: 5.0.4
 
 overrides:
   vite@*: "catalog:"
