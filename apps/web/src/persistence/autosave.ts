@@ -163,8 +163,7 @@ export const createAutosaver = (
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!unsaved()) return;
       flush();
-      // ブラウザへの保存で確かめないのは、その場で終わるため。ファイルへの保存は閉じる間際だと届かないことがある
-      if (store.kind === "file") event.preventDefault();
+      event.preventDefault();
     };
     const stopWatching = store.watch({
       change: () => void onExternalChange(),

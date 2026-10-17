@@ -342,15 +342,6 @@ describe("useAutosave", () => {
     expect(autosave.status.value).toEqual({ kind: "suspended", reason: "external" });
   });
 
-  it("ブラウザへの保存は閉じるときに確かめない", async () => {
-    const { store } = fakeStore("browser");
-    const { editor } = setup(store);
-    editor.commit(edit.setTitle(editor.diagram.value, "1"));
-    const event = new Event("beforeunload", { cancelable: true });
-    window.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(false);
-  });
-
   it("未保存の変更があるまま閉じようとしたら確かめる", async () => {
     const { store } = fakeStore();
     const { editor } = setup(store);
