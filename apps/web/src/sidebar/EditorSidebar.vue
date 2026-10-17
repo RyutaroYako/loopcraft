@@ -7,8 +7,6 @@ import SelectionBar from "./SelectionBar.vue";
 import SheetHandle from "./SheetHandle.vue";
 import { useBottomSheet } from "./useBottomSheet.ts";
 
-const { backupsAvailable } = defineProps<{ backupsAvailable: boolean }>();
-
 const emit = defineEmits<{ "canvas:reveal": [] }>();
 
 const editor = injectEditor();
@@ -38,7 +36,7 @@ const sheetHeight = computed(() => ({ "--sheet-height": `${sheet.height.value}px
         :expandable="sheet.size.value === 'peek'"
         @click:expand="() => sheet.setSize('half')"
       />
-      <InspectorPanel :backups-available />
+      <InspectorPanel />
     </div>
     <ListTabs @canvas:reveal="() => emit('canvas:reveal')" />
   </aside>

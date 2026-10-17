@@ -7,8 +7,6 @@ import LinkInspector from "./LinkInspector.vue";
 import LoopInspector from "./LoopInspector.vue";
 import VariableInspector from "./VariableInspector.vue";
 
-const { backupsAvailable } = defineProps<{ backupsAvailable: boolean }>();
-
 const editor = injectEditor();
 const selection = editor.selection;
 const panel = useTemplateRef<HTMLElement>("panel");
@@ -43,7 +41,7 @@ function keepFocus() {
         :id="selection.id"
         @focus:lost="keepFocus"
       />
-      <DiagramInspector v-else :backups-available @focus:lost="keepFocus" />
+      <DiagramInspector v-else />
     </div>
   </section>
 </template>

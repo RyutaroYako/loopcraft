@@ -185,10 +185,7 @@ onUnmounted(() => {
         <!-- 狭い画面でページごとスクロールさせないのは、キャンバスのパンとページのスクロールが同じ指の操作で取り合うため -->
         <main class="workspace-area">
           <DiagramCanvas ref="canvas" />
-          <EditorSidebar
-            :backups-available="store.kind === 'browser'"
-            @canvas:reveal="revealCanvas"
-          />
+          <EditorSidebar @canvas:reveal="revealCanvas" />
         </main>
         <!-- key で作り直すのは、別のお知らせに替わったときに、出てくる動きと消えるまでの時間を付け直すため -->
         <NoticeBanner

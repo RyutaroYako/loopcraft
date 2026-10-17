@@ -66,15 +66,13 @@ describe("resolveStartup", () => {
       kind: "failing",
       error: "x",
     });
-    const invalid = (backupKey: string | undefined): Startup => ({
-      kind: "browser",
-      stored: { status: "invalid", raw: "{", errors: [], backupKey },
-    });
-    expect(resolveStartup(invalid(undefined)).initialStatus).toEqual({
+    expect(
+      resolveStartup({ kind: "browser", stored: { status: "invalid", raw: "{", errors: [] } })
+        .initialStatus,
+    ).toEqual({
       kind: "suspended",
       reason: "unreadable",
     });
-    expect(resolveStartup(invalid("k")).initialStatus).toBeUndefined();
   });
 
   it("ファイルではセッションの指定どおりに開く", () => {

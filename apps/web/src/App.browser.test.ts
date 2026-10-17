@@ -194,14 +194,15 @@ describe("案内", () => {
     await expect.element(notice()).toMatchTextContent(/boom/);
   });
 
-  it("壊れたブラウザのデータは退避したことを知らせ、書き出せる", async () => {
+  it("壊れたブラウザのデータは残したまま自動保存を止め、書き出せる", async () => {
     const downloads = captureDownloads();
     try {
       mount({
         kind: "browser",
-        stored: { status: "invalid", raw: "{", errors: ["壊れています"], backupKey: "k" },
+        stored: { status: "invalid", raw: "{", errors: ["壊れています"] },
       });
       await expect.element(notice()).toMatchTextContent(/前回の図を開けませんでした/);
+      await expect.element(page.getByRole("button", { name: /自動保存を停止中/ })).toBeVisible();
       await page.getByRole("button", { name: "開けなかったデータを書き出す" }).click();
       expect(downloads.files).toEqual(["system-diagram-unreadable.json"]);
     } finally {

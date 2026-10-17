@@ -42,12 +42,12 @@ export const resolveStartup = (startup: Startup): ResolvedStartup => {
       initial: stored.status === "ok" ? stored.diagram : createEmptyDiagram(),
       store: createBrowserStore(),
       readonly: false,
-      // 保存先が使えないときと、開けなかった前回の図を退避できなかったときに ok で始めないのは、
-      // ツールバーに最初から問題を出し、書き出してもらうまで上書きしないため
+      // 保存先が使えないときと、前回の図を開けなかったときに ok で始めないのは、
+      // ツールバーに最初から問題を出し、開けなかった図を空の図で上書きしないため
       initialStatus:
         stored.status === "unavailable"
           ? { kind: "failing", error: stored.error }
-          : stored.status === "invalid" && stored.backupKey === undefined
+          : stored.status === "invalid"
             ? { kind: "suspended", reason: "unreadable" }
             : undefined,
     };

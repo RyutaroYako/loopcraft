@@ -174,39 +174,25 @@ describe("createNotices", () => {
     expect(error.shown()?.details?.at(-1)).toBe("HTTP 500");
   });
 
-  it("ブラウザで退避できなかったデータは、書き出してから再開する", () => {
+  it("開けなかったブラウザのデータは、書き出すか上書きを選べる", () => {
     URL.createObjectURL = vi.fn(() => "blob:x");
     URL.revokeObjectURL = vi.fn();
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     const startup: Startup = {
       kind: "browser",
-      stored: { status: "invalid", raw: "{", errors: ["e"], backupKey: undefined },
+      stored: { status: "invalid", raw: "{", errors: ["e"] },
     };
     const browser = setup(browserStore, startup);
     browser.notices.atStartup({ kind: "suspended", reason: "unreadable" });
-    expect(browser.shown()?.title).toBe("自動保存を止めています");
+    expect(browser.shown()?.title).toBe("前回の図を開けませんでした");
+    expect(browser.shown()?.details).toContain("e");
     browser.run("開けなかったデータを書き出す");
     expect(click).toHaveBeenCalledOnce();
-    browser.run("書き出したので自動保存を再開");
+    browser.run("この画面の内容で上書き");
     expect(browser.autosave.resume).toHaveBeenCalledOnce();
-    dispose();
-
-    const plain = setup(browserStore, browserStartup);
-    plain.notices.explain({ kind: "suspended", reason: "unreadable" });
-    expect(plain.shown()?.actions?.map((action) => action.label)).toEqual([
-      "書き出したので自動保存を再開",
-    ]);
   });
 
   it("開いた時点の案内", () => {
-    const backedUp = setup(browserStore, {
-      kind: "browser",
-      stored: { status: "invalid", raw: "{", errors: ["e"], backupKey: "k" },
-    });
-    backedUp.notices.atStartup(undefined);
-    expect(backedUp.shown()?.title).toBe("前回の図を開けませんでした");
-    dispose();
-
     const missing = setup(fileStore, fileStartup({ status: "missing" }));
     missing.notices.atStartup(undefined);
     expect(missing.shown()).toMatchObject({ tone: "info", title: "a.json はまだありません" });

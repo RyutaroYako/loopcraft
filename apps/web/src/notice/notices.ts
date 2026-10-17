@@ -128,15 +128,12 @@ export const createNotices = (context: {
     }
     return {
       tone: "error",
-      title: "自動保存を止めています",
+      title: "前回の図を開けませんでした",
       details: [
-        "前回開けなかった図を退避できなかったため、上書きしないよう止めています",
-        "開けなかったデータを書き出して手元に残せたら、自動保存を再開してください",
+        "ブラウザに保存されていたデータはそのまま残しています。書き出して手元に残すか、この画面の内容で上書きしてください",
+        ...(unreadable?.errors ?? []),
       ],
-      actions: [
-        ...downloadUnreadable,
-        { label: "書き出したので自動保存を再開", run: run((a) => a.resume()) },
-      ],
+      actions: [...downloadUnreadable, ...overwrite("この画面の内容で上書き")],
     };
   };
 
@@ -166,16 +163,6 @@ export const createNotices = (context: {
         });
       } else if (initialStatus) {
         explain(initialStatus);
-      } else if (unreadable?.backupKey) {
-        editor.notify({
-          tone: "error",
-          title: "前回の図を開けませんでした",
-          details: [
-            "元のデータはブラウザ内に退避しました。「図の概要」の「退避したデータ」からいつでも書き出せます",
-            ...unreadable.errors,
-          ],
-          actions: downloadUnreadable,
-        });
       } else if (startup.kind === "file" && startup.loaded.status === "missing") {
         editor.notify({
           tone: "info",
