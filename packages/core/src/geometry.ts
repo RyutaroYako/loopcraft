@@ -13,15 +13,15 @@ export const DEFAULT_CURVATURE = 0;
 export const PAIRED_CURVATURE = 0.18;
 const LINK_GAP = 6;
 
-export function nodeSize(labelWidth: number): Size {
+export const nodeSize = (labelWidth: number): Size => {
   return {
     width: Math.max(NODE_MIN_WIDTH, Math.ceil(labelWidth) + NODE_PADDING_X * 2),
     height: NODE_HEIGHT,
   };
-}
+};
 
 /** center は矩形の左上ではなく中心 */
-export function boxBoundaryPoint(center: Point, size: Size, toward: Point): Point {
+export const boxBoundaryPoint = (center: Point, size: Size, toward: Point): Point => {
   const dx = toward.x - center.x;
   const dy = toward.y - center.y;
   if (dx === 0 && dy === 0) return center;
@@ -30,7 +30,7 @@ export function boxBoundaryPoint(center: Point, size: Size, toward: Point): Poin
     dy === 0 ? Infinity : size.height / 2 / Math.abs(dy),
   );
   return { x: center.x + dx * scale, y: center.y + dy * scale };
-}
+};
 
 export interface LinkGeometry {
   start: Point;
@@ -44,28 +44,28 @@ export interface LinkGeometry {
   label: Point;
 }
 
-export function quadraticPoint(start: Point, control: Point, end: Point, t: number): Point {
+export const quadraticPoint = (start: Point, control: Point, end: Point, t: number): Point => {
   const u = 1 - t;
   return {
     x: u * u * start.x + 2 * u * t * control.x + t * t * end.x,
     y: u * u * start.y + 2 * u * t * control.y + t * t * end.y,
   };
-}
+};
 
-function quadraticTangent(start: Point, control: Point, end: Point, t: number): Point {
+const quadraticTangent = (start: Point, control: Point, end: Point, t: number): Point => {
   const x = 2 * (1 - t) * (control.x - start.x) + 2 * t * (end.x - control.x);
   const y = 2 * (1 - t) * (control.y - start.y) + 2 * t * (end.y - control.y);
   const length = Math.hypot(x, y) || 1;
   return { x: x / length, y: y / length };
-}
+};
 
 /** 左は画面上（y 軸下向き）で見た向き */
-function leftNormal(dx: number, dy: number): Point {
+const leftNormal = (dx: number, dy: number): Point => {
   const length = Math.hypot(dx, dy) || 1;
   return { x: dy / length, y: -dx / length };
-}
+};
 
-function controlPoint(from: Point, to: Point, curvature: number): Point {
+const controlPoint = (from: Point, to: Point, curvature: number): Point => {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const distance = Math.hypot(dx, dy);
@@ -76,17 +76,16 @@ function controlPoint(from: Point, to: Point, curvature: number): Point {
     x: (from.x + to.x) / 2 + normal.x * offset,
     y: (from.y + to.y) / 2 + normal.y * offset,
   };
-}
+};
 
-export function defaultCurvature(hasReverse: boolean): number {
-  return hasReverse ? PAIRED_CURVATURE : DEFAULT_CURVATURE;
-}
+export const defaultCurvature = (hasReverse: boolean): number =>
+  hasReverse ? PAIRED_CURVATURE : DEFAULT_CURVATURE;
 
-export function linkGeometry(
+export const linkGeometry = (
   from: { center: Point; size: Size },
   to: { center: Point; size: Size },
   curvature = DEFAULT_CURVATURE,
-): LinkGeometry {
+): LinkGeometry => {
   const control = controlPoint(from.center, to.center, curvature);
   const rawStart = boxBoundaryPoint(from.center, from.size, control);
   const rawEnd = boxBoundaryPoint(to.center, to.size, control);
@@ -110,17 +109,17 @@ export function linkGeometry(
       y: labelAnchor.y + normal.y * 17 * side,
     },
   };
-}
+};
 
-function moveToward(point: Point, target: Point, distance: number): Point {
+const moveToward = (point: Point, target: Point, distance: number): Point => {
   const dx = target.x - point.x;
   const dy = target.y - point.y;
   const length = Math.hypot(dx, dy);
   if (length <= distance) return point;
   return { x: point.x + (dx / length) * distance, y: point.y + (dy / length) * distance };
-}
+};
 
-export function centroid(points: readonly Point[]): Point {
+export const centroid = (points: readonly Point[]): Point => {
   if (points.length === 0) return { x: 0, y: 0 };
   let x = 0;
   let y = 0;
@@ -129,17 +128,17 @@ export function centroid(points: readonly Point[]): Point {
     y += point.y;
   }
   return { x: x / points.length, y: y / points.length };
-}
+};
 
 /** 時計回りは画面上（y 軸下向き）で見た向き */
-export function isClockwise(points: readonly Point[]): boolean {
+export const isClockwise = (points: readonly Point[]): boolean => {
   let area = 0;
   for (const [index, point] of points.entries()) {
     const next = points[(index + 1) % points.length]!;
     area += point.x * next.y - next.x * point.y;
   }
   return area > 0;
-}
+};
 
 export interface Bounds {
   minX: number;
@@ -148,7 +147,7 @@ export interface Bounds {
   maxY: number;
 }
 
-export function boundsOf(boxes: readonly { center: Point; size: Size }[]): Bounds | undefined {
+export const boundsOf = (boxes: readonly { center: Point; size: Size }[]): Bounds | undefined => {
   if (boxes.length === 0) return undefined;
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   for (const { center, size } of boxes) {
@@ -158,4 +157,4 @@ export function boundsOf(boxes: readonly { center: Point; size: Size }[]): Bound
     bounds.maxY = Math.max(bounds.maxY, center.y + size.height / 2);
   }
   return bounds;
-}
+};

@@ -1,5 +1,6 @@
 import type { DetectedLoop } from "./cycles.ts";
-import { classifyLoop, cycleKey, type LoopKind } from "./loop.ts";
+import { classifyLoop, cycleKey } from "./loop.ts";
+import type { LoopKind } from "./loop.ts";
 import type { Link, LinkId, Loop, VariableId } from "./schema.ts";
 
 export interface LoopEntry {
@@ -12,11 +13,11 @@ export interface LoopEntry {
   featured?: { loop: Loop; badge: string };
 }
 
-export function listLoopEntries(
+export const listLoopEntries = (
   loops: readonly Loop[],
   links: readonly Link[],
   detected: readonly DetectedLoop[],
-): LoopEntry[] {
+): LoopEntry[] => {
   const linkById = new Map(links.map((link) => [link.id, link]));
   const counters: Record<LoopKind, number> = { reinforcing: 0, balancing: 0 };
   const featured = loops.map((loop): LoopEntry => {
@@ -40,4 +41,4 @@ export function listLoopEntries(
       .filter((loop) => !featuredKeys.has(loop.key))
       .map(({ key, links, variables, kind }) => ({ key, links, variables, kind })),
   ];
-}
+};

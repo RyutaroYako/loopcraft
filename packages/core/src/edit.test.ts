@@ -11,15 +11,16 @@ import {
   updateLink,
   updateVariable,
 } from "./edit.ts";
-import { DiagramSchema, type LinkId, type VariableId } from "./schema.ts";
+import { DiagramSchema } from "./schema.ts";
+import type { LinkId, VariableId } from "./schema.ts";
 import { createSample } from "./testing/sample.ts";
 
 const vid = (id: string) => id as VariableId;
 const lid = (id: string) => id as LinkId;
 
-function expectValid(diagram: unknown) {
+const expectValid = (diagram: unknown) => {
   expect(v.safeParse(DiagramSchema, diagram).issues).toBeUndefined();
-}
+};
 
 describe("edit", () => {
   it("変数を追加すると重複しない ID が振られる", () => {

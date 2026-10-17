@@ -2,10 +2,10 @@
  * body だけで判定しないのは、消えた要素のフォーカスが環境によって null になったり、
  * 外れた要素を指したまま残ったりするため
  */
-export function isFocusLost(): boolean {
+export const isFocusLost = (): boolean => {
   const active = document.activeElement;
   return active === null || active === document.body || !active.isConnected;
-}
+};
 
 type FocusTarget = () => HTMLElement | SVGElement | null | undefined;
 
@@ -13,7 +13,7 @@ type FocusTarget = () => HTMLElement | SVGElement | null | undefined;
  * すぐ確かめないのは、押したボタンなどがまだ描画から消えていないため。待つ間にほかへ移った
  * フォーカスは奪わない。focus() の後に確かめるのは、受け取れない要素もあるため
  */
-export function refocusWhenLost(...candidates: FocusTarget[]) {
+export const refocusWhenLost = (...candidates: FocusTarget[]) => {
   requestAnimationFrame(() => {
     if (!isFocusLost()) return;
     for (const candidate of candidates) {
@@ -23,4 +23,4 @@ export function refocusWhenLost(...candidates: FocusTarget[]) {
       if (document.activeElement === element) return;
     }
   });
-}
+};

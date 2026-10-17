@@ -1,4 +1,5 @@
-import { classifyLoop, cycleKey, type LoopKind } from "./loop.ts";
+import { classifyLoop, cycleKey } from "./loop.ts";
+import type { LoopKind } from "./loop.ts";
 import type { Link, LinkId, VariableId } from "./schema.ts";
 
 export interface DetectedLoop {
@@ -22,13 +23,14 @@ interface Edge {
   link: LinkId;
 }
 
-class LimitReached extends Error {}
-
 /**
  * 図全体を受け取らないのは、閉路が変数の位置に依存しないため。
  * 素直に深さ優先で辿ると閉路にならない経路の数だけ遅くなるので、閉路数に比例する Johnson のアルゴリズムを使う。
  */
-export function findLoops(links: readonly Link[], limit = DEFAULT_CYCLE_LIMIT): CycleSearchResult {
+export const findLoops = (
+  links: readonly Link[],
+  limit = DEFAULT_CYCLE_LIMIT,
+): CycleSearchResult => {
   const ids = [...new Set(links.flatMap((link) => [link.from, link.to]))];
   const indexOf = new Map(ids.map((id, index) => [id, index]));
   const polarityOf = new Map(links.map((link) => [link.id, link.polarity]));
@@ -42,44 +44,39 @@ export function findLoops(links: readonly Link[], limit = DEFAULT_CYCLE_LIMIT): 
 
   const found: DetectedLoop[] = [];
   const record = (links: LinkId[], vertices: number[]) => {
-    if (found.length >= limit) throw new LimitReached();
+    if (found.length >= limit) return false;
     found.push({
       key: cycleKey(links),
       links,
       variables: vertices.map((vertex) => ids[vertex]!),
       kind: classifyLoop(links.map((link) => polarityOf.get(link)!)),
     });
+    return true;
   };
 
   let truncated = false;
-  try {
-    let start = 0;
-    while (start < ids.length) {
-      const component = leastStronglyConnectedComponent(adjacency, start);
-      if (!component) break;
-      start = Math.min(...component);
-      searchCircuits(adjacency, start, new Set(component), record);
-      start++;
-    }
-  } catch (error) {
-    if (!(error instanceof LimitReached)) throw error;
-    truncated = true;
+  let start = 0;
+  while (!truncated && start < ids.length) {
+    const component = leastStronglyConnectedComponent(adjacency, start);
+    if (!component) break;
+    start = Math.min(...component);
+    truncated = !searchCircuits(adjacency, start, new Set(component), record);
+    start++;
   }
 
   found.sort((a, b) => a.links.length - b.links.length || compare(a.key, b.key));
   return { loops: found, truncated };
-}
+};
 
-function compare(a: string, b: string) {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-function searchCircuits(
+const searchCircuits = (
   adjacency: readonly Edge[][],
   start: number,
   component: ReadonlySet<number>,
-  record: (links: LinkId[], vertices: number[]) => void,
-) {
+  record: (links: LinkId[], vertices: number[]) => boolean,
+): boolean => {
+  let stopped = false;
   const blocked = new Set<number>();
   const blockedBy = new Map<number, Set<number>>();
   const vertexStack: number[] = [];
@@ -105,11 +102,13 @@ function searchCircuits(
       if (!component.has(edge.to)) continue;
       linkStack.push(edge.link);
       if (edge.to === start) {
-        record([...linkStack], [...vertexStack]);
+        stopped = !record([...linkStack], [...vertexStack]);
         closed = true;
       } else if (!blocked.has(edge.to) && circuit(edge.to)) {
         closed = true;
       }
+      // 途中の状態を片付けずに抜けるのは、打ち切った探索を再開しないため
+      if (stopped) return closed;
       linkStack.pop();
     }
     if (closed) {
@@ -127,12 +126,13 @@ function searchCircuits(
   };
 
   circuit(start);
-}
+  return !stopped;
+};
 
-function leastStronglyConnectedComponent(
+const leastStronglyConnectedComponent = (
   adjacency: readonly Edge[][],
   from: number,
-): number[] | undefined {
+): number[] | undefined => {
   const index = new Map<number, number>();
   const lowLink = new Map<number, number>();
   const onStack = new Set<number>();
@@ -171,4 +171,4 @@ function leastStronglyConnectedComponent(
     if (!index.has(vertex)) visit(vertex);
   }
   return best;
-}
+};

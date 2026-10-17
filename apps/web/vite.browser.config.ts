@@ -1,14 +1,14 @@
-import solid from "@solidjs/vite-plugin";
-import tailwindcss from "@tailwindcss/vite";
+import vize from "@vizejs/vite-plugin";
 import { defineConfig, lazyPlugins } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
 
 /** jsdom で済ませないのは、描画と操作を実際の Chromium で確かめるため */
 export default defineConfig({
-  plugins: lazyPlugins(() => [solid(), tailwindcss()]),
+  plugins: lazyPlugins(() => [vize()]),
+  css: { transformer: "lightningcss" },
   test: {
     name: "web-browser",
-    include: ["src/**/*.browser.test.tsx"],
+    include: ["src/**/*.browser.test.ts"],
     browser: {
       enabled: true,
       headless: true,

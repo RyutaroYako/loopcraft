@@ -1,13 +1,14 @@
 // 副作用だけの import。消すと、型の不一致などスキーマ自体が出す検証メッセージが英語に戻る
 import "@valibot/i18n/ja/schema";
 import * as v from "valibot";
-import { DIAGRAM_FORMAT_VERSION, DiagramSchema, type Diagram } from "./schema.ts";
+import { DIAGRAM_FORMAT_VERSION, DiagramSchema } from "./schema.ts";
+import type { Diagram } from "./schema.ts";
 
 export type ParseDiagramResult =
   | { ok: true; diagram: Diagram }
   | { ok: false; errors: { path: string | undefined; message: string }[] };
 
-export function createEmptyDiagram(title = "無題のシステム図"): Diagram {
+export const createEmptyDiagram = (title = "無題のシステム図"): Diagram => {
   return v.parse(DiagramSchema, {
     version: DIAGRAM_FORMAT_VERSION,
     title,
@@ -15,9 +16,9 @@ export function createEmptyDiagram(title = "無題のシステム図"): Diagram 
     links: [],
     loops: [],
   });
-}
+};
 
-export function parseDiagramJson(text: string): ParseDiagramResult {
+export const parseDiagramJson = (text: string): ParseDiagramResult => {
   let input: unknown;
   try {
     input = JSON.parse(text);
@@ -39,8 +40,7 @@ export function parseDiagramJson(text: string): ParseDiagramResult {
       message: issue.message,
     })),
   };
-}
+};
 
-export function stringifyDiagram(diagram: Diagram): string {
-  return `${JSON.stringify(diagram, null, 2)}\n`;
-}
+export const stringifyDiagram = (diagram: Diagram): string =>
+  `${JSON.stringify(diagram, null, 2)}\n`;

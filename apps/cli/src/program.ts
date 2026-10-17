@@ -1,13 +1,18 @@
 import { Command, CommanderError, InvalidArgumentError, Option } from "commander";
 import { init, DEFAULT_FILE } from "./commands/init.ts";
-import { loops, type LoopKindFilter, type LoopsFormat } from "./commands/loops.ts";
+import { loops } from "./commands/loops.ts";
+import type { LoopKindFilter, LoopsFormat } from "./commands/loops.ts";
 import { schema } from "./commands/schema.ts";
 import { serve } from "./commands/serve.ts";
-import { validate, type OutputFormat } from "./commands/validate.ts";
+import { validate } from "./commands/validate.ts";
+import type { OutputFormat } from "./commands/validate.ts";
 import type { Context } from "./context.ts";
-import { exitCodeOf, UsageError } from "./errors.ts";
+import { done, exitCodeOf, usageError } from "./outcome.ts";
+import type { Outcome } from "./outcome.ts";
 import { renderHeader } from "./header.ts";
-import type { CommandName, Prompts } from "./interactive.ts";
+import type { Prompts } from "./interactive.ts";
+
+const cancelled: Outcome = { kind: "cancelled" };
 
 export interface ProgramDependencies {
   context: Context;
@@ -18,28 +23,30 @@ export interface ProgramDependencies {
   waitForExit: () => Promise<void>;
 }
 
-class Cancelled extends Error {}
-
 export async function runCli(argv: string[], dependencies: ProgramDependencies): Promise<number> {
   const { log } = dependencies.context;
+  let outcome: Outcome = done;
   try {
-    await createProgram(dependencies).parseAsync(argv);
-    return 0;
+    await createProgram(dependencies, (result) => {
+      outcome = result;
+    }).parseAsync(argv);
   } catch (error) {
-    if (error instanceof Cancelled) {
-      dependencies.prompts.cancelled();
-      return 0;
-    }
     if (error instanceof CommanderError) {
       // ヘルプやバージョンの表示も CommanderError として届く
       return error.exitCode === 0 ? 0 : 2;
     }
     log.error(error instanceof Error ? error.message : String(error));
-    return exitCodeOf(error);
+    return 1;
   }
+  if (outcome.kind === "cancelled") dependencies.prompts.cancelled();
+  if (outcome.kind === "usage" || outcome.kind === "failure") log.error(outcome.message);
+  return exitCodeOf(outcome);
 }
 
-export function createProgram(dependencies: ProgramDependencies) {
+export function createProgram(
+  dependencies: ProgramDependencies,
+  report: (outcome: Outcome) => void,
+) {
   const { context, version, canPrompt, prompts } = dependencies;
   const { log } = context;
   let headerShown = false;
@@ -50,10 +57,16 @@ export function createProgram(dependencies: ProgramDependencies) {
     log.plain("");
   };
 
-  const ask = async <T>(question: Promise<T | undefined>): Promise<T> => {
-    const answer = await question;
-    if (answer === undefined) throw new Cancelled();
-    return answer;
+  const chooseTarget = async (
+    file: string | undefined,
+    question: () => Promise<string | null | undefined>,
+    messages: { missing: string; none: string },
+  ): Promise<string | Outcome> => {
+    if (file !== undefined) return file;
+    if (!canPrompt()) return usageError(messages.missing);
+    const chosen = await question();
+    if (chosen === undefined) return cancelled;
+    return chosen ?? usageError(messages.none);
   };
 
   const actions = {
@@ -65,19 +78,22 @@ export function createProgram(dependencies: ProgramDependencies) {
             : "--edit は不要になりました。serve は常に編集できる状態で開きます",
         );
       }
-      const target =
-        file ??
-        (canPrompt()
-          ? ((await ask(
-              prompts.chooseFile(context.cwd, {
-                message: "開くファイル",
-                allowNew: true,
-                // 一覧から選ばせないのは、サンプルを既にあるファイルには使えないため
-                newOnly: options.sample,
-              }),
-            )) ?? missing("開くファイルを指定してください"))
-          : missing("開くファイルを指定してください（例: loopcraft serve diagram.json）"));
-      const server = await serve(
+      const target = await chooseTarget(
+        file,
+        () =>
+          prompts.chooseFile(context.cwd, {
+            message: "開くファイル",
+            allowNew: true,
+            // 一覧から選ばせないのは、サンプルを既にあるファイルには使えないため
+            newOnly: options.sample,
+          }),
+        {
+          missing: "開くファイルを指定してください（例: loopcraft serve diagram.json）",
+          none: "開くファイルを指定してください",
+        },
+      );
+      if (typeof target !== "string") return report(target);
+      const started = await serve(
         target,
         {
           port: options.port,
@@ -88,43 +104,52 @@ export function createProgram(dependencies: ProgramDependencies) {
         context,
         { openBrowser: dependencies.openBrowser },
       );
+      if (started.kind !== "serving") return report(started);
       await dependencies.waitForExit();
-      await server.close();
+      await started.server.close();
       log.success("終了しました");
     },
     validate: async (files: string[], options: { format: OutputFormat }) => {
-      const targets =
-        files.length > 0
-          ? files
-          : canPrompt()
-            ? await ask(prompts.chooseFiles(context.cwd))
-            : missing("検証するファイルを指定してください（例: loopcraft validate diagram.json）");
-      if (targets.length === 0) throw new UsageError("検証できる JSON ファイルが見つかりません");
-      await validate(targets, options, context);
+      let targets = files;
+      if (targets.length === 0) {
+        if (!canPrompt()) {
+          return report(
+            usageError("検証するファイルを指定してください（例: loopcraft validate diagram.json）"),
+          );
+        }
+        const chosen = await prompts.chooseFiles(context.cwd);
+        if (chosen === undefined) return report(cancelled);
+        if (chosen.length === 0)
+          return report(usageError("検証できる JSON ファイルが見つかりません"));
+        targets = chosen;
+      }
+      report(await validate(targets, options, context));
     },
     loops: async (
       file: string | undefined,
       options: { format: LoopsFormat; kind?: LoopKindFilter },
     ) => {
-      const target =
-        file ??
-        (canPrompt()
-          ? ((await ask(
-              prompts.chooseFile(context.cwd, { message: "図のファイル", allowNew: false }),
-            )) ?? missing("図の JSON ファイルが見つかりません"))
-          : missing("図のファイルを指定してください（例: loopcraft loops diagram.json）"));
-      await loops(target, options, context);
+      const target = await chooseTarget(
+        file,
+        () => prompts.chooseFile(context.cwd, { message: "図のファイル", allowNew: false }),
+        {
+          missing: "図のファイルを指定してください（例: loopcraft loops diagram.json）",
+          none: "図の JSON ファイルが見つかりません",
+        },
+      );
+      if (typeof target !== "string") return report(target);
+      report(await loops(target, options, context));
     },
     init: async (
       file: string | undefined,
       options: { sample?: boolean; title?: string; force?: boolean },
     ) => {
       if (file !== undefined || !canPrompt()) {
-        await init(file ?? DEFAULT_FILE, options, context);
-        return;
+        return report(await init(file ?? DEFAULT_FILE, options, context));
       }
-      const answers = await ask(prompts.askInit({ sample: options.sample }));
-      await init(answers.file, { ...options, sample: answers.sample }, context);
+      const answers = await prompts.askInit({ sample: options.sample });
+      if (answers === undefined) return report(cancelled);
+      report(await init(answers.file, { ...options, sample: answers.sample }, context));
     },
     schema: () => {
       schema(context);
@@ -211,14 +236,15 @@ export function createProgram(dependencies: ProgramDependencies) {
   program.action(async () => {
     if (program.args.length > 0) {
       showHeader();
-      throw new UsageError(`知らないコマンドです: ${program.args[0]}`);
+      return report(usageError(`知らないコマンドです: ${program.args[0]}`));
     }
     if (!canPrompt()) {
       program.outputHelp();
       return;
     }
     showHeader();
-    const command: CommandName = await ask(prompts.chooseCommand());
+    const command = await prompts.chooseCommand();
+    if (command === undefined) return report(cancelled);
     await program.parseAsync([command], { from: "user" });
   });
 
@@ -243,8 +269,4 @@ function parsePort(value: string) {
     throw new InvalidArgumentError("0〜65535 の整数を指定してください");
   }
   return port;
-}
-
-function missing(message: string): never {
-  throw new UsageError(message);
 }

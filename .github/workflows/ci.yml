@@ -26,6 +26,9 @@ jobs:
           cache: true
       # Vite Task のキャッシュは実行間で引き継がない。まだ実験的な機能で、どのタスクも数秒で終わり復元の手間に見合わないため
       - run: vp check
+      # Vize で別に確かめるのは、vp check の型チェックが .vue の中を見ず、テンプレートの lint も持たないため
+      - run: vp run @loopcraft/web#check:vue
+      - run: vp run @loopcraft/web#lint:vue
       - run: vp exec --filter @loopcraft/web playwright install --with-deps chromium
       - name: Test with coverage
         id: test

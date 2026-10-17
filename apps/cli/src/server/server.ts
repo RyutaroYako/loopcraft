@@ -1,23 +1,26 @@
-import { randomBytes, timingSafeEqual } from "node:crypto";
-import { existsSync, watch, type FSWatcher } from "node:fs";
-import { readFile, realpath } from "node:fs/promises";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { randomBytes } from "node:crypto";
+import { createServer } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { basename, dirname, extname, join, normalize, sep } from "node:path";
-import {
-  SESSION_META_NAME,
-  CLIENT_HEADER,
-  SaveRequestSchema,
-  TOKEN_HEADER,
-  type DocumentResponse,
-  type Revision,
-  type SaveResponse,
-  type Session,
-} from "@loopcraft/core/session";
+import { basename } from "node:path";
+import { CLIENT_HEADER, SaveRequestSchema, TOKEN_HEADER } from "@loopcraft/core/session";
+import type { DocumentResponse, Revision, SaveResponse, Session } from "@loopcraft/core/session";
 import * as v from "valibot";
 import "@valibot/i18n/ja/schema";
-import { isNotFound, readDiagramFile, revisionOf, writeDiagramFile } from "../files.ts";
+import { currentRevision, readDiagramFile, writeDiagramFile } from "../files.ts";
 import type { Logger } from "../log.ts";
+import {
+  describeError,
+  headerValue,
+  isAllowedHost,
+  readBody,
+  sameToken,
+  sendJson,
+  sendText,
+} from "./http.ts";
+import { serveStatic } from "./static.ts";
+import { watchFile } from "./watch.ts";
+import type { FileWatch } from "./watch.ts";
 
 export interface ServerOptions {
   /** 絶対パス */
@@ -38,21 +41,7 @@ export interface RunningServer {
   close(): Promise<void>;
 }
 
-const MAX_BODY_BYTES = 10 * 1024 * 1024;
-const WATCH_DEBOUNCE_MS = 80;
 const HEARTBEAT_MS = 25_000;
-
-const CONTENT_TYPES: Record<string, string> = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".ico": "image/x-icon",
-  ".woff2": "font/woff2",
-  ".woff": "font/woff",
-  ".json": "application/json; charset=utf-8",
-};
 
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
   // 0.0.0.0 で待ち受けないのは、同じネットワークの他の端末からファイルを書き換えられてしまうため
@@ -104,7 +93,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       sendText(response, 405, "Method Not Allowed");
       return;
     }
-    await serveStatic(url, response);
+    await serveStatic(url, response, { webDir: options.webDir, token, session });
   }
 
   async function handleApi(request: IncomingMessage, response: ServerResponse, url: URL) {
@@ -215,48 +204,6 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     }
   }
 
-  async function serveStatic(url: URL, response: ServerResponse) {
-    const { pathname } = url;
-    let relativePath: string;
-    try {
-      relativePath = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
-    } catch {
-      sendText(response, 400, "Bad Request");
-      return;
-    }
-    const path = normalize(join(options.webDir, relativePath));
-    if (path !== options.webDir && !path.startsWith(options.webDir + sep)) {
-      sendText(response, 404, "Not Found");
-      return;
-    }
-    const isIndex = path === join(options.webDir, "index.html");
-    // トークン無しで画面を返さないのは、同じマシンのほかの利用者が埋め込まれたトークンを読み取って、
-    // ファイルを書き換えられるため
-    if (isIndex && !sameToken(url.searchParams.get("token"), token)) {
-      sendText(
-        response,
-        403,
-        "この URL では開けません。loopcraft serve を起動し直した場合は、ターミナルに表示された新しい URL を開いてください",
-      );
-      return;
-    }
-    let content: Buffer;
-    try {
-      content = await readFile(path);
-    } catch {
-      sendText(response, 404, "Not Found");
-      return;
-    }
-    const type = CONTENT_TYPES[extname(path)] ?? "application/octet-stream";
-    if (isIndex) {
-      response.writeHead(200, { "content-type": type, "cache-control": "no-store" });
-      response.end(injectSession(content.toString("utf8"), session));
-      return;
-    }
-    response.writeHead(200, { "content-type": type });
-    response.end(content);
-  }
-
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(options.port, host, () => {
@@ -266,32 +213,11 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   });
   port = (server.address() as AddressInfo).port;
 
-  // ファイルではなくディレクトリを見るのは、置き換え保存でファイル自体が作り直されるため。
-  // 待ち受けより先に作らないのは、待ち受けに失敗したときに監視が残るため。
-  // シンボリックリンクはリンク自体ではなく、実際に書き換わるリンク先を見る
-  const watched = await realpath(options.file).catch(() => options.file);
-  const directory = dirname(watched);
-  let debounce: ReturnType<typeof setTimeout> | undefined;
-  let watching = true;
-  const stopWatching = (reason: string) => {
-    if (!watching) return;
-    unwatchedReason = reason;
-    watching = false;
-    watcher.close();
-    log.warn(
-      `ほかの場所での変更を見張れなくなりました（${reason}）。serve を起動し直すまで、画面には反映されません`,
-    );
-    broadcast("watch-error", { reason });
-  };
-  let watcher: FSWatcher;
+  // 待ち受けより先に見張らないのは、待ち受けに失敗したときに見張りが残るため
+  let fileWatch: FileWatch;
   try {
-    watcher = watch(directory, (_event, name) => {
-      if (name !== basename(watched)) {
-        if (!existsSync(directory)) stopWatching(`${directory} が無くなりました`);
-        return;
-      }
-      clearTimeout(debounce);
-      debounce = setTimeout(() => {
+    fileWatch = await watchFile(options.file, {
+      changed: () => {
         currentRevision(options.file).then(
           (revision) => {
             if (revision === knownRevision) return;
@@ -302,13 +228,19 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
           },
           (error: unknown) => log.warn(`${session.file} を読めません: ${describeError(error)}`),
         );
-      }, WATCH_DEBOUNCE_MS);
+      },
+      lost: (reason) => {
+        unwatchedReason = reason;
+        log.warn(
+          `ほかの場所での変更を見張れなくなりました（${reason}）。serve を起動し直すまで、画面には反映されません`,
+        );
+        broadcast("watch-error", { reason });
+      },
     });
   } catch (error) {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     throw error;
   }
-  watcher.on("error", (error) => stopWatching(describeError(error)));
 
   // コメント行で済ませないのは、EventSource のイベントにならず、画面が生存を確かめられないため
   const heartbeat = setInterval(() => broadcast("ping", {}), HEARTBEAT_MS);
@@ -317,80 +249,10 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     url: `http://${host}:${port}/?token=${encodeURIComponent(token)}`,
     port,
     close: async () => {
-      clearTimeout(debounce);
       clearInterval(heartbeat);
-      watching = false;
-      watcher.close();
+      fileWatch.close();
       for (const listener of listeners) listener.end();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
-}
-
-/** ほかの理由で読めないときに null にしないのは、上書きしてしまうため */
-async function currentRevision(file: string): Promise<Revision | null> {
-  try {
-    return revisionOf(await readFile(file, "utf8"));
-  } catch (error) {
-    if (isNotFound(error)) return null;
-    throw error;
-  }
-}
-
-export function describeError(error: unknown) {
-  if (error instanceof Error) {
-    const code = "code" in error && typeof error.code === "string" ? `${error.code}: ` : "";
-    return `${code}${error.message}`;
-  }
-  return String(error);
-}
-
-export function isAllowedHost(host: string | undefined, port: number) {
-  return host === `127.0.0.1:${port}` || host === `localhost:${port}`;
-}
-
-function sameToken(given: string | null | undefined, expected: string) {
-  if (!given) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
-function headerValue(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-/** エディタはこの meta タグを読んで保存先を知る */
-export function injectSession(html: string, session: Session) {
-  const content = JSON.stringify(session)
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-  return html.replace(
-    "<head>",
-    `<head>\n    <meta name="${SESSION_META_NAME}" content="${content}" />`,
-  );
-}
-
-async function readBody(request: IncomingMessage) {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const buffer = chunk as Buffer;
-    size += buffer.length;
-    if (size > MAX_BODY_BYTES) throw new Error("リクエストが大きすぎます");
-    chunks.push(buffer);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
-
-function sendJson(response: ServerResponse, status: number, body: unknown) {
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-  response.end(JSON.stringify(body));
-}
-
-function sendText(response: ServerResponse, status: number, body: string) {
-  response.writeHead(status, { "content-type": "text/plain; charset=utf-8" });
-  response.end(body);
 }

@@ -1,9 +1,11 @@
 import { relative, resolve } from "node:path";
 import { findLoops } from "@loopcraft/core/cycles";
-import { listLoopEntries, type LoopEntry } from "@loopcraft/core/loops";
+import { listLoopEntries } from "@loopcraft/core/loops";
+import type { LoopEntry } from "@loopcraft/core/loops";
 import type { Diagram } from "@loopcraft/core/schema";
 import type { Context } from "../context.ts";
-import { FailureError } from "../errors.ts";
+import { done, failure } from "../outcome.ts";
+import type { Outcome } from "../outcome.ts";
 import { readDiagramFile } from "../files.ts";
 
 export type LoopsFormat = "text" | "json" | "md";
@@ -13,13 +15,13 @@ export async function loops(
   file: string,
   options: { format: LoopsFormat; kind?: LoopKindFilter },
   { log, cwd }: Context,
-) {
+): Promise<Outcome> {
   const path = resolve(cwd, file);
   const shown = relative(cwd, path) || file;
   const loaded = await readDiagramFile(path);
-  if (loaded.status === "missing") throw new FailureError(`${shown} が見つかりません`);
+  if (loaded.status === "missing") return failure(`${shown} が見つかりません`);
   if (loaded.status === "invalid") {
-    throw new FailureError(`${shown} を開けません\n  ${loaded.errors.join("\n  ")}`);
+    return failure(`${shown} を開けません\n  ${loaded.errors.join("\n  ")}`);
   }
   const { diagram } = loaded;
   const detection = findLoops(diagram.links);
@@ -50,6 +52,7 @@ export async function loops(
   if (detection.truncated) {
     log.warn(`ループが多いため、先頭の ${detection.loops.length} 件だけを数えています`);
   }
+  return done;
 }
 
 function describe(entry: LoopEntry, diagram: Diagram) {

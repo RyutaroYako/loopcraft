@@ -2,10 +2,11 @@ import * as v from "valibot";
 import { describe, expect, it } from "vite-plus/test";
 import { findLoops } from "./cycles.ts";
 import { cycleKey } from "./loop.ts";
-import { DiagramShapeSchema, type DiagramShape } from "./schema.ts";
+import { DiagramShapeSchema } from "./schema.ts";
+import type { DiagramShape } from "./schema.ts";
 import { createSample } from "./testing/sample.ts";
 
-function graph(edges: [string, string, "+" | "-"][]): DiagramShape {
+const graph = (edges: [string, string, "+" | "-"][]): DiagramShape => {
   const names = [...new Set(edges.flatMap(([from, to]) => [from, to]))];
   return v.parse(DiagramShapeSchema, {
     version: 1,
@@ -14,11 +15,9 @@ function graph(edges: [string, string, "+" | "-"][]): DiagramShape {
     links: edges.map(([from, to, polarity]) => ({ id: `${from}${to}`, from, to, polarity })),
     loops: [],
   });
-}
+};
 
-function linksOf(edges: [string, string, "+" | "-"][]) {
-  return graph(edges).links;
-}
+const linksOf = (edges: [string, string, "+" | "-"][]) => graph(edges).links;
 
 describe("findLoops", () => {
   it("サンプルの 2 つのループを種類つきで見つける", () => {

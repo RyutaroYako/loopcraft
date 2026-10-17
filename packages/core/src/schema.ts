@@ -1,5 +1,6 @@
 import * as v from "valibot";
-import { findIntegrityIssues, type IntegrityPath } from "./integrity.ts";
+import { findIntegrityIssues } from "./integrity.ts";
+import type { IntegrityPath } from "./integrity.ts";
 
 /** 破壊的変更のたびに上げ、読み込み時にマイグレーションする */
 export const DIAGRAM_FORMAT_VERSION = 1;
@@ -116,7 +117,10 @@ export type Loop = v.InferOutput<typeof LoopSchema>;
 export type DiagramShape = v.InferOutput<typeof DiagramShapeSchema>;
 export type Diagram = v.InferOutput<typeof DiagramSchema>;
 
-function toIssuePath(root: unknown, path: IntegrityPath): [v.IssuePathItem, ...v.IssuePathItem[]] {
+const toIssuePath = (
+  root: unknown,
+  path: IntegrityPath,
+): [v.IssuePathItem, ...v.IssuePathItem[]] => {
   let input = root;
   const items = path.map((key): v.IssuePathItem => {
     if (typeof key === "number") {
@@ -131,4 +135,4 @@ function toIssuePath(root: unknown, path: IntegrityPath): [v.IssuePathItem, ...v
   const [first, ...rest] = items;
   if (!first) throw new Error("Integrity issue path must not be empty");
   return [first, ...rest];
-}
+};

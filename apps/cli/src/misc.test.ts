@@ -3,15 +3,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vite-plus/test";
-import { exitCodeOf, FailureError, UsageError } from "./errors.ts";
+import { done, exitCodeOf, failure, usageError } from "./outcome.ts";
 import { renderHeader } from "./header.ts";
 import { readVersion } from "./version.ts";
 
-describe("errors", () => {
-  it("使い方の誤りは 2、失敗とそれ以外は 1", () => {
-    expect(exitCodeOf(new UsageError("x"))).toBe(2);
-    expect(exitCodeOf(new FailureError("x"))).toBe(1);
-    expect(exitCodeOf(new Error("x"))).toBe(1);
+describe("outcome", () => {
+  it("使い方の誤りは 2、失敗は 1、完了と取り消しは 0", () => {
+    expect(exitCodeOf(usageError("x"))).toBe(2);
+    expect(exitCodeOf(failure("x"))).toBe(1);
+    expect(exitCodeOf(done)).toBe(0);
+    expect(exitCodeOf({ kind: "cancelled" })).toBe(0);
   });
 });
 

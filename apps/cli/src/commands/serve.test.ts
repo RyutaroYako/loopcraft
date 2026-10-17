@@ -2,7 +2,6 @@ import { mkdir } from "node:fs/promises";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { UsageError } from "../errors.ts";
 import { exists } from "../files.ts";
 import type { RunningServer } from "../server/server.ts";
 import { createWebDir, createWorkspace, writeSample } from "../testing/fixtures.ts";
@@ -11,6 +10,12 @@ import { serve } from "./serve.ts";
 vi.mock("../web-dir.ts", () => ({ resolveWebDir: () => undefined }));
 
 let running: RunningServer | undefined;
+
+async function start(...args: Parameters<typeof serve>) {
+  const started = await serve(...args);
+  if (started.kind !== "serving") throw new Error(started.message);
+  return started.server;
+}
 afterEach(async () => {
   await running?.close();
   running = undefined;
@@ -21,7 +26,7 @@ describe("serve", () => {
     const { context, stderr } = await createWorkspace();
     await writeSample(context.cwd);
     const openBrowser = vi.fn(async () => undefined);
-    running = await serve("diagram.json", { port: 0 }, context, {
+    running = await start("diagram.json", { port: 0 }, context, {
       openBrowser,
       webDir: await createWebDir(),
     });
@@ -35,7 +40,7 @@ describe("serve", () => {
 
   it("ブラウザを開けなくても続け、--no-open なら開かない", async () => {
     const { context, stderr } = await createWorkspace();
-    running = await serve("new.json", { port: 0 }, context, {
+    running = await start("new.json", { port: 0 }, context, {
       openBrowser: async () => Promise.reject(new Error("no browser")),
       webDir: await createWebDir(),
     });
@@ -45,7 +50,7 @@ describe("serve", () => {
 
     const second = await createWorkspace();
     const openBrowser = vi.fn(async () => undefined);
-    running = await serve("x.json", { port: 0, open: false, readonly: true }, second.context, {
+    running = await start("x.json", { port: 0, open: false, readonly: true }, second.context, {
       openBrowser,
       webDir: await createWebDir(),
     });
@@ -56,7 +61,7 @@ describe("serve", () => {
 
   it("--sample は新しいファイルだけに使え、保存するまでファイルを作らない", async () => {
     const { context, stderr } = await createWorkspace();
-    running = await serve("new.json", { port: 0, open: false, sample: true }, context, {
+    running = await start("new.json", { port: 0, open: false, sample: true }, context, {
       webDir: await createWebDir(),
     });
     expect(stderr).toContain(
@@ -67,9 +72,14 @@ describe("serve", () => {
     running = undefined;
 
     await writeSample(context.cwd);
-    await expect(
-      serve("diagram.json", { port: 0, sample: true }, context, { webDir: await createWebDir() }),
-    ).rejects.toThrow("diagram.json は既にあります");
+    expect(
+      await serve("diagram.json", { port: 0, sample: true }, context, {
+        webDir: await createWebDir(),
+      }),
+    ).toMatchObject({
+      kind: "usage",
+      message: expect.stringContaining("diagram.json は既にあります"),
+    });
   });
 
   it("既定のポートが使えなければ空いているポートへ逃げる", async () => {
@@ -77,7 +87,7 @@ describe("serve", () => {
     await new Promise<void>((resolve) => blocker.listen(0, "127.0.0.1", () => resolve()));
     const port = (blocker.address() as { port: number }).port;
     const { context } = await createWorkspace();
-    running = await serve("d.json", {}, context, {
+    running = await start("d.json", {}, context, {
       webDir: await createWebDir(),
       defaultPort: port,
     });
@@ -90,11 +100,15 @@ describe("serve", () => {
 
   it("開けない場所や、エディタが無いときは止める", async () => {
     const { context } = await createWorkspace();
-    await expect(serve("missing/d.json", { port: 0 }, context)).rejects.toBeInstanceOf(UsageError);
+    expect(await serve("missing/d.json", { port: 0 }, context)).toMatchObject({ kind: "usage" });
     await mkdir(join(context.cwd, "folder"));
-    await expect(serve("folder", { port: 0 }, context)).rejects.toThrow("ディレクトリです");
-    await expect(serve("d.json", { port: 0 }, context)).rejects.toThrow(
-      "エディタのファイルが見つかりません",
-    );
+    expect(await serve("folder", { port: 0 }, context)).toMatchObject({
+      kind: "usage",
+      message: expect.stringContaining("ディレクトリです"),
+    });
+    expect(await serve("d.json", { port: 0 }, context)).toMatchObject({
+      kind: "failure",
+      message: expect.stringContaining("エディタのファイルが見つかりません"),
+    });
   });
 });

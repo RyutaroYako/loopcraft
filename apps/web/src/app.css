@@ -1,6 +1,0 @@
-@import "tailwindcss";
-@import "./styles/tokens.css";
-@import "./styles/base.css" layer(base);
-/* 共通部品とキャンバスを components に置くのは、ユーティリティで個別に上書きできるようにするため */
-@import "./styles/primitives.css" layer(components);
-@import "./styles/canvas.css" layer(components);

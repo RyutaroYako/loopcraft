@@ -112,3 +112,13 @@ export async function isDirectory(path: string) {
     throw error;
   }
 }
+
+/** ほかの理由で読めないときに null にしないのは、上書きしてしまうため */
+export async function currentRevision(file: string): Promise<Revision | null> {
+  try {
+    return revisionOf(await readFile(file, "utf8"));
+  } catch (error) {
+    if (isNotFound(error)) return null;
+    throw error;
+  }
+}
