@@ -6,6 +6,8 @@ import { page, userEvent } from "vite-plus/test/browser";
 import "../styles/tokens.css";
 import "../styles/base.css";
 import App from "../App.vue";
+import type { LoadResult } from "../persistence/fileStore.ts";
+import { startInBrowser, startWithFile } from "../persistence/startup.ts";
 import type { Startup } from "../persistence/startup.ts";
 import type {
   DocumentStore,
@@ -42,10 +44,7 @@ export function cleanup() {
 }
 
 export function browserStartup(diagram?: Diagram): Startup {
-  return {
-    kind: "browser",
-    stored: diagram ? { status: "ok", diagram } : { status: "empty" },
-  };
+  return startInBrowser(diagram ? { status: "ok", diagram } : { status: "missing" });
 }
 
 export function fakeFileStore() {
@@ -72,19 +71,14 @@ export function fakeFileStore() {
 }
 
 export function fileStartup(
-  loaded: Extract<Startup, { kind: "file" }>["loaded"],
+  loaded: LoadResult,
   options: { readonly?: boolean; store?: DocumentStore } = {},
 ): Startup {
-  return {
-    kind: "file",
-    session: {
-      token: "t",
-      file: "growth.json",
-      readonly: options.readonly ?? false,
-    },
+  return startWithFile(
+    { token: "t", file: "growth.json", readonly: options.readonly ?? false },
     loaded,
-    store: options.store ?? fakeFileStore().store,
-  };
+    options.store ?? fakeFileStore().store,
+  );
 }
 
 export const inspector = () =>

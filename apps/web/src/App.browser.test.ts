@@ -3,6 +3,7 @@ import { createEmptyDiagram, stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { LinkId } from "@loopcraft/core/schema";
 import { afterEach, describe, expect, it } from "vite-plus/test";
+import { startInBrowser } from "./persistence/startup.ts";
 import {
   browserStartup,
   canvas,
@@ -184,8 +185,12 @@ describe("案内", () => {
   });
 
   it("案内は時間で消え、エラーは閉じるまで残る", async () => {
-    mount(fileStartup({ status: "missing" }));
-    await expect.element(notice()).toMatchTextContent(/growth\.json はまだありません/);
+    const { store, control } = fakeFileStore();
+    mount(fileStartup(ok(), { store }));
+    control.reloadResult = { ok: true, diagram: { ...createSampleDiagram(), title: "外で直した" } };
+    control.handlers().change();
+    await expect.element(notice()).toMatchTextContent(/ほかの場所での変更を読み込みました/);
+    await expect.element(notice()).toHaveAttribute("data-tone", "info");
     await expect.element(notice()).not.toBeInTheDocument();
 
     window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
@@ -197,11 +202,8 @@ describe("案内", () => {
   it("壊れたブラウザのデータは残したまま自動保存を止め、書き出せる", async () => {
     const downloads = captureDownloads();
     try {
-      mount({
-        kind: "browser",
-        stored: { status: "invalid", raw: "{", errors: ["壊れています"] },
-      });
-      await expect.element(notice()).toMatchTextContent(/前回の図を開けませんでした/);
+      mount(startInBrowser({ status: "unreadable", problems: ["壊れています"], raw: "{" }));
+      await expect.element(notice()).toMatchTextContent(/保存されていた図を開けませんでした/);
       await expect.element(page.getByRole("button", { name: /自動保存を停止中/ })).toBeVisible();
       await page.getByRole("button", { name: "開けなかったデータを書き出す" }).click();
       expect(downloads.files).toEqual(["system-diagram-unreadable.json"]);
@@ -227,7 +229,7 @@ describe("案内", () => {
   });
 
   it("serve の情報が読めなければ、ブラウザに保存することを知らせる", async () => {
-    mount({ kind: "browser", stored: { status: "empty" }, sessionInvalid: true });
+    mount(startInBrowser({ status: "missing" }, true));
     await expect.element(notice()).toMatchTextContent(/loopcraft serve の情報を読めませんでした/);
     await expect.element(page.getByRole("button", { name: "ページを再読み込み" })).toBeVisible();
   });
@@ -270,18 +272,12 @@ describe("serve で開いたとき", () => {
     }
   });
 
-  it("ファイルがまだ無ければ、最初の保存で作ることを知らせる", async () => {
-    mount(fileStartup({ status: "missing" }));
-    await expect.element(notice()).toMatchTextContent(/growth\.json はまだありません/);
-    await expect.element(notice()).toHaveAttribute("data-tone", "info");
-  });
-
   it("開けなかったファイルは理由を知らせ、多すぎる理由は件数でまとめる", async () => {
     const errors = Array.from({ length: 10 }, (_, index) => `title: 問題${index}`);
     mount(fileStartup({ status: "invalid", revision: "r", errors }));
-    await expect.element(notice()).toMatchTextContent(/growth\.json を開けませんでした/);
-    await expect.element(notice()).toMatchTextContent(/title: 問題6/);
-    await expect.element(notice()).toMatchTextContent(/ほか 3 件/);
+    await expect.element(notice()).toMatchTextContent(/保存先: growth\.json/);
+    await expect.element(notice()).toMatchTextContent(/title: 問題5/);
+    await expect.element(notice()).toMatchTextContent(/ほか 4 件/);
     await expect.element(page.getByRole("button", { name: /自動保存を停止中/ })).toBeVisible();
   });
 

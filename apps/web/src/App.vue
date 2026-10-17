@@ -30,7 +30,7 @@ const editor = useEditor(initial, {
   restoreFocus: () => refocusWhenLost(canvasSvg),
 });
 provide(EditorKey, editor);
-const notices = createNotices({ editor, store, startup, readonly, autosave: () => autosave });
+const notices = createNotices({ editor, startup, autosave: () => autosave });
 const autosave = useAutosave(editor, store, {
   initialStatus,
   onProblem: notices.explain,

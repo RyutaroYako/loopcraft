@@ -1,7 +1,7 @@
 import type { Editor } from "../editor/useEditor.ts";
 import type { AutosaveStatus } from "../persistence/autosave.ts";
 import type { Startup } from "../persistence/startup.ts";
-import type { DocumentStore, ReloadResult } from "../persistence/store.ts";
+import type { ReloadResult } from "../persistence/store.ts";
 import { downloadText } from "../transfer/file.ts";
 import type { Notice } from "./useNotices.ts";
 
@@ -15,16 +15,15 @@ type Action = NonNullable<Notice["actions"]>[number];
 
 export const createNotices = (context: {
   editor: Editor;
-  store: DocumentStore;
   startup: Startup;
-  /** 読み取り専用で上書きを勧めないのは、サーバーが拒むため */
-  readonly?: boolean;
   autosave: () => Autosave;
   reloadPage?: () => void;
 }) => {
+  const { editor, startup } = context;
+  const { store, opened } = startup;
+  // 読み取り専用で上書きを勧めないのは、サーバーが拒むため
   const overwrite = (label: string): Action[] =>
-    context.readonly ? [] : [{ label, run: run((a) => a.resume()) }];
-  const { editor, store, startup } = context;
+    startup.readonly ? [] : [{ label, run: run((a) => a.resume()) }];
   const reloadPage = context.reloadPage ?? (() => location.reload());
 
   const run =
@@ -36,17 +35,18 @@ export const createNotices = (context: {
 
   const exportAction: Action = { label: "JSON を書き出す", run: () => editor.exportFile() };
 
-  const unreadable =
-    startup.kind === "browser" && startup.stored.status === "invalid" ? startup.stored : undefined;
+  const unreadable = opened.status === "unreadable" ? opened : undefined;
+  const raw = unreadable?.raw;
 
-  const downloadUnreadable: Action[] = unreadable
-    ? [
-        {
-          label: "開けなかったデータを書き出す",
-          run: () => downloadText(unreadable.raw, "system-diagram-unreadable.json"),
-        },
-      ]
-    : [];
+  const downloadUnreadable: Action[] =
+    raw === undefined
+      ? []
+      : [
+          {
+            label: "開けなかったデータを書き出す",
+            run: () => downloadText(raw, "system-diagram-unreadable.json"),
+          },
+        ];
 
   const reloadSaved = run(async (autosave) => {
     const result = await autosave.reload();
@@ -94,27 +94,13 @@ export const createNotices = (context: {
         ],
       };
     }
-    if (startup.kind === "file") {
-      const { loaded } = startup;
-      return {
-        tone: "error",
-        title: `${store.label} を開けませんでした`,
-        details: [
-          context.readonly
-            ? "ファイルはそのまま残しています。直すと自動で読み込みます"
-            : "ファイルはそのまま残しています。直すと自動で読み込みます。この画面の内容で上書きすることもできます",
-          ...(loaded.status === "invalid" ? loaded.errors : []),
-          ...(loaded.status === "error" ? [String(loaded.error)] : []),
-        ],
-        actions: overwrite("この画面の内容で上書き"),
-      };
-    }
     return {
       tone: "error",
-      title: "前回の図を開けませんでした",
+      title: "保存されていた図を開けませんでした",
       details: [
-        "ブラウザに保存されていたデータはそのまま残しています。書き出して手元に残すか、この画面の内容で上書きしてください",
-        ...(unreadable?.errors ?? []),
+        `保存先: ${store.label}`,
+        "元のデータはそのまま残し、自動保存を止めています。保存先の内容が直れば、自動で読み込みます",
+        ...(unreadable?.problems ?? []),
       ],
       actions: [...downloadUnreadable, ...overwrite("この画面の内容で上書き")],
     };
@@ -134,7 +120,7 @@ export const createNotices = (context: {
     explain,
 
     atStartup(initialStatus: AutosaveStatus | undefined) {
-      if (startup.kind === "browser" && startup.sessionInvalid) {
+      if (startup.sessionInvalid) {
         editor.notify({
           tone: "error",
           title: "loopcraft serve の情報を読めませんでした",
@@ -146,12 +132,6 @@ export const createNotices = (context: {
         });
       } else if (initialStatus) {
         explain(initialStatus);
-      } else if (startup.kind === "file" && startup.loaded.status === "missing") {
-        editor.notify({
-          tone: "info",
-          title: `${store.label} はまだありません`,
-          details: ["編集を始めると、最初の保存で作成します"],
-        });
       }
     },
 

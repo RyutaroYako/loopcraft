@@ -1,8 +1,7 @@
 import { stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { prepareStartup, resolveStartup } from "./startup.ts";
-import type { Startup } from "./startup.ts";
+import { prepareStartup, resolveStartup, startInBrowser, startWithFile } from "./startup.ts";
 import type { DocumentStore } from "./store.ts";
 
 afterEach(() => {
@@ -26,7 +25,11 @@ describe("prepareStartup", () => {
   it("セッションが無ければ localStorage から開く", async () => {
     localStorage.setItem("loopcraft:document", stringifyDiagram(createSampleDiagram()));
     const startup = await prepareStartup(document.implementation.createHTMLDocument());
-    expect(startup).toMatchObject({ kind: "browser", stored: { status: "ok" } });
+    expect(startup).toMatchObject({
+      store: { label: "ブラウザ" },
+      opened: { status: "ok" },
+      sessionInvalid: false,
+    });
   });
 
   it("セッションが壊れていれば、ブラウザに保存することを知らせる印を付ける", async () => {
@@ -35,7 +38,10 @@ describe("prepareStartup", () => {
     meta.name = "loopcraft-session";
     meta.content = "{";
     doc.head.append(meta);
-    expect(await prepareStartup(doc)).toMatchObject({ kind: "browser", sessionInvalid: true });
+    expect(await prepareStartup(doc)).toMatchObject({
+      store: { label: "ブラウザ" },
+      sessionInvalid: true,
+    });
   });
 
   it("セッションがあればサーバーから読む", async () => {
@@ -44,71 +50,54 @@ describe("prepareStartup", () => {
       vi.fn(async () => new Response(JSON.stringify({ status: "missing" }))),
     );
     const startup = await prepareStartup(withSession());
-    expect(startup).toMatchObject({ kind: "file", loaded: { status: "missing" } });
+    expect(startup).toMatchObject({
+      store: { label: "dir/growth.json" },
+      opened: { status: "missing" },
+    });
+  });
+});
+
+describe("startWithFile", () => {
+  it("読めなかったファイルと、届かなかったサーバーは、どちらも開けなかったとする", () => {
+    expect(
+      startWithFile(session, { status: "invalid", revision: "r", errors: ["e"] }, store).opened,
+    ).toEqual({ status: "unreadable", problems: ["e"] });
+    expect(startWithFile(session, { status: "error", error: "HTTP 500" }, store).opened).toEqual({
+      status: "unreadable",
+      problems: ["HTTP 500"],
+    });
+  });
+
+  it("まだ無いときは、ファイル名を題にした空の図か、指定があればサンプルで始める", () => {
+    const missing = { status: "missing" } as const;
+    expect(startWithFile(session, missing, store).blank.title).toBe("growth");
+    expect(startWithFile({ ...session, file: ".json" }, missing, store).blank.title).toBe(
+      "無題のシステム図",
+    );
+    expect(startWithFile({ ...session, sample: true }, missing, store).blank).toEqual(
+      createSampleDiagram(),
+    );
+    expect(startWithFile({ ...session, readonly: true }, missing, store).readonly).toBe(true);
   });
 });
 
 describe("resolveStartup", () => {
-  it("ブラウザでは保存されていた図を開き、問題があればその状態から始める", () => {
+  it("開けた図で始め、開けなければ空の図で始めて自動保存を止める", () => {
     const diagram = createSampleDiagram();
-    expect(resolveStartup({ kind: "browser", stored: { status: "ok", diagram } })).toMatchObject({
+    expect(resolveStartup(startInBrowser({ status: "ok", diagram }))).toMatchObject({
       initial: diagram,
       readonly: false,
       initialStatus: undefined,
     });
-    expect(
-      resolveStartup({ kind: "browser", stored: { status: "empty" } }).initial.variables,
-    ).toEqual([]);
-    expect(
-      resolveStartup({ kind: "browser", stored: { status: "unavailable", error: "x" } })
-        .initialStatus,
-    ).toEqual({
-      kind: "failing",
-      error: "x",
+    expect(resolveStartup(startInBrowser({ status: "missing" }))).toMatchObject({
+      initial: { variables: [] },
+      initialStatus: undefined,
     });
     expect(
-      resolveStartup({ kind: "browser", stored: { status: "invalid", raw: "{", errors: [] } })
-        .initialStatus,
-    ).toEqual({
-      kind: "suspended",
-      reason: "unreadable",
-    });
-  });
-
-  it("ファイルではセッションの指定どおりに開く", () => {
-    const diagram = createSampleDiagram();
-    const file = (
-      loaded: Extract<Startup, { kind: "file" }>["loaded"],
-      overrides = {},
-    ): Startup => ({
-      kind: "file",
-      session: { ...session, ...overrides },
-      loaded,
-      store,
-    });
-    expect(resolveStartup(file({ status: "ok", diagram, revision: "r" }))).toMatchObject({
-      initial: diagram,
-      readonly: false,
-      store,
-    });
-    const missing = resolveStartup(file({ status: "missing" }));
-    expect(missing.initial.title).toBe("growth");
-    expect(resolveStartup(file({ status: "missing" }, { readonly: true })).readonly).toBe(true);
-    expect(resolveStartup(file({ status: "missing" }, { sample: true })).initial).toEqual(
-      createSampleDiagram(),
-    );
-    expect(resolveStartup(file({ status: "missing" }, { file: ".json" })).initial.title).toBe(
-      "無題のシステム図",
-    );
-    expect(
-      resolveStartup(file({ status: "invalid", revision: "r", errors: [] })).initialStatus,
-    ).toEqual({
-      kind: "suspended",
-      reason: "unreadable",
-    });
-    expect(resolveStartup(file({ status: "error", error: "x" })).initialStatus).toEqual({
-      kind: "suspended",
-      reason: "unreadable",
+      resolveStartup(startInBrowser({ status: "unreadable", problems: [], raw: "{" })),
+    ).toMatchObject({
+      initial: { variables: [] },
+      initialStatus: { kind: "suspended", reason: "unreadable" },
     });
   });
 });

@@ -1,31 +1,26 @@
 import { parseDiagramJson, stringifyDiagram } from "@loopcraft/core/io";
 import type { Diagram } from "@loopcraft/core/schema";
+import type { Opened } from "./store.ts";
 
 const STORAGE_KEY = "loopcraft:document";
 
-export type StoredDiagram =
-  | { status: "empty" }
-  | { status: "ok"; diagram: Diagram }
-  | { status: "invalid"; raw: string; errors: string[] }
-  /** ブラウザの設定などで、localStorage に触れること自体が例外になる */
-  | { status: "unavailable"; error: unknown };
-
-export const loadStoredDiagram = (): StoredDiagram => {
+export const loadStoredDiagram = (): Opened => {
   let text: string | null;
   try {
     text = localStorage.getItem(STORAGE_KEY);
   } catch (error) {
-    return { status: "unavailable", error };
+    // ブラウザの設定などで、localStorage に触れること自体が例外になる
+    return { status: "unreadable", problems: [String(error)] };
   }
-  if (text === null) return { status: "empty" };
+  if (text === null) return { status: "missing" };
   const result = parseDiagramJson(text);
   if (result.ok) return { status: "ok", diagram: result.diagram };
   return {
-    status: "invalid",
-    raw: text,
-    errors: result.errors.map((error) =>
+    status: "unreadable",
+    problems: result.errors.map((error) =>
       error.path ? `${error.path}: ${error.message}` : error.message,
     ),
+    raw: text,
   };
 };
 

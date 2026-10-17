@@ -1,9 +1,10 @@
+import { createEmptyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { setupEditor } from "../testing/editor.ts";
 import type { AutosaveStatus } from "../persistence/autosave.ts";
 import type { Startup } from "../persistence/startup.ts";
-import type { DocumentStore, ReloadResult } from "../persistence/store.ts";
+import type { DocumentStore, Opened, ReloadResult } from "../persistence/store.ts";
 import { createNotices } from "./notices.ts";
 
 let dispose = () => {};
@@ -12,10 +13,18 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const browserStore = { label: "ブラウザ" } as DocumentStore;
-const fileStore = { label: "a.json" } as DocumentStore;
+const startup = (opened: Opened, overrides: Partial<Startup> = {}): Startup => ({
+  store: { label: "a.json" } as DocumentStore,
+  opened,
+  blank: createEmptyDiagram(),
+  readonly: false,
+  sessionInvalid: false,
+  ...overrides,
+});
 
-function setup(store: DocumentStore, startup: Startup, readonly = false) {
+const missing = startup({ status: "missing" });
+
+function setup(target: Startup) {
   const { editor, dispose: d } = setupEditor();
   dispose = d;
   const autosave = {
@@ -28,14 +37,7 @@ function setup(store: DocumentStore, startup: Startup, readonly = false) {
   };
   const exportFile = vi.spyOn(editor, "exportFile").mockImplementation(() => {});
   const reloadPage = vi.fn();
-  const notices = createNotices({
-    editor,
-    store,
-    startup,
-    readonly,
-    autosave: () => autosave,
-    reloadPage,
-  });
+  const notices = createNotices({ editor, startup: target, autosave: () => autosave, reloadPage });
   const shown = () => editor.notice.value;
   const run = (label: string) => {
     const action = shown()?.actions?.find((item) => item.label === label);
@@ -45,17 +47,9 @@ function setup(store: DocumentStore, startup: Startup, readonly = false) {
   return { editor, notices, autosave, shown, run, exportFile, reloadPage };
 }
 
-const browserStartup: Startup = { kind: "browser", stored: { status: "empty" } };
-const fileStartup = (loaded: Extract<Startup, { kind: "file" }>["loaded"]): Startup => ({
-  kind: "file",
-  session: { token: "t", file: "a.json", readonly: false },
-  loaded,
-  store: fileStore,
-});
-
 describe("createNotices", () => {
   it("読み込めなかったら、その理由をもう一度知らせる", async () => {
-    const file = setup(fileStore, fileStartup({ status: "missing" }));
+    const file = setup(missing);
     file.autosave.reload.mockResolvedValueOnce({
       ok: false,
       problems: ["ファイルが削除されました"],
@@ -66,7 +60,7 @@ describe("createNotices", () => {
   });
 
   it("つながりが切れたら、書き出しと再読み込みを勧める", () => {
-    const file = setup(fileStore, fileStartup({ status: "missing" }));
+    const file = setup(missing);
     file.notices.explain({ kind: "suspended", reason: "disconnected" });
     expect(file.shown()?.title).toBe("loopcraft serve とのつながりが切れました");
     expect(file.shown()?.details?.[1]).toContain("新しい URL");
@@ -76,7 +70,7 @@ describe("createNotices", () => {
   });
 
   it("状態が戻ったら、そのとき出していた案内だけを閉じる", () => {
-    const file = setup(fileStore, fileStartup({ status: "missing" }));
+    const file = setup(missing);
     file.notices.recovered();
     file.notices.explain({ kind: "suspended", reason: "disconnected" });
     expect(file.shown()?.title).toBe("loopcraft serve とのつながりが切れました");
@@ -90,11 +84,7 @@ describe("createNotices", () => {
   });
 
   it("読み取り専用なら上書きを勧めない", () => {
-    const viewer = setup(
-      fileStore,
-      fileStartup({ status: "invalid", revision: "r", errors: [] }),
-      true,
-    );
+    const viewer = setup(startup({ status: "unreadable", problems: [] }, { readonly: true }));
     viewer.notices.explain({ kind: "suspended", reason: "unreadable" });
     expect(viewer.shown()?.actions).toEqual([]);
     viewer.notices.explain({ kind: "suspended", reason: "external" });
@@ -104,18 +94,14 @@ describe("createNotices", () => {
   });
 
   it("見張れなくなったことと、壊れたセッションを知らせる", () => {
-    const file = setup(fileStore, fileStartup({ status: "missing" }));
+    const file = setup(missing);
     file.notices.unwatched("ENOENT");
     expect(file.shown()?.details?.[0]).toBe("ENOENT");
     file.notices.unwatched(undefined);
     expect(file.shown()?.details).toHaveLength(2);
     dispose();
 
-    const broken = setup(browserStore, {
-      kind: "browser",
-      stored: { status: "empty" },
-      sessionInvalid: true,
-    });
+    const broken = setup(startup({ status: "missing" }, { sessionInvalid: true }));
     broken.notices.atStartup(undefined);
     expect(broken.shown()?.title).toBe("loopcraft serve の情報を読めませんでした");
     broken.run("ページを再読み込み");
@@ -124,82 +110,62 @@ describe("createNotices", () => {
 
   it("保存できないときは、保存先の名前と理由を伝え、保存し直すか書き出せる", () => {
     const failing: AutosaveStatus = { kind: "failing", error: new Error("quota") };
-    const browser = setup(browserStore, browserStartup);
-    browser.notices.explain(failing);
-    expect(browser.shown()?.title).toBe("自動保存できません");
-    expect(browser.shown()?.details?.slice(0, 2)).toEqual(["保存先: ブラウザ", "Error: quota"]);
-    browser.run("JSON を書き出す");
-    expect(browser.exportFile).toHaveBeenCalledOnce();
-    browser.notices.explain(failing);
-    browser.run("保存し直す");
-    expect(browser.autosave.retry).toHaveBeenCalledOnce();
-    expect(browser.autosave.resume).not.toHaveBeenCalled();
+    const target = setup(missing);
+    target.notices.explain(failing);
+    expect(target.shown()?.title).toBe("自動保存できません");
+    expect(target.shown()?.details?.slice(0, 2)).toEqual(["保存先: a.json", "Error: quota"]);
+    target.run("JSON を書き出す");
+    expect(target.exportFile).toHaveBeenCalledOnce();
+    target.notices.explain(failing);
+    target.run("保存し直す");
+    expect(target.autosave.retry).toHaveBeenCalledOnce();
+    expect(target.autosave.resume).not.toHaveBeenCalled();
   });
 
-  it("ほかの場所での変更は、保存先によらず読み込むか上書きを選べる", () => {
+  it("ほかの場所での変更は、読み込むか上書きを選べる", () => {
     const external: AutosaveStatus = { kind: "suspended", reason: "external" };
-    for (const [store, startup] of [
-      [browserStore, browserStartup],
-      [fileStore, fileStartup({ status: "missing" })],
-    ] as const) {
-      const target = setup(store, startup);
-      target.notices.explain(external);
-      expect(target.shown()?.title).toBe("ほかの場所で図が変更されました");
-      target.run("保存されている内容を読み込む");
-      expect(target.autosave.reload).toHaveBeenCalledOnce();
-      target.notices.explain(external);
-      target.run("この画面の内容で上書き");
-      expect(target.autosave.resume).toHaveBeenCalledOnce();
-      dispose();
-    }
+    const target = setup(missing);
+    target.notices.explain(external);
+    expect(target.shown()?.title).toBe("ほかの場所で図が変更されました");
+    target.run("保存されている内容を読み込む");
+    expect(target.autosave.reload).toHaveBeenCalledOnce();
+    target.notices.explain(external);
+    target.run("この画面の内容で上書き");
+    expect(target.autosave.resume).toHaveBeenCalledOnce();
   });
 
-  it("開けなかったファイルは、直すか上書きを選べる", () => {
-    const file = setup(
-      fileStore,
-      fileStartup({ status: "invalid", revision: "r", errors: ["links.0.to: x"] }),
-    );
-    file.notices.atStartup({ kind: "suspended", reason: "unreadable" });
-    expect(file.shown()?.details).toContain("links.0.to: x");
-    file.run("この画面の内容で上書き");
-    expect(file.autosave.resume).toHaveBeenCalledOnce();
-    dispose();
-
-    const error = setup(fileStore, fileStartup({ status: "error", error: "HTTP 500" }));
-    error.notices.explain({ kind: "suspended", reason: "unreadable" });
-    expect(error.shown()?.details?.at(-1)).toBe("HTTP 500");
+  it("開けなかった図は、理由を伝え、上書きを選べる", () => {
+    const target = setup(startup({ status: "unreadable", problems: ["links.0.to: x"] }));
+    target.notices.atStartup({ kind: "suspended", reason: "unreadable" });
+    expect(target.shown()?.title).toBe("保存されていた図を開けませんでした");
+    expect(target.shown()?.details?.[0]).toBe("保存先: a.json");
+    expect(target.shown()?.details).toContain("links.0.to: x");
+    expect(target.shown()?.actions?.map((action) => action.label)).toEqual([
+      "この画面の内容で上書き",
+    ]);
+    target.run("この画面の内容で上書き");
+    expect(target.autosave.resume).toHaveBeenCalledOnce();
   });
 
-  it("開けなかったブラウザのデータは、書き出すか上書きを選べる", () => {
+  it("開けなかった内容が手元にあれば、書き出せる", () => {
     URL.createObjectURL = vi.fn(() => "blob:x");
     URL.revokeObjectURL = vi.fn();
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-    const startup: Startup = {
-      kind: "browser",
-      stored: { status: "invalid", raw: "{", errors: ["e"] },
-    };
-    const browser = setup(browserStore, startup);
-    browser.notices.atStartup({ kind: "suspended", reason: "unreadable" });
-    expect(browser.shown()?.title).toBe("前回の図を開けませんでした");
-    expect(browser.shown()?.details).toContain("e");
-    browser.run("開けなかったデータを書き出す");
+    const target = setup(startup({ status: "unreadable", problems: ["e"], raw: "{" }));
+    target.notices.atStartup({ kind: "suspended", reason: "unreadable" });
+    target.run("開けなかったデータを書き出す");
     expect(click).toHaveBeenCalledOnce();
-    browser.run("この画面の内容で上書き");
-    expect(browser.autosave.resume).toHaveBeenCalledOnce();
   });
 
-  it("開いた時点の案内", () => {
-    const missing = setup(fileStore, fileStartup({ status: "missing" }));
-    missing.notices.atStartup(undefined);
-    expect(missing.shown()).toMatchObject({ tone: "info", title: "a.json はまだありません" });
-    missing.notices.reloaded();
-    expect(missing.shown()?.title).toBe("ほかの場所での変更を読み込みました");
+  it("開いた時点では、問題があるときだけ知らせる", () => {
+    const fresh = setup(missing);
+    fresh.notices.atStartup(undefined);
+    expect(fresh.shown()).toBeNull();
+    fresh.notices.reloaded();
+    expect(fresh.shown()?.title).toBe("ほかの場所での変更を読み込みました");
     dispose();
 
-    const fine = setup(
-      fileStore,
-      fileStartup({ status: "ok", diagram: createSampleDiagram(), revision: "r" }),
-    );
+    const fine = setup(startup({ status: "ok", diagram: createSampleDiagram() }));
     fine.notices.atStartup(undefined);
     fine.notices.explain({ kind: "ok" });
     expect(fine.shown()).toBeNull();

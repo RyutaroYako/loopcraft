@@ -8,6 +8,12 @@ export type SaveResult =
   /** ページを読み込み直すまで保存できない（serve を止めた・起動し直したなど） */
   | { ok: false; reason: "disconnected" };
 
+export type Opened =
+  | { status: "ok"; diagram: Diagram }
+  | { status: "missing" }
+  /** raw は、開けなかった内容を書き出せるよう手元に持っているときだけある */
+  | { status: "unreadable"; problems: string[]; raw?: string };
+
 export type ReloadResult = { ok: true; diagram: Diagram } | { ok: false; problems: string[] };
 
 export interface WatchHandlers {
@@ -33,12 +39,12 @@ export const createBrowserStore = (): DocumentStore => {
     },
     watch: (handlers) => watchOtherTabs(() => handlers.change()),
     reload: async () => {
-      const stored = loadStoredDiagram();
-      if (stored.status === "ok") return { ok: true, diagram: stored.diagram };
-      if (stored.status === "empty")
+      const opened = loadStoredDiagram();
+      if (opened.status === "ok") return { ok: true, diagram: opened.diagram };
+      if (opened.status === "missing") {
         return { ok: false, problems: ["保存されていた図が消されました"] };
-      if (stored.status === "invalid") return { ok: false, problems: stored.errors };
-      return { ok: false, problems: [String(stored.error)] };
+      }
+      return { ok: false, problems: opened.problems };
     },
   };
 };

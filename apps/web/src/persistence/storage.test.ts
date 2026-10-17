@@ -10,14 +10,14 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("storage", () => {
   it("保存した図を読み直す", () => {
-    expect(loadStoredDiagram()).toEqual({ status: "empty" });
+    expect(loadStoredDiagram()).toEqual({ status: "missing" });
     expect(storeDiagram(createSampleDiagram())).toEqual({ ok: true });
     expect(loadStoredDiagram()).toMatchObject({ status: "ok" });
   });
 
   it("読めない図は、元の文字列と理由を返し、保存先には触らない", () => {
     localStorage.setItem(KEY, "{");
-    expect(loadStoredDiagram()).toMatchObject({ status: "invalid", raw: "{" });
+    expect(loadStoredDiagram()).toMatchObject({ status: "unreadable", raw: "{" });
     expect([...Array(localStorage.length).keys()].map((index) => localStorage.key(index))).toEqual([
       KEY,
     ]);
@@ -31,11 +31,14 @@ describe("storage", () => {
     expect(storeDiagram(createSampleDiagram())).toMatchObject({ ok: false });
   });
 
-  it("localStorage が使えなければ unavailable", () => {
+  it("localStorage が使えなければ、その理由で開けなかったとする", () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("SecurityError");
     });
-    expect(loadStoredDiagram()).toMatchObject({ status: "unavailable" });
+    expect(loadStoredDiagram()).toEqual({
+      status: "unreadable",
+      problems: ["Error: SecurityError"],
+    });
   });
 
   it("別のタブでの保存だけを知らせる", () => {
