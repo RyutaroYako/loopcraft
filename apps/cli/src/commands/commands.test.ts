@@ -4,7 +4,6 @@ import { stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { Diagram } from "@loopcraft/core/schema";
 import { describe, expect, it } from "vite-plus/test";
-import { FailureError, UsageError } from "../errors.ts";
 import { createWorkspace, writeSample } from "../testing/fixtures.ts";
 import { DEFAULT_FILE, init } from "./init.ts";
 import { loops } from "./loops.ts";
@@ -25,12 +24,15 @@ describe("validate", () => {
     await writeSample(context.cwd);
     await writeFile(join(context.cwd, "broken.json"), "{");
     await mkdir(join(context.cwd, "dir.json"));
-    const run = validate(
+    const outcome = await validate(
       ["diagram.json", "broken.json", "missing.json", "dir.json"],
       { format: "text" },
       context,
     );
-    await expect(run).rejects.toThrow(new FailureError("4 件中 3 件のファイルにエラーがあります"));
+    expect(outcome).toEqual({
+      kind: "failure",
+      message: "4 件中 3 件のファイルにエラーがあります",
+    });
     expect(stderr).toContain("✗ missing.json");
     expect(stderr).toContain("  ファイルが見つかりません");
     expect(stderr).toContain("✗ dir.json");
@@ -47,7 +49,7 @@ describe("validate", () => {
 
   it("ファイルが無ければ使い方の誤り", async () => {
     const { context } = await createWorkspace();
-    await expect(validate([], { format: "text" }, context)).rejects.toBeInstanceOf(UsageError);
+    expect(await validate([], { format: "text" }, context)).toMatchObject({ kind: "usage" });
   });
 });
 
@@ -74,7 +76,7 @@ describe("init", () => {
   it("既にあるファイルは --force が無ければ上書きしない", async () => {
     const { context } = await createWorkspace();
     await writeSample(context.cwd);
-    await expect(init("diagram.json", {}, context)).rejects.toBeInstanceOf(UsageError);
+    expect(await init("diagram.json", {}, context)).toMatchObject({ kind: "usage" });
     await init("diagram.json", { force: true }, context);
     const diagram = JSON.parse(
       await readFile(join(context.cwd, "diagram.json"), "utf8"),
@@ -84,11 +86,12 @@ describe("init", () => {
 
   it("ディレクトリが無ければ使い方の誤りとして伝える", async () => {
     const { context } = await createWorkspace();
-    await expect(init("newdir/diagram.json", {}, context)).rejects.toThrow(
-      new UsageError("newdir というディレクトリがありません"),
-    );
+    expect(await init("newdir/diagram.json", {}, context)).toEqual({
+      kind: "usage",
+      message: "newdir というディレクトリがありません",
+    });
     await writeFile(join(context.cwd, "file"), "");
-    await expect(init("file/diagram.json", {}, context)).rejects.toBeInstanceOf(UsageError);
+    expect(await init("file/diagram.json", {}, context)).toMatchObject({ kind: "usage" });
   });
 
   it("存在を確かめられないときはエラーを投げる", async () => {
@@ -178,13 +181,14 @@ describe("loops", () => {
 
   it("無いファイルや壊れたファイルは失敗にする", async () => {
     const { context } = await createWorkspace();
-    await expect(loops("none.json", { format: "text" }, context)).rejects.toBeInstanceOf(
-      FailureError,
-    );
+    expect(await loops("none.json", { format: "text" }, context)).toMatchObject({
+      kind: "failure",
+    });
     await writeFile(join(context.cwd, "broken.json"), "{");
-    await expect(loops("broken.json", { format: "text" }, context)).rejects.toThrow(
-      "broken.json を開けません",
-    );
+    expect(await loops("broken.json", { format: "text" }, context)).toMatchObject({
+      kind: "failure",
+      message: expect.stringContaining("broken.json を開けません"),
+    });
   });
 });
 

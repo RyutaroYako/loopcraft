@@ -1,6 +1,7 @@
 import { relative, resolve } from "node:path";
 import type { Context } from "../context.ts";
-import { FailureError, UsageError } from "../errors.ts";
+import { done, failure, usageError } from "../outcome.ts";
+import type { Outcome } from "../outcome.ts";
 import { readDiagramFile } from "../files.ts";
 
 export type OutputFormat = "text" | "json";
@@ -15,8 +16,8 @@ export async function validate(
   files: string[],
   options: { format: OutputFormat },
   { log, cwd }: Context,
-) {
-  if (files.length === 0) throw new UsageError("検証するファイルを指定してください");
+): Promise<Outcome> {
+  if (files.length === 0) return usageError("検証するファイルを指定してください");
   const results: FileResult[] = [];
   for (const file of files) {
     const path = resolve(cwd, file);
@@ -49,8 +50,7 @@ export async function validate(
     if (failed.length === 0) log.success(`${results.length} 件のファイルに問題はありません`);
   }
   if (failed.length > 0) {
-    throw new FailureError(
-      `${results.length} 件中 ${failed.length} 件のファイルにエラーがあります`,
-    );
+    return failure(`${results.length} 件中 ${failed.length} 件のファイルにエラーがあります`);
   }
+  return done;
 }

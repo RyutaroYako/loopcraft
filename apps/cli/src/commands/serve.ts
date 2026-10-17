@@ -1,8 +1,10 @@
 import { dirname, relative, resolve } from "node:path";
 import type { Context } from "../context.ts";
-import { UsageError } from "../errors.ts";
+import { failure, usageError } from "../outcome.ts";
+import type { Failure } from "../outcome.ts";
 import { exists, isDirectory } from "../files.ts";
-import { startServer, type RunningServer } from "../server/server.ts";
+import { startServer } from "../server/server.ts";
+import type { RunningServer } from "../server/server.ts";
 import { resolveWebDir } from "../web-dir.ts";
 
 export const DEFAULT_PORT = 4747;
@@ -27,20 +29,20 @@ export async function serve(
   options: ServeOptions,
   { log, cwd }: Context,
   dependencies: ServeDependencies = {},
-): Promise<RunningServer> {
+): Promise<{ kind: "serving"; server: RunningServer } | Failure> {
   const path = resolve(cwd, file);
   const shown = relative(cwd, path) || file;
   const directory = dirname(path);
   if (!(await isDirectory(directory))) {
-    throw new UsageError(`${relative(cwd, directory) || directory} というディレクトリがありません`);
+    return usageError(`${relative(cwd, directory) || directory} というディレクトリがありません`);
   }
-  if (await isDirectory(path)) throw new UsageError(`${shown} はディレクトリです`);
+  if (await isDirectory(path)) return usageError(`${shown} はディレクトリです`);
   if (options.sample && (await exists(path))) {
-    throw new UsageError(`${shown} は既にあります。--sample は新しいファイルを開くときに使えます`);
+    return usageError(`${shown} は既にあります。--sample は新しいファイルを開くときに使えます`);
   }
   const webDir = dependencies.webDir ?? resolveWebDir();
   if (!webDir) {
-    throw new Error(
+    return failure(
       "エディタのファイルが見つかりません。リポジトリから動かすときは先に vp run @loopcraft/web#build を実行してください",
     );
   }
@@ -76,7 +78,7 @@ export async function serve(
       log.warn(`ブラウザを開けませんでした。上の URL を開いてください（${String(error)}）`);
     });
   }
-  return server;
+  return { kind: "serving", server };
 }
 
 function isAddressInUse(error: unknown) {
