@@ -1,7 +1,8 @@
 import * as v from "valibot";
-import { DiagramSchema, type Diagram } from "../schema.ts";
+import { DiagramSchema } from "../schema.ts";
+import type { Diagram } from "../schema.ts";
 
-export function createSampleInput() {
+export const createSampleInput = () => {
   return {
     version: 1,
     title: "採用と育成",
@@ -25,8 +26,6 @@ export function createSampleInput() {
       { id: "r1", name: "成長の好循環", links: ["l5", "l6", "l3", "l4"] },
     ],
   };
-}
+};
 
-export function createSample(): Diagram {
-  return v.parse(DiagramSchema, createSampleInput());
-}
+export const createSample = (): Diagram => v.parse(DiagramSchema, createSampleInput());

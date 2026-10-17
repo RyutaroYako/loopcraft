@@ -6,8 +6,13 @@ export default defineConfig({
     ignorePatterns: ["packages/core/loopcraft.schema.json"],
   },
   lint: {
+    plugins: ["typescript", "unicorn", "oxc", "import"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-    rules: { "vite-plus/prefer-vite-plus-imports": "error" },
+    rules: {
+      "vite-plus/prefer-vite-plus-imports": "error",
+      "import/consistent-type-specifier-style": ["error", "prefer-top-level"],
+      "typescript/consistent-type-imports": "error",
+    },
     options: { typeAware: true, typeCheck: true },
   },
   test: {

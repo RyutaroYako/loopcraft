@@ -6,8 +6,8 @@ import {
   NODE_HEIGHT,
   NODE_MIN_WIDTH,
   quadraticPoint,
-  type Size,
 } from "./geometry.ts";
+import type { Size } from "./geometry.ts";
 import { linkPairKey } from "./integrity.ts";
 import type { Diagram, LoopId, Point, VariableId } from "./schema.ts";
 
@@ -24,7 +24,7 @@ const GAP_Y = 56;
 const GRAVITY = 0.04;
 const FALLBACK_SIZE: Size = { width: NODE_MIN_WIDTH, height: NODE_HEIGHT };
 
-export function autoLayout(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>): Diagram {
+export const autoLayout = (diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>): Diagram => {
   const variables = diagram.variables;
   if (variables.length === 0) return diagram;
   const ids = variables.map((variable) => variable.id);
@@ -62,9 +62,9 @@ export function autoLayout(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size
     next = updateLoop(next, loop.id, { marker });
   }
   return next;
-}
+};
 
-function undirectedEdges(diagram: Diagram, index: ReadonlyMap<VariableId, number>) {
+const undirectedEdges = (diagram: Diagram, index: ReadonlyMap<VariableId, number>) => {
   const seen = new Set<string>();
   const edges: [number, number][] = [];
   for (const link of diagram.links) {
@@ -77,9 +77,9 @@ function undirectedEdges(diagram: Diagram, index: ReadonlyMap<VariableId, number
     edges.push([a, b]);
   }
   return edges;
-}
+};
 
-function traversalOrder(count: number, edges: readonly [number, number][]) {
+const traversalOrder = (count: number, edges: readonly [number, number][]) => {
   const neighbors: number[][] = Array.from({ length: count }, () => []);
   for (const [a, b] of edges) {
     neighbors[a]!.push(b);
@@ -105,9 +105,9 @@ function traversalOrder(count: number, edges: readonly [number, number][]) {
     }
   }
   return order;
-}
+};
 
-function initialCircle(order: readonly number[], widthOf: (at: number) => number): Point[] {
+const initialCircle = (order: readonly number[], widthOf: (at: number) => number): Point[] => {
   const positions: Point[] = Array.from({ length: order.length }, () => ({ x: 0, y: 0 }));
   if (order.length === 1) return positions;
   const circumference = order.reduce((sum, at) => sum + widthOf(at) + GAP_X, 0);
@@ -117,14 +117,14 @@ function initialCircle(order: readonly number[], widthOf: (at: number) => number
     positions[at] = { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
   }
   return positions;
-}
+};
 
 /** Fruchterman–Reingold。素のままでは変数を点として扱い長い名前同士が詰まるので、横幅の分だけ反発を強める */
-function simulate(
+const simulate = (
   positions: Point[],
   edges: readonly [number, number][],
   sizeOf: (at: number) => Size,
-) {
+) => {
   const count = positions.length;
   if (count < 2) return;
   let temperature = IDEAL_LENGTH;
@@ -159,9 +159,9 @@ function simulate(
     }
     temperature -= cooling;
   }
-}
+};
 
-function removeOverlaps(positions: Point[], sizeOf: (at: number) => Size) {
+const removeOverlaps = (positions: Point[], sizeOf: (at: number) => Size) => {
   const count = positions.length;
   for (let round = 0; round < 100; round++) {
     let moved = false;
@@ -186,7 +186,7 @@ function removeOverlaps(positions: Point[], sizeOf: (at: number) => Size) {
     }
     if (!moved) return;
   }
-}
+};
 
 /** 記号だけでなく、添える名前の分も含む */
 const MARKER_CLEARANCE = 64;
@@ -198,7 +198,7 @@ const POLARITY_RADIUS = 28;
 /** ほかのループ記号の半径（26）に余白を足したもの */
 const MARKER_RADIUS = 40;
 
-function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {
+const placeMarkers = (diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) => {
   const variableById = new Map(diagram.variables.map((variable) => [variable.id, variable]));
   const boxOf = (id: VariableId) => ({
     center: variableById.get(id)!.position,
@@ -260,19 +260,17 @@ function placeMarkers(diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) {
     markers.set(loop.id, marker);
   }
   return markers;
-}
+};
 
-function distance(a: Point, b: Point) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
+const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 
-function boxDistance(point: Point, center: Point, size: Size) {
+const boxDistance = (point: Point, center: Point, size: Size) => {
   const dx = Math.max(Math.abs(point.x - center.x) - size.width / 2, 0);
   const dy = Math.max(Math.abs(point.y - center.y) - size.height / 2, 0);
   return Math.hypot(dx, dy);
-}
+};
 
-function segmentDistance(point: Point, a: Point, b: Point) {
+const segmentDistance = (point: Point, a: Point, b: Point) => {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const length = dx * dx + dy * dy;
@@ -281,9 +279,9 @@ function segmentDistance(point: Point, a: Point, b: Point) {
       ? 0
       : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length));
   return Math.hypot(point.x - (a.x + dx * t), point.y - (a.y + dy * t));
-}
+};
 
-function insidePolygon(point: Point, polygon: readonly Point[]) {
+const insidePolygon = (point: Point, polygon: readonly Point[]) => {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const a = polygon[i]!;
@@ -294,18 +292,18 @@ function insidePolygon(point: Point, polygon: readonly Point[]) {
     }
   }
   return inside;
-}
+};
 
 /** 円周上の異なる点から始めるので重なることはまず無いが、0 で割らないよう守る */
-function delta(pa: Point, pb: Point) {
+const delta = (pa: Point, pb: Point) => {
   const dx = pa.x - pb.x;
   const dy = pa.y - pb.y;
   return { dx, dy, distance: Math.max(Math.hypot(dx, dy), 0.01) };
-}
+};
 
-function apply(forces: Point[], a: number, b: number, fx: number, fy: number) {
+const apply = (forces: Point[], a: number, b: number, fx: number, fy: number) => {
   forces[a]!.x += fx;
   forces[a]!.y += fy;
   forces[b]!.x -= fx;
   forces[b]!.y -= fy;
-}
+};

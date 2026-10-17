@@ -1,4 +1,5 @@
-import { createContext, createEffect, createSignal, onSettled, type Accessor } from "solid-js";
+import { createContext, createEffect, createSignal, onSettled } from "solid-js";
+import type { Accessor } from "solid-js";
 import type { Editor } from "./editor.ts";
 import { stringifyDiagram } from "@loopcraft/core/io";
 import type { DocumentStore, ReloadResult } from "./store.ts";

@@ -3,10 +3,13 @@ import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { Diagram } from "@loopcraft/core/schema";
 import type { Session } from "@loopcraft/core/session";
 import type { AutosaveStatus } from "./autosave.ts";
-import { createFileClient, type LoadResult } from "./fileStore.ts";
+import { createFileClient } from "./fileStore.ts";
+import type { LoadResult } from "./fileStore.ts";
 import { readSession } from "./session.ts";
-import { loadStoredDiagram, type StoredDiagram } from "./storage.ts";
-import { createBrowserStore, type DocumentStore } from "./store.ts";
+import { loadStoredDiagram } from "./storage.ts";
+import type { StoredDiagram } from "./storage.ts";
+import { createBrowserStore } from "./store.ts";
+import type { DocumentStore } from "./store.ts";
 
 export type Startup =
   /** sessionInvalid: serve の情報が埋め込まれていたのに読めず、ブラウザに保存している */

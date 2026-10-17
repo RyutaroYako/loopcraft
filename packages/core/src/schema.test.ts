@@ -4,10 +4,10 @@ import { createEmptyDiagram, parseDiagramJson, stringifyDiagram } from "./io.ts"
 import { DiagramSchema } from "./schema.ts";
 import { createSampleInput as createSample } from "./testing/sample.ts";
 
-function issuesOf(input: unknown) {
+const issuesOf = (input: unknown) => {
   const result = v.safeParse(DiagramSchema, input);
   return result.success ? {} : v.flatten<typeof DiagramSchema>(result.issues).nested;
-}
+};
 
 describe("DiagramSchema", () => {
   it("整合した図を受け入れる", () => {

@@ -1,5 +1,6 @@
 import { Show, createMemo, useContext } from "solid-js";
-import { EditorContext, type Editor, type Gesture, type NodeBox } from "../editor/editor.ts";
+import { EditorContext } from "../editor/editor.ts";
+import type { Editor, Gesture, NodeBox } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
 import {
   centroid,

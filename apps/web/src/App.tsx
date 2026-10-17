@@ -3,7 +3,8 @@ import { AutosaveContext, setupAutosave } from "./editor/autosave.ts";
 import { createEditor, EditorContext } from "./editor/editor.ts";
 import { createNotices } from "./editor/notices.ts";
 import { captureDiagram } from "./editor/screenshot.ts";
-import { resolveStartup, type Startup } from "./editor/startup.ts";
+import { resolveStartup } from "./editor/startup.ts";
+import type { Startup } from "./editor/startup.ts";
 import { createTheme } from "./editor/theme.ts";
 import { Canvas } from "./ui/Canvas.tsx";
 import { ExportDialog, ImportDialog } from "./ui/JsonDialogs.tsx";
@@ -11,7 +12,8 @@ import { MenuDialog } from "./ui/MenuDialog.tsx";
 import { NoticeView } from "./ui/NoticeView.tsx";
 import { ScreenshotDialog } from "./ui/ScreenshotDialog.tsx";
 import { Sidebar } from "./ui/Sidebar.tsx";
-import { Toolbar, type DialogKind } from "./ui/Toolbar.tsx";
+import { Toolbar } from "./ui/Toolbar.tsx";
+import type { DialogKind } from "./ui/Toolbar.tsx";
 
 /** ここで Enter を横取りしないのは、ボタンやリンクなどが自前で Enter を扱うため */
 function isInteractive(target: EventTarget | null) {

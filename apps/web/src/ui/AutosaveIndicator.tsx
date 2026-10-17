@@ -1,5 +1,6 @@
 import { Show, useContext } from "solid-js";
-import { AutosaveContext, type AutosaveStatus } from "../editor/autosave.ts";
+import { AutosaveContext } from "../editor/autosave.ts";
+import type { AutosaveStatus } from "../editor/autosave.ts";
 import type { DocumentStore } from "../editor/store.ts";
 
 const statusClass =

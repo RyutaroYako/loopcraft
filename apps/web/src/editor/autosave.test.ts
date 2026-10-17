@@ -3,7 +3,8 @@ import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { Diagram } from "@loopcraft/core/schema";
 import { createRoot, flush } from "solid-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { setupAutosave, type AutosaveStatus } from "./autosave.ts";
+import { setupAutosave } from "./autosave.ts";
+import type { AutosaveStatus } from "./autosave.ts";
 import { createEditor } from "./editor.ts";
 import type { DocumentStore, ReloadResult, SaveResult, WatchHandlers } from "./store.ts";
 

@@ -3,23 +3,23 @@ import type { Link, LinkId, Polarity } from "./schema.ts";
 /** reinforcing: 自己強化ループ（R） / balancing: バランスループ（B） */
 export type LoopKind = "reinforcing" | "balancing";
 
-export function classifyLoop(polarities: Iterable<Polarity>): LoopKind {
+export const classifyLoop = (polarities: Iterable<Polarity>): LoopKind => {
   let negatives = 0;
   for (const polarity of polarities) {
     if (polarity === "-") negatives++;
   }
   return negatives % 2 === 1 ? "balancing" : "reinforcing";
-}
+};
 
 /** 回転だけが違う同じ閉路は同じ値になる */
-export function cycleKey(links: readonly LinkId[]): string {
+export const cycleKey = (links: readonly LinkId[]): string => {
   if (links.length === 0) return "";
   let start = 0;
   for (let i = 1; i < links.length; i++) {
     if (links[i]! < links[start]!) start = i;
   }
   return JSON.stringify([...links.slice(start), ...links.slice(0, start)]);
-}
+};
 
 export type CycleError =
   | { kind: "unknown-link"; index: number }
@@ -27,10 +27,10 @@ export type CycleError =
   | { kind: "revisits-variable"; index: number };
 
 /** links は「前の関連の to = 次の関連の from」の順で並び、最後が最初に戻る */
-export function findCycleError(
+export const findCycleError = (
   links: readonly LinkId[],
   linksById: ReadonlyMap<LinkId, Link>,
-): CycleError | undefined {
+): CycleError | undefined => {
   const resolved: Link[] = [];
   for (const [index, id] of links.entries()) {
     const link = linksById.get(id);
@@ -45,4 +45,4 @@ export function findCycleError(
     visited.add(link.from);
   }
   return undefined;
-}
+};

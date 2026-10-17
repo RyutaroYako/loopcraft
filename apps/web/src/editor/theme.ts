@@ -1,4 +1,5 @@
-import { createSignal, onCleanup, type Accessor } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
+import type { Accessor } from "solid-js";
 
 export type ThemeChoice = "system" | "light" | "dark";
 

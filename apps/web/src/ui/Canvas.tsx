@@ -1,5 +1,6 @@
 import { For, Show, createSignal, onSettled, useContext } from "solid-js";
-import { EditorContext, type Gesture } from "../editor/editor.ts";
+import { EditorContext } from "../editor/editor.ts";
+import type { Gesture } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
 import type { LoopId, Point, VariableId } from "@loopcraft/core/schema";
 import {
@@ -8,8 +9,8 @@ import {
   LinkView,
   LoopMarkerView,
   NodeView,
-  type LinkDraft,
 } from "./CanvasItems.tsx";
+import type { LinkDraft } from "./CanvasItems.tsx";
 import { EmptyState } from "./EmptyState.tsx";
 import { HistoryButtons } from "./HistoryButtons.tsx";
 import { FitIcon, MinusIcon, PlusIcon } from "./icons.tsx";

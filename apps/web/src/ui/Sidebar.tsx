@@ -1,6 +1,7 @@
 import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
-import { canvasElement, EditorContext, type Editor } from "../editor/editor.ts";
+import { canvasElement, EditorContext } from "../editor/editor.ts";
+import type { Editor } from "../editor/editor.ts";
 import type { LoopEntry } from "@loopcraft/core/loops";
 import { downloadText } from "../editor/file.ts";
 import { refocusWhenLost } from "../editor/focus.ts";

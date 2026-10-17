@@ -1,6 +1,7 @@
 import { createRoot } from "solid-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { createTheme, loadThemeChoice, THEME_STORAGE_KEY, type Theme } from "./theme.ts";
+import { createTheme, loadThemeChoice, THEME_STORAGE_KEY } from "./theme.ts";
+import type { Theme } from "./theme.ts";
 
 let systemDark = false;
 const listeners = new Set<() => void>();

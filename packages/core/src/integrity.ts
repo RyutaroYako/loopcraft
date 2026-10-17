@@ -8,7 +8,7 @@ export interface IntegrityIssue {
   message: string;
 }
 
-export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
+export const findIntegrityIssues = (diagram: DiagramShape): IntegrityIssue[] => {
   const issues: IntegrityIssue[] = [];
 
   for (const collection of ["variables", "links", "loops"] as const) {
@@ -66,9 +66,7 @@ export function findIntegrityIssues(diagram: DiagramShape): IntegrityIssue[] {
   }
 
   return issues;
-}
+};
 
 /** 区切り文字で繋がないのは、ID に区切り文字が含まれると別の組と同じキーになるため */
-export function linkPairKey(from: string, to: string): string {
-  return JSON.stringify([from, to]);
-}
+export const linkPairKey = (from: string, to: string): string => JSON.stringify([from, to]);

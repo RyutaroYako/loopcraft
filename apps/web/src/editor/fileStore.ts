@@ -4,10 +4,8 @@ import {
   DocumentResponseSchema,
   SaveResponseSchema,
   TOKEN_HEADER,
-  type DocumentResponse,
-  type Revision,
-  type Session,
 } from "@loopcraft/core/session";
+import type { DocumentResponse, Revision, Session } from "@loopcraft/core/session";
 import * as v from "valibot";
 import type { DocumentStore, ReloadResult, SaveResult } from "./store.ts";
 

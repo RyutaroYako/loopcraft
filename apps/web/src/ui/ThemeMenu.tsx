@@ -1,7 +1,8 @@
 import type { JSX } from "@solidjs/web";
 import { Show, createSignal } from "solid-js";
 import type { Theme, ThemeChoice } from "../editor/theme.ts";
-import { ContextMenu, MENU_WIDTH, type MenuState } from "./ContextMenu.tsx";
+import { ContextMenu, MENU_WIDTH } from "./ContextMenu.tsx";
+import type { MenuState } from "./ContextMenu.tsx";
 import { MonitorIcon, MoonIcon, SunIcon } from "./icons.tsx";
 
 export const THEME_OPTIONS: {

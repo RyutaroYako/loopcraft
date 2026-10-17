@@ -1,4 +1,5 @@
-import { SESSION_META_NAME, SessionSchema, type Session } from "@loopcraft/core/session";
+import { SESSION_META_NAME, SessionSchema } from "@loopcraft/core/session";
+import type { Session } from "@loopcraft/core/session";
 import * as v from "valibot";
 
 /**

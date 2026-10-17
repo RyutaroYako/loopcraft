@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vite-plus/test";
-import { nodeSize, type Size } from "./geometry.ts";
+import { nodeSize } from "./geometry.ts";
+import type { Size } from "./geometry.ts";
 import { autoLayout } from "./layout.ts";
 import { createSampleDiagram } from "./sample.ts";
 import type { Diagram, LinkId, VariableId } from "./schema.ts";
 
-function sizesOf(diagram: Diagram): Map<VariableId, Size> {
+const sizesOf = (diagram: Diagram): Map<VariableId, Size> => {
   return new Map(
     diagram.variables.map((variable) => [variable.id, nodeSize(variable.label.length * 14)]),
   );
-}
+};
 
-function stacked(): Diagram {
+const stacked = (): Diagram => {
   const sample = createSampleDiagram();
   return {
     ...sample,
     variables: sample.variables.map((variable) => ({ ...variable, position: { x: 0, y: 0 } })),
   };
-}
+};
 
 describe("autoLayout", () => {
   it("変数の枠が重ならないように配置する", () => {

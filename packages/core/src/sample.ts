@@ -1,7 +1,8 @@
 import * as v from "valibot";
-import { DiagramSchema, type Diagram } from "./schema.ts";
+import { DiagramSchema } from "./schema.ts";
+import type { Diagram } from "./schema.ts";
 
-export function createSampleDiagram(): Diagram {
+export const createSampleDiagram = (): Diagram => {
   return v.parse(DiagramSchema, {
     version: 1,
     title: "組織の成長と人の負荷",
@@ -47,4 +48,4 @@ export function createSampleDiagram(): Diagram {
       },
     ],
   });
-}
+};

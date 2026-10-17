@@ -1,7 +1,8 @@
 import { stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { prepareStartup, resolveStartup, type Startup } from "./startup.ts";
+import { prepareStartup, resolveStartup } from "./startup.ts";
+import type { Startup } from "./startup.ts";
 import type { DocumentStore } from "./store.ts";
 
 afterEach(() => {

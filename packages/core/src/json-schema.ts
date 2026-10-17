@@ -8,7 +8,7 @@ import {
 } from "./schema.ts";
 
 /** ID の一意性や参照先の存在など、JSON Schema で表せない制約は含まない */
-export function createDiagramJsonSchema() {
+export const createDiagramJsonSchema = () => {
   return toJsonSchema(DiagramShapeSchema, {
     target: "draft-2020-12",
     definitions: {
@@ -20,4 +20,4 @@ export function createDiagramJsonSchema() {
     // brand を出さないのは、型レベルの区別にだけ使い、JSON 上はただの文字列のため
     ignoreActions: ["brand"],
   });
-}
+};
