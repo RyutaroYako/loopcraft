@@ -8,10 +8,9 @@ import type { AutosaveStatus } from "./autosave.ts";
 import type { DocumentStore, ReloadResult, SaveResult, WatchHandlers } from "./store.ts";
 import { useAutosave } from "./useAutosave.ts";
 
-function fakeStore(kind: "browser" | "file" = "file") {
+function fakeStore() {
   let handlers: WatchHandlers | undefined;
   const store = {
-    kind,
     label: "a.json",
     save: vi.fn(
       async (
@@ -155,16 +154,17 @@ describe("useAutosave", () => {
     expect(first.onProblem).toHaveBeenCalledOnce();
     dispose();
 
-    const browser = fakeStore("browser");
-    const second = setup(browser.store);
-    browser.change();
+    const unreadable = fakeStore();
+    unreadable.store.reload.mockResolvedValue({ ok: false, problems: ["壊れています"] });
+    const second = setup(unreadable.store);
+    unreadable.change();
     await settle();
     expect(second.autosave.status.value).toEqual({
       kind: "suspended",
       reason: "external",
-      problems: [],
+      problems: ["壊れています"],
     });
-    expect(await second.autosave.reload()).toEqual({ ok: false, problems: [] });
+    expect(await second.autosave.reload()).toEqual({ ok: false, problems: ["壊れています"] });
   });
 
   it("保存中の変更は、その保存が終わってから改めて保存する", async () => {

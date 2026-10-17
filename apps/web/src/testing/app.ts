@@ -57,7 +57,6 @@ export function fakeFileStore() {
     handlers: () => handlers!,
   };
   const store: DocumentStore = {
-    kind: "file",
     label: "growth.json",
     save: async (diagram) => {
       control.saved.push(diagram);

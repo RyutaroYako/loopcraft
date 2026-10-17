@@ -21,15 +21,11 @@ const label = computed(() => {
     return status.reason === "disconnected" ? "接続が切れました" : "自動保存を停止中";
   }
   if (unwatched !== undefined) return "変更を見張れません";
-  return store.kind === "file" ? store.label : "自動保存済み";
+  return store.label;
 });
 const healthy = computed(() => status.kind === "ok" && unwatched === undefined);
 const tone = computed(() => (status.kind === "ok" ? "warning" : "negative"));
-const savedTitle = computed(() =>
-  store.kind === "file"
-    ? `変更は ${store.label} に自動で保存されます`
-    : "変更はこのブラウザに自動で保存されます",
-);
+const savedTitle = computed(() => `変更は自動で保存されます（保存先: ${store.label}）`);
 
 function explain() {
   if (status.kind !== "ok") emit("explain:status", status);

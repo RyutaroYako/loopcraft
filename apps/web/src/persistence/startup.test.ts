@@ -11,7 +11,7 @@ afterEach(() => {
 });
 
 const session = { token: "t", file: "dir/growth.json", readonly: false };
-const store = { kind: "file", label: "growth.json" } as DocumentStore;
+const store = { label: "growth.json" } as DocumentStore;
 
 function withSession() {
   const doc = document.implementation.createHTMLDocument();

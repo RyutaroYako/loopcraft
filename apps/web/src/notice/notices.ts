@@ -25,7 +25,6 @@ export const createNotices = (context: {
   const overwrite = (label: string): Action[] =>
     context.readonly ? [] : [{ label, run: run((a) => a.resume()) }];
   const { editor, store, startup } = context;
-  const fileName = store.label;
   const reloadPage = context.reloadPage ?? (() => location.reload());
 
   const run =
@@ -56,22 +55,16 @@ export const createNotices = (context: {
 
   const describe = (status: AutosaveStatus): Notice | undefined => {
     if (status.kind === "failing") {
-      return store.kind === "browser"
-        ? {
-            tone: "error",
-            title: "ブラウザに自動保存できません",
-            details: ["「JSON を書き出す」でファイルに保存してください", String(status.error)],
-            actions: [exportAction],
-          }
-        : {
-            tone: "error",
-            title: `${fileName} に保存できません`,
-            details: [String(status.error)],
-            actions: [
-              { label: "保存し直す", run: run((autosave) => autosave.retry()) },
-              exportAction,
-            ],
-          };
+      return {
+        tone: "error",
+        title: "自動保存できません",
+        details: [
+          `保存先: ${store.label}`,
+          String(status.error),
+          "未保存の変更は「JSON を書き出す」で残せます",
+        ],
+        actions: [{ label: "保存し直す", run: run((autosave) => autosave.retry()) }, exportAction],
+      };
     }
     if (status.kind === "ok") return undefined;
     if (status.reason === "disconnected") {
@@ -105,7 +98,7 @@ export const createNotices = (context: {
       const { loaded } = startup;
       return {
         tone: "error",
-        title: `${fileName} を開けませんでした`,
+        title: `${store.label} を開けませんでした`,
         details: [
           context.readonly
             ? "ファイルはそのまま残しています。直すと自動で読み込みます"
@@ -156,7 +149,7 @@ export const createNotices = (context: {
       } else if (startup.kind === "file" && startup.loaded.status === "missing") {
         editor.notify({
           tone: "info",
-          title: `${fileName} はまだありません`,
+          title: `${store.label} はまだありません`,
           details: ["編集を始めると、最初の保存で作成します"],
         });
       }

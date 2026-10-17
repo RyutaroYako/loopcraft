@@ -12,8 +12,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const browserStore = { kind: "browser", label: "ブラウザ" } as DocumentStore;
-const fileStore = { kind: "file", label: "a.json" } as DocumentStore;
+const browserStore = { label: "ブラウザ" } as DocumentStore;
+const fileStore = { label: "a.json" } as DocumentStore;
 
 function setup(store: DocumentStore, startup: Startup, readonly = false) {
   const { editor, dispose: d } = setupEditor();
@@ -122,21 +122,18 @@ describe("createNotices", () => {
     expect(broken.reloadPage).toHaveBeenCalledOnce();
   });
 
-  it("保存できないときは、保存先に応じて伝える", () => {
+  it("保存できないときは、保存先の名前と理由を伝え、保存し直すか書き出せる", () => {
     const failing: AutosaveStatus = { kind: "failing", error: new Error("quota") };
     const browser = setup(browserStore, browserStartup);
     browser.notices.explain(failing);
-    expect(browser.shown()?.title).toBe("ブラウザに自動保存できません");
+    expect(browser.shown()?.title).toBe("自動保存できません");
+    expect(browser.shown()?.details?.slice(0, 2)).toEqual(["保存先: ブラウザ", "Error: quota"]);
     browser.run("JSON を書き出す");
     expect(browser.exportFile).toHaveBeenCalledOnce();
-    dispose();
-
-    const file = setup(fileStore, fileStartup({ status: "missing" }));
-    file.notices.explain(failing);
-    expect(file.shown()?.title).toBe("a.json に保存できません");
-    file.run("保存し直す");
-    expect(file.autosave.retry).toHaveBeenCalledOnce();
-    expect(file.autosave.resume).not.toHaveBeenCalled();
+    browser.notices.explain(failing);
+    browser.run("保存し直す");
+    expect(browser.autosave.retry).toHaveBeenCalledOnce();
+    expect(browser.autosave.resume).not.toHaveBeenCalled();
   });
 
   it("ほかの場所での変更は、保存先によらず読み込むか上書きを選べる", () => {

@@ -18,7 +18,6 @@ export interface WatchHandlers {
 }
 
 export interface DocumentStore {
-  readonly kind: "browser" | "file";
   readonly label: string;
   save(diagram: Diagram, options?: { force?: boolean; keepalive?: boolean }): Promise<SaveResult>;
   watch(handlers: WatchHandlers): () => void;
@@ -27,7 +26,6 @@ export interface DocumentStore {
 
 export const createBrowserStore = (): DocumentStore => {
   return {
-    kind: "browser",
     label: "ブラウザ",
     save: async (diagram) => {
       const result = storeDiagram(diagram);

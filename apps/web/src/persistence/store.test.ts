@@ -10,7 +10,7 @@ afterEach(() => {
 describe("createBrowserStore", () => {
   it("localStorage に保存し、別のタブでの保存を知らせる", async () => {
     const store = createBrowserStore();
-    expect(store.kind).toBe("browser");
+    expect(store.label).toBe("ブラウザ");
     expect(await store.save(createSampleDiagram())).toEqual({ ok: true });
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("quota");
