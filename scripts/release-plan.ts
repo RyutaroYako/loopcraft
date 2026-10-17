@@ -4,8 +4,15 @@
  */
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
+import * as v from "valibot";
 
 const PACKAGE = "loopcraft";
+
+const PackageSchema = v.object({ version: v.string() });
+const RegistrySchema = v.object({
+  versions: v.record(v.string(), v.unknown()),
+  "dist-tags": v.record(v.string(), v.string()),
+});
 
 function fail(message: string): never {
   console.log(`::error::${message}`);
@@ -21,11 +28,20 @@ function compare(a: string, b: string) {
   return 0;
 }
 
+function parseOrFail<T extends v.GenericSchema>(schema: T, input: unknown, source: string) {
+  const result = v.safeParse(schema, input);
+  if (result.success) return result.output;
+  const issues = result.issues.map((issue) => `${v.getDotPath(issue) ?? ""}: ${issue.message}`);
+  return fail(`${source} の形が想定と違います（${issues.join(", ")}）`);
+}
+
 const tag = process.env.GITHUB_REF_NAME ?? "";
 const sha = process.env.GITHUB_SHA ?? "HEAD";
-const { version } = JSON.parse(readFileSync("apps/cli/package.json", "utf8")) as {
-  version: string;
-};
+const { version } = parseOrFail(
+  PackageSchema,
+  JSON.parse(readFileSync("apps/cli/package.json", "utf8")),
+  "apps/cli/package.json",
+);
 
 if (tag !== `v${version}`) {
   fail(
@@ -49,10 +65,7 @@ if (!response.ok && response.status !== 404) {
 const registry =
   response.status === 404
     ? undefined
-    : ((await response.json()) as {
-        versions: Record<string, unknown>;
-        "dist-tags": Record<string, string>;
-      });
+    : parseOrFail(RegistrySchema, await response.json(), `npm の ${PACKAGE} の情報`);
 if (!registry) {
   console.log(
     `::notice::${PACKAGE} はまだ npm にありません。trusted publisher はパッケージが npm にあるときだけ登録できるので、最初の版は手元から公開してください`,
