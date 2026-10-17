@@ -34,9 +34,7 @@ export const VariableSchema = v.pipe(
 export const PolaritySchema = v.pipe(
   v.picklist(["+", "-"]),
   v.title("Polarity"),
-  v.description(
-    "+: 原因が増えると結果も増える（正の相関）/ -: 原因が増えると結果は減る（負の相関）",
-  ),
+  v.description("+: 原因が増えると結果も増える / -: 原因が増えると結果は減る"),
 );
 
 export const LinkSchema = v.pipe(
@@ -64,7 +62,7 @@ export const LoopSchema = v.pipe(
     name: v.pipe(v.string(), v.description("ループの名前（例: 成長の好循環）")),
     links: v.pipe(
       v.array(LinkIdSchema),
-      v.minLength(2, "ループは 2 本以上の関連で構成されます"),
+      v.minLength(2, "ループには関連が 2 本以上必要です"),
       v.description(
         "ループを構成する関連の ID を辿る順に並べたもの。最後の関連の to が最初の関連の from に戻る",
       ),
@@ -74,7 +72,7 @@ export const LoopSchema = v.pipe(
   }),
   v.title("Loop"),
   v.description(
-    "システム図の主張として見出したループ。自己強化/バランスの別は構成する関連の極性から導出するため保持しない",
+    "注目するループ。自己強化/バランスの別は構成する関連の極性から導出するため保持しない",
   ),
 );
 

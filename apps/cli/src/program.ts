@@ -188,14 +188,14 @@ export function createProgram(
 
   program
     .command("validate")
-    .description("図の JSON をスキーマと整合性で検証する。問題があれば終了コード 1")
+    .description("図の JSON のスキーマと整合性を検証する。問題があれば終了コード 1")
     .argument("[files...]", "図の JSON ファイル")
     .addOption(formatOption(["text", "json"]))
     .action(actions.validate);
 
   program
     .command("loops")
-    .description("図に含まれるループを一覧する")
+    .description("図に含まれるループを一覧表示する")
     .argument("[file]", "図の JSON ファイル")
     .addOption(formatOption(["text", "json", "md"]))
     .addOption(
@@ -236,7 +236,7 @@ export function createProgram(
   program.action(async () => {
     if (program.args.length > 0) {
       showHeader();
-      return report(usageError(`知らないコマンドです: ${program.args[0]}`));
+      return report(usageError(`不明なコマンドです: ${program.args[0]}`));
     }
     if (!canPrompt()) {
       program.outputHelp();

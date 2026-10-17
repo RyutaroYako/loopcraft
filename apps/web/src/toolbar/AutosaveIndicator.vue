@@ -20,7 +20,7 @@ const label = computed(() => {
   if (status.kind === "suspended") {
     return status.reason === "disconnected" ? "接続が切れました" : "自動保存を停止中";
   }
-  if (unwatched !== undefined) return "変更を見張れません";
+  if (unwatched !== undefined) return "外部の変更を検知できません";
   return store.label;
 });
 const healthy = computed(() => status.kind === "ok" && unwatched === undefined);

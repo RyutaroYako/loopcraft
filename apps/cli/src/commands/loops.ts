@@ -44,7 +44,7 @@ export async function loops(
   } else {
     const width = Math.max(...rows.map((row) => row.badge.length));
     for (const row of rows) {
-      const name = row.featured ? row.name : `${row.name}（見出していない）`;
+      const name = row.featured ? row.name : `${row.name}（注目していない）`;
       log.output(`${row.badge.padEnd(width)}  ${name}`);
       log.output(`${" ".repeat(width)}  ${row.route.join(" → ")}`);
     }

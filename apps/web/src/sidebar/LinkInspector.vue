@@ -100,7 +100,7 @@ function resetCurvature() {
   <!-- 曲がり具合を付ける操作が無いのに戻す操作を置くのは、以前の版や JSON で付いたものを戻す手段がここしか無いため -->
   <div v-if="editor.editable && customCurvature" class="reset-area">
     <BaseButton variant="ghost" size="small" @click="resetCurvature">
-      {{ reversed ? "既定の曲がりに戻す" : "直線に戻す" }}
+      {{ reversed ? "標準の曲線に戻す" : "直線に戻す" }}
     </BaseButton>
   </div>
 </template>

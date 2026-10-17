@@ -42,7 +42,7 @@ export const createBrowserStore = (): DocumentStore => {
       const opened = loadStoredDiagram();
       if (opened.status === "ok") return { ok: true, diagram: opened.diagram };
       if (opened.status === "missing") {
-        return { ok: false, problems: ["保存されていた図が消されました"] };
+        return { ok: false, problems: ["保存されていた図が削除されています"] };
       }
       return { ok: false, problems: opened.problems };
     },

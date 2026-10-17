@@ -56,7 +56,7 @@ function iconOf(value: string) {
           >
             <SvgIcon name="layout" />
             整列
-            <span class="note-text">元に戻せます</span>
+            <span class="note-text">配置を自動で整える</span>
           </button>
         </li>
         <li class="action-item">

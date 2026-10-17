@@ -223,7 +223,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
             if (revision === knownRevision) return;
             knownRevision = revision;
             lastWriter = null;
-            log.warn(`${session.file} がほかの場所で変更されました`);
+            log.warn(`${session.file} が外部で変更されました`);
             broadcast("change", { revision, writer: null });
           },
           (error: unknown) => log.warn(`${session.file} を読めません: ${describeError(error)}`),
@@ -232,7 +232,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       lost: (reason) => {
         unwatchedReason = reason;
         log.warn(
-          `ほかの場所での変更を見張れなくなりました（${reason}）。serve を起動し直すまで、画面には反映されません`,
+          `外部の変更を検知できなくなりました（${reason}）。serve を起動し直すまで、画面には反映されません`,
         );
         broadcast("watch-error", { reason });
       },

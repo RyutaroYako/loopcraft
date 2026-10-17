@@ -30,7 +30,7 @@ describe("edit（図全体とループ）", () => {
     expect(setDescription(described, "")).not.toHaveProperty("description");
   });
 
-  it("新しいループを見出し、名前や記号の位置を変え、外せる", () => {
+  it("新しいループに注目し、名前や記号の位置を変え、外せる", () => {
     const sample = createSample();
     const base = { ...sample, loops: [] };
     const { diagram, id } = featureLoop(base, [lid("l1"), lid("l2"), lid("l3"), lid("l4")], {

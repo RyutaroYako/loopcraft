@@ -32,9 +32,7 @@ describe("serve", () => {
     });
     expect(openBrowser).toHaveBeenCalledWith(running.url);
     expect(stderr[0]).toBe("✓ diagram.json を開きました");
-    expect(stderr).toContain(
-      "  変更はこのファイルに自動で保存します。見せるだけなら --readonly を付けてください",
-    );
+    expect(stderr).toContain("  変更はこのファイルに自動で保存します");
     expect(stderr[1]).toBe(`ℹ ${running.url}`);
   });
 

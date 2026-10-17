@@ -62,8 +62,8 @@ describe("createNotices", () => {
   it("つながりが切れたら、書き出しと再読み込みを勧める", () => {
     const file = setup(missing);
     file.notices.explain({ kind: "suspended", reason: "disconnected" });
-    expect(file.shown()?.title).toBe("loopcraft serve とのつながりが切れました");
-    expect(file.shown()?.details?.[1]).toContain("新しい URL");
+    expect(file.shown()?.title).toBe("loopcraft serve との接続が切れました");
+    expect(file.shown()?.details?.[2]).toContain("新しい URL");
     expect(file.shown()?.actions?.map((action) => action.label)).toEqual(["JSON を書き出す"]);
     file.run("JSON を書き出す");
     expect(file.exportFile).toHaveBeenCalledOnce();
@@ -73,7 +73,7 @@ describe("createNotices", () => {
     const file = setup(missing);
     file.notices.recovered();
     file.notices.explain({ kind: "suspended", reason: "disconnected" });
-    expect(file.shown()?.title).toBe("loopcraft serve とのつながりが切れました");
+    expect(file.shown()?.title).toBe("loopcraft serve との接続が切れました");
     file.notices.recovered();
     expect(file.shown()).toBeNull();
 
@@ -98,7 +98,7 @@ describe("createNotices", () => {
     file.notices.unwatched("ENOENT");
     expect(file.shown()?.details?.[0]).toBe("ENOENT");
     file.notices.unwatched(undefined);
-    expect(file.shown()?.details).toHaveLength(2);
+    expect(file.shown()?.details).toHaveLength(1);
     dispose();
 
     const broken = setup(startup({ status: "missing" }, { sessionInvalid: true }));
@@ -108,7 +108,7 @@ describe("createNotices", () => {
     expect(broken.reloadPage).toHaveBeenCalledOnce();
   });
 
-  it("保存できないときは、保存先の名前と理由を伝え、保存し直すか書き出せる", () => {
+  it("保存できないときは、保存先の名前と理由を伝え、再試行するか書き出せる", () => {
     const failing: AutosaveStatus = { kind: "failing", error: new Error("quota") };
     const target = setup(missing);
     target.notices.explain(failing);
@@ -117,7 +117,7 @@ describe("createNotices", () => {
     target.run("JSON を書き出す");
     expect(target.exportFile).toHaveBeenCalledOnce();
     target.notices.explain(failing);
-    target.run("保存し直す");
+    target.run("再試行");
     expect(target.autosave.retry).toHaveBeenCalledOnce();
     expect(target.autosave.resume).not.toHaveBeenCalled();
   });
@@ -126,7 +126,7 @@ describe("createNotices", () => {
     const external: AutosaveStatus = { kind: "suspended", reason: "external" };
     const target = setup(missing);
     target.notices.explain(external);
-    expect(target.shown()?.title).toBe("ほかの場所で図が変更されました");
+    expect(target.shown()?.title).toBe("図が外部で変更されました");
     target.run("保存されている内容を読み込む");
     expect(target.autosave.reload).toHaveBeenCalledOnce();
     target.notices.explain(external);
@@ -162,7 +162,7 @@ describe("createNotices", () => {
     fresh.notices.atStartup(undefined);
     expect(fresh.shown()).toBeNull();
     fresh.notices.reloaded();
-    expect(fresh.shown()?.title).toBe("ほかの場所での変更を読み込みました");
+    expect(fresh.shown()?.title).toBe("外部の変更を読み込みました");
     dispose();
 
     const fine = setup(startup({ status: "ok", diagram: createSampleDiagram() }));

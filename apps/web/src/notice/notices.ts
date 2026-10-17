@@ -63,17 +63,18 @@ export const createNotices = (context: {
           String(status.error),
           "未保存の変更は「JSON を書き出す」で残せます",
         ],
-        actions: [{ label: "保存し直す", run: run((autosave) => autosave.retry()) }, exportAction],
+        actions: [{ label: "再試行", run: run((autosave) => autosave.retry()) }, exportAction],
       };
     }
     if (status.kind === "ok") return undefined;
     if (status.reason === "disconnected") {
       return {
         tone: "error",
-        title: "loopcraft serve とのつながりが切れました",
+        title: "loopcraft serve との接続が切れました",
         details: [
-          "止めたか、起動し直した可能性があります。この画面からは保存できません",
-          "未保存の変更は「JSON を書き出す」で残せます。起動し直したら、ターミナルに表示された新しい URL を開いてください",
+          "loopcraft serve が停止または再起動された可能性があります。この画面からは保存できません",
+          "未保存の変更は「JSON を書き出す」で残せます",
+          "起動し直したら、ターミナルに表示された新しい URL を開いてください",
         ],
         actions: [exportAction],
       };
@@ -81,7 +82,7 @@ export const createNotices = (context: {
     if (status.reason === "external") {
       return {
         tone: "error",
-        title: "ほかの場所で図が変更されました",
+        title: "図が外部で変更されました",
         details: [
           "上書きを防ぐため、自動保存を止めています",
           ...(status.problems?.length
@@ -99,7 +100,7 @@ export const createNotices = (context: {
       title: "保存されていた図を開けませんでした",
       details: [
         `保存先: ${store.label}`,
-        "元のデータはそのまま残し、自動保存を止めています。保存先の内容が直れば、自動で読み込みます",
+        "元のデータを残すため、自動保存を止めています。保存先の内容が直れば自動で読み込みます",
         ...(unreadable?.problems ?? []),
       ],
       actions: [...downloadUnreadable, ...overwrite("この画面の内容で上書き")],
@@ -141,17 +142,16 @@ export const createNotices = (context: {
     },
 
     reloaded() {
-      editor.notify({ tone: "info", title: "ほかの場所での変更を読み込みました" });
+      editor.notify({ tone: "info", title: "外部の変更を読み込みました" });
     },
 
     unwatched(detail: string | undefined) {
       editor.notify({
         tone: "error",
-        title: "ほかの場所での変更を見張れなくなりました",
+        title: "外部の変更を検知できなくなりました",
         details: [
           ...(detail ? [detail] : []),
-          "loopcraft serve を起動し直すまで、ほかの場所での変更はこの画面に反映されません",
-          "編集した内容の保存は続け、ほかの場所での変更とぶつかったときは保存のときに知らせます",
+          "loopcraft serve を起動し直すまで、外部の変更はこの画面に反映されません",
         ],
       });
     },
