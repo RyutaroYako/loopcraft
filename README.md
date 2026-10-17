@@ -1,4 +1,9 @@
-# Loopcraft
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo-dark.svg" />
+    <img src="docs/brand/logo.svg" alt="Loopcraft" height="48" />
+  </picture>
+</h1>
 
 システム思考で使う因果ループ図（システム図）を描くためのエディタです。ブラウザだけでも、手元の JSON ファイルを開く CLI からも使えます。
 

@@ -24,6 +24,7 @@ export async function createWebDir() {
     "<!doctype html><html><head><title>t</title></head></html>",
   );
   await writeFile(join(dir, "app.css"), "body{}");
+  await writeFile(join(dir, "favicon.ico"), "x");
   await writeFile(join(dir, "blob.bin"), "x");
   return dir;
 }

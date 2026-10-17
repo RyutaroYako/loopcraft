@@ -19,40 +19,45 @@
   --font-sans: "Geist Variable", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
 
-  --color-ink: #18181b;
-  --color-ink-2: #3f3f46;
-  --color-muted: #71717a;
-  --color-faint: #a1a1aa;
+  --color-ink: #15202b;
+  --color-ink-2: #344250;
+  --color-muted: #5c6976;
+  --color-faint: #98a2ad;
 
   --color-surface: #ffffff;
-  --color-surface-2: #f4f4f5;
-  --color-canvas: #fafafa;
-  --color-line: #e4e4e7;
-  --color-line-strong: #d4d4d8;
-  --color-link: #8b8b94;
-  --color-scrim: rgb(24 24 27 / 0.32);
+  --color-surface-2: #f2f4f6;
+  --color-canvas: #f8f9fa;
+  --color-line: #e1e5e9;
+  --color-line-strong: #cdd3d9;
+  --color-link: #6b7785;
+  --color-scrim: rgb(21 32 43 / 0.32);
   --color-glass: rgb(255 255 255 / 0.92);
 
-  --color-ink-hover: #27272a;
-  --color-on-ink: #fafafa;
+  --color-ink-hover: #22303d;
+  --color-on-ink: #f8f9fa;
   --color-on-strong: #ffffff;
   --color-on-strong-line: rgb(255 255 255 / 0.4);
   --color-on-strong-hover: rgb(255 255 255 / 0.12);
 
-  --color-accent: #0f766e;
-  --color-accent-strong: #115e59;
-  --color-accent-soft: rgb(15 118 110 / 0.09);
-  --color-accent-tint: #f0f8f7;
+  --color-accent: #b9561a;
+  --color-accent-strong: #94400f;
+  --color-accent-soft: rgb(185 86 26 / 0.09);
+  --color-accent-tint: #fbf3ee;
 
-  --color-negative: #be3455;
-  --color-negative-soft: rgb(190 52 85 / 0.08);
-  --color-negative-tint: #fdf4f6;
-  --color-negative-line: rgb(190 52 85 / 0.35);
+  --color-negative: #b42346;
+  --color-negative-soft: rgb(180 35 70 / 0.08);
+  --color-negative-tint: #fcf3f5;
+  --color-negative-line: rgb(180 35 70 / 0.35);
 
   --color-warning: #8a5a0b;
   --color-warning-soft: #fdf8ec;
   --color-warning-line: rgb(161 98 7 / 0.3);
   --color-warning-dot: #b7791f;
+
+  /* accent と分けるのは、ロゴの橙は白地で 2.5:1 しかなく、文字や枠線には使えないため */
+  --color-brand-tile: #15202b;
+  --color-brand-loop: #ffffff;
+  --color-brand-dot: #f08a3c;
 
   --text-2xs: 10.5px;
   --text-xs: 11px;
@@ -73,11 +78,11 @@
   --radius-xl: 14px;
   --radius-sheet: 18px;
 
-  --shadow-float: 0 1px 2px rgb(24 24 27 / 0.04), 0 8px 24px -12px rgb(24 24 27 / 0.18);
-  --shadow-raised: 0 1px 2px rgb(24 24 27 / 0.06);
-  --shadow-knob: 0 1px 2px rgb(24 24 27 / 0.2);
-  --shadow-accent: 0 10px 24px -10px rgb(15 118 110 / 0.6);
-  --shadow-sheet: 0 -1px 0 var(--color-line), 0 -12px 32px -16px rgb(24 24 27 / 0.22);
+  --shadow-float: 0 1px 2px rgb(21 32 43 / 0.04), 0 8px 24px -12px rgb(21 32 43 / 0.18);
+  --shadow-raised: 0 1px 2px rgb(21 32 43 / 0.06);
+  --shadow-knob: 0 1px 2px rgb(21 32 43 / 0.2);
+  --shadow-accent: 0 10px 24px -10px rgb(185 86 26 / 0.55);
+  --shadow-sheet: 0 -1px 0 var(--color-line), 0 -12px 32px -16px rgb(21 32 43 / 0.22);
   --shadow-focus-inset: inset 0 0 0 1.5px var(--color-accent);
   --shadow-edge-inset: inset 0 0 0 1px var(--color-on-strong-line);
 
@@ -90,6 +95,53 @@
   --animate-dialog-in: dialog-in 0.3s var(--ease-out) both;
   --animate-backdrop-in: backdrop-in 0.3s var(--ease-out) both;
   --animate-save-pulse: save-pulse 1.6s var(--ease-out) infinite;
+}
+
+/* @theme の中に書かないのは、@theme にはメディアクエリを入れられないため。
+   画面に切り替えを置かず OS の設定に従うのは、選んだテーマを覚える先が serve と GitHub Pages で別のオリジンになり、片方で選んでももう片方に効かないため */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ink: #e8ecf0;
+    --color-ink-2: #c3cbd3;
+    --color-muted: #8e9aa6;
+    --color-faint: #5e6a76;
+
+    --color-surface: #17212b;
+    --color-surface-2: #1f2a35;
+    --color-canvas: #0e151c;
+    --color-line: #2a3642;
+    --color-line-strong: #3a4855;
+    --color-link: #7a8693;
+    --color-scrim: rgb(0 0 0 / 0.5);
+    --color-glass: rgb(23 33 43 / 0.92);
+
+    --color-ink-hover: #d3d9df;
+    --color-on-ink: #15202b;
+    --color-on-strong: #15202b;
+    --color-on-strong-line: rgb(21 32 43 / 0.35);
+    --color-on-strong-hover: rgb(21 32 43 / 0.1);
+
+    --color-accent: #f08a3c;
+    --color-accent-strong: #f6a462;
+    --color-accent-soft: rgb(240 138 60 / 0.14);
+    --color-accent-tint: #2b2219;
+
+    --color-negative: #f07a93;
+    --color-negative-soft: rgb(240 122 147 / 0.12);
+    --color-negative-tint: #2e1c22;
+    --color-negative-line: rgb(240 122 147 / 0.4);
+
+    --color-warning: #e0b252;
+    --color-warning-soft: #2a2414;
+    --color-warning-line: rgb(224 178 82 / 0.35);
+    --color-warning-dot: #e0b252;
+
+    --color-brand-tile: #263240;
+
+    --shadow-float: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+    --shadow-accent: 0 10px 24px -10px rgb(240 138 60 / 0.45);
+    --shadow-sheet: 0 -1px 0 var(--color-line), 0 -12px 32px -16px rgb(0 0 0 / 0.6);
+  }
 }
 
 /* 詰めるだけで済ませる画面と分けるのは、低い画面ではそれでも下の操作と重なるため。max-md:short: で使う */

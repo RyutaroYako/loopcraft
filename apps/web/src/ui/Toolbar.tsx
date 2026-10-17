@@ -13,6 +13,7 @@ import {
   MoreIcon,
   OpenIcon,
   SaveIcon,
+  Wordmark,
 } from "./icons.tsx";
 
 export type DialogKind = "import" | "export" | "screenshot" | "menu";
@@ -23,12 +24,11 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
     editor.commit(edit.setTitle(editor.current(), title), "title");
   return (
     <header class="grid grid-flow-col auto-cols-auto grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-line bg-surface pr-3 pl-4 max-md:gap-1 max-md:pr-2 max-md:pl-3">
-      <h1 class="flex items-center gap-2 border-r border-line pr-3 text-accent max-md:pr-2">
+      <h1 class="flex items-center gap-2 border-r border-line pr-3 text-ink max-md:pr-2">
         <LogoMark />
-        {/* 狭い画面で消さずに読み上げだけ残すのは、ページの見出しが無くなるため */}
-        <span class="text-md font-semibold tracking-heading text-ink max-md:sr-only">
-          Loopcraft
-        </span>
+        <Wordmark class="h-4 w-16.75 max-md:hidden" />
+        {/* ワードマークの svg に名前を付けないのは、狭い画面で隠すと見出しの名前まで消えるため */}
+        <span class="sr-only">Loopcraft</span>
       </h1>
       <label class="min-w-0">
         <span class="sr-only">図のタイトル</span>

@@ -37,7 +37,8 @@ export function AutosaveIndicator() {
               : "変更はこのブラウザに自動で保存されます"
           }
         >
-          <span class={[dotClass, "bg-accent opacity-70"]} aria-hidden="true" />
+          {/* accent にしないのは、橙が警告の印と同じ系統に見え、保存できているのに注意を引くため */}
+          <span class={[dotClass, "bg-faint"]} aria-hidden="true" />
           <span class="max-md:hidden">{label()}</span>
         </span>
       }

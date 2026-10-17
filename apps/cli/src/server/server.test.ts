@@ -91,6 +91,7 @@ describe("startServer", () => {
     expect(index.body).not.toContain("sample");
     const css = await send(server, "/app.css");
     expect(css.headers["content-type"]).toBe("text/css; charset=utf-8");
+    expect((await send(server, "/favicon.ico")).headers["content-type"]).toBe("image/x-icon");
     expect((await send(server, "/blob.bin")).headers["content-type"]).toBe(
       "application/octet-stream",
     );
