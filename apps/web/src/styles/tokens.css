@@ -97,51 +97,49 @@
   --animate-save-pulse: save-pulse 1.6s var(--ease-out) infinite;
 }
 
-/* @theme の中に書かないのは、@theme にはメディアクエリを入れられないため。
-   画面に切り替えを置かず OS の設定に従うのは、選んだテーマを覚える先が serve と GitHub Pages で別のオリジンになり、片方で選んでももう片方に効かないため */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-ink: #e8ecf0;
-    --color-ink-2: #c3cbd3;
-    --color-muted: #8e9aa6;
-    --color-faint: #5e6a76;
+/* @theme の中に書かないのは、@theme には属性で切り替える値を入れられないため。
+   prefers-color-scheme で直接切り替えないのは、OS の設定と違うテーマを選べるようにするため。data-theme は index.html と theme.ts が決める */
+:root[data-theme="dark"] {
+  --color-ink: #e8ecf0;
+  --color-ink-2: #c3cbd3;
+  --color-muted: #8e9aa6;
+  --color-faint: #5e6a76;
 
-    --color-surface: #17212b;
-    --color-surface-2: #1f2a35;
-    --color-canvas: #0e151c;
-    --color-line: #2a3642;
-    --color-line-strong: #3a4855;
-    --color-link: #7a8693;
-    --color-scrim: rgb(0 0 0 / 0.5);
-    --color-glass: rgb(23 33 43 / 0.92);
+  --color-surface: #17212b;
+  --color-surface-2: #1f2a35;
+  --color-canvas: #0e151c;
+  --color-line: #2a3642;
+  --color-line-strong: #3a4855;
+  --color-link: #7a8693;
+  --color-scrim: rgb(0 0 0 / 0.5);
+  --color-glass: rgb(23 33 43 / 0.92);
 
-    --color-ink-hover: #d3d9df;
-    --color-on-ink: #15202b;
-    --color-on-strong: #15202b;
-    --color-on-strong-line: rgb(21 32 43 / 0.35);
-    --color-on-strong-hover: rgb(21 32 43 / 0.1);
+  --color-ink-hover: #d3d9df;
+  --color-on-ink: #15202b;
+  --color-on-strong: #15202b;
+  --color-on-strong-line: rgb(21 32 43 / 0.35);
+  --color-on-strong-hover: rgb(21 32 43 / 0.1);
 
-    --color-accent: #f08a3c;
-    --color-accent-strong: #f6a462;
-    --color-accent-soft: rgb(240 138 60 / 0.14);
-    --color-accent-tint: #2b2219;
+  --color-accent: #f08a3c;
+  --color-accent-strong: #f6a462;
+  --color-accent-soft: rgb(240 138 60 / 0.14);
+  --color-accent-tint: #2b2219;
 
-    --color-negative: #f07a93;
-    --color-negative-soft: rgb(240 122 147 / 0.12);
-    --color-negative-tint: #2e1c22;
-    --color-negative-line: rgb(240 122 147 / 0.4);
+  --color-negative: #f07a93;
+  --color-negative-soft: rgb(240 122 147 / 0.12);
+  --color-negative-tint: #2e1c22;
+  --color-negative-line: rgb(240 122 147 / 0.4);
 
-    --color-warning: #e0b252;
-    --color-warning-soft: #2a2414;
-    --color-warning-line: rgb(224 178 82 / 0.35);
-    --color-warning-dot: #e0b252;
+  --color-warning: #e0b252;
+  --color-warning-soft: #2a2414;
+  --color-warning-line: rgb(224 178 82 / 0.35);
+  --color-warning-dot: #e0b252;
 
-    --color-brand-tile: #263240;
+  --color-brand-tile: #263240;
 
-    --shadow-float: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.6);
-    --shadow-accent: 0 10px 24px -10px rgb(240 138 60 / 0.45);
-    --shadow-sheet: 0 -1px 0 var(--color-line), 0 -12px 32px -16px rgb(0 0 0 / 0.6);
-  }
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --shadow-accent: 0 10px 24px -10px rgb(240 138 60 / 0.45);
+  --shadow-sheet: 0 -1px 0 var(--color-line), 0 -12px 32px -16px rgb(0 0 0 / 0.6);
 }
 
 /* 詰めるだけで済ませる画面と分けるのは、低い画面ではそれでも下の操作と重なるため。max-md:short: で使う */
