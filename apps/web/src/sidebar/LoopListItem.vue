@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { VisuallyHidden } from "reka-ui";
 import type { LoopEntry } from "@loopcraft/core/loops";
 import { UNNAMED } from "../editor/boxes.ts";
 import { injectEditor } from "../editor/useEditor.ts";
+import HintTooltip from "../primitives/HintTooltip.vue";
 import IconButton from "../primitives/IconButton.vue";
 import SvgIcon from "../primitives/SvgIcon.vue";
 import ListRow from "./ListRow.vue";
@@ -58,20 +60,27 @@ function togglePin() {
     <template #title>{{ entry.featured?.loop.name || kindLabel(entry.kind) }}</template>
     <template #route>{{ labels.join(" → ") }}</template>
     <template #trailing>
-      <span class="link-count-text" title="ループを構成する関連の数">{{ entry.links.length }}</span>
+      <HintTooltip text="ループを構成する関連の数">
+        <span class="link-count-text">
+          <VisuallyHidden>関連</VisuallyHidden>
+          {{ entry.links.length }}
+          <VisuallyHidden>本</VisuallyHidden>
+        </span>
+      </HintTooltip>
     </template>
     <template #after>
-      <IconButton
-        class="pin-button"
-        :data-featured="featured ? '' : undefined"
-        :aria-pressed="featured"
-        :title="featured ? '見出しを外す' : 'このループを見出す'"
-        :aria-label="featured ? '見出しを外す' : 'このループを見出す'"
-        :disabled="!editor.editable"
-        @click="togglePin"
-      >
-        <SvgIcon :name="featured ? 'pin-filled' : 'pin'" />
-      </IconButton>
+      <HintTooltip :text="featured ? '見出しを外す' : 'このループを見出す'">
+        <IconButton
+          class="pin-button"
+          :data-featured="featured ? '' : undefined"
+          :aria-pressed="featured"
+          :aria-label="featured ? '見出しを外す' : 'このループを見出す'"
+          :disabled="!editor.editable"
+          @click="togglePin"
+        >
+          <SvgIcon :name="featured ? 'pin-filled' : 'pin'" />
+        </IconButton>
+      </HintTooltip>
     </template>
   </ListRow>
 </template>

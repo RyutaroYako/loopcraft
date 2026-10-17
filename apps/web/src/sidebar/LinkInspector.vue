@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, useId } from "vue";
 import * as edit from "@loopcraft/core/edit";
 import { defaultCurvature } from "@loopcraft/core/geometry";
 import type { LinkId, Polarity } from "@loopcraft/core/schema";
@@ -25,6 +25,7 @@ const { id } = defineProps<{ id: LinkId }>();
 const emit = defineEmits<{ "focus:lost": [] }>();
 
 const editor = injectEditor();
+const polarityLabelId = useId();
 const link = computed(() => editor.linkById.value.get(id));
 const from = computed(() => labelOf(editor, link.value?.from));
 const to = computed(() => labelOf(editor, link.value?.to));
@@ -59,8 +60,9 @@ function resetCurvature() {
     <button type="button" class="to-button" @click="() => selectEnd('to')">{{ to }}</button>
   </p>
   <fieldset class="polarity-field">
-    <FieldLabel as="legend">極性</FieldLabel>
+    <FieldLabel :id="polarityLabelId" as="legend">極性</FieldLabel>
     <SegmentedControl
+      :aria-labelledby="polarityLabelId"
       :options="POLARITY_OPTIONS"
       :value="link?.polarity"
       :disabled="!editor.editable"

@@ -288,13 +288,8 @@ describe("ファイル", () => {
 });
 
 describe("通知", () => {
-  it("案内は時間で消え、操作を求めるエラーは案内で押し流さない", () => {
-    vi.useFakeTimers();
+  it("操作を求めるエラーは案内で押し流さない", () => {
     const editor = setup();
-    editor.notify({ tone: "info", title: "案内" });
-    expect(editor.notice.value?.title).toBe("案内");
-    vi.advanceTimersByTime(4000);
-    expect(editor.notice.value).toBeNull();
     editor.notify({ tone: "error", title: "要対応", actions: [{ label: "直す", run: () => {} }] });
     editor.notify({ tone: "info", title: "案内" });
     expect(editor.notice.value?.title).toBe("要対応");

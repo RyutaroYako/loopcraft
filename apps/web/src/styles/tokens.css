@@ -84,6 +84,7 @@
   --z-raised: 1;
   --z-sheet: 2;
   --z-overlay: 20;
+  --z-dialog: 25;
   --z-popover: 30;
 }
 
@@ -153,7 +154,7 @@
 @keyframes notice-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -8px);
+    transform: translateY(-8px);
   }
 }
 

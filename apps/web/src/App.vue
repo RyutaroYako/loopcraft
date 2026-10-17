@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, provide, ref, useTemplateRef } from "vue";
+import { ToastProvider, ToastViewport, TooltipProvider } from "reka-ui";
 import DiagramCanvas from "./canvas/DiagramCanvas.vue";
 import { captureDiagram } from "./canvas/screenshot.ts";
 import { refocusWhenLost } from "./editor/focus.ts";
-import { isInteractive, isTextInput } from "./editor/keyboard.ts";
+import { isInMenu, isInteractive, isTextInput } from "./editor/keyboard.ts";
 import { EditorKey, useEditor } from "./editor/useEditor.ts";
 import NoticeBanner from "./notice/NoticeBanner.vue";
 import { createNotices } from "./notice/notices.ts";
@@ -62,7 +63,8 @@ function closeMenu() {
 }
 
 function onKeyDown(event: KeyboardEvent) {
-  if (dialog.value !== null) return;
+  // メニューの側で伝播を止めないのは、メニューを Escape で閉じる処理も window で受けるため
+  if (dialog.value !== null || isInMenu(event.target)) return;
   const mod = event.metaKey || event.ctrlKey;
   const key = event.key.toLowerCase();
   if (mod && key === "z" && !isTextInput(event.target)) {
@@ -162,49 +164,72 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    class="app"
-    :data-dropping="dropping ? '' : undefined"
-    @dragover="onDragOver"
-    @dragleave="onDragLeave"
-    @drop="onDrop"
-  >
-    <EditorToolbar
-      :readonly
-      :theme
-      :autosave
-      @dialog:open="openDialog"
-      @explain:status="notices.explain"
-      @explain:unwatched="notices.unwatched"
-    />
-    <!-- 狭い画面でページごとスクロールさせないのは、キャンバスのパンとページのスクロールが同じ指の操作で取り合うため -->
-    <main class="workspace-area">
-      <DiagramCanvas ref="canvas" />
-      <EditorSidebar :backups-available="store.kind === 'browser'" @canvas:reveal="revealCanvas" />
-    </main>
-    <!-- key で作り直すのは、別のお知らせに替わったときに、出てくる動きを付け直すため -->
-    <NoticeBanner
-      v-if="notice"
-      :key="noticeKey"
-      :notice
-      @click:close="() => editor.dismissNotice()"
-    />
-    <MenuDialog
-      v-if="dialog === 'menu'"
-      :theme
-      @dialog:open="openDialog"
-      @dialog:close="closeMenu"
-    />
-    <ImportDialog v-if="dialog === 'import'" @dialog:close="closeDialog" />
-    <ExportDialog v-if="dialog === 'export'" @dialog:close="closeDialog" />
-    <ScreenshotDialog v-if="dialog === 'screenshot'" :capture @dialog:close="closeDialog" />
-    <div class="drop-overlay" aria-hidden="true">
-      <p>JSON ファイルをドロップして読み込む</p>
-    </div>
-  </div>
+  <!-- 右へのスワイプで消さないのは、お知らせが画面の上の中央に出るため -->
+  <ToastProvider label="お知らせ" swipe-direction="up">
+    <TooltipProvider>
+      <div
+        class="app"
+        :data-dropping="dropping ? '' : undefined"
+        @dragover="onDragOver"
+        @dragleave="onDragLeave"
+        @drop="onDrop"
+      >
+        <EditorToolbar
+          :readonly
+          :theme
+          :autosave
+          @dialog:open="openDialog"
+          @explain:status="notices.explain"
+          @explain:unwatched="notices.unwatched"
+        />
+        <!-- 狭い画面でページごとスクロールさせないのは、キャンバスのパンとページのスクロールが同じ指の操作で取り合うため -->
+        <main class="workspace-area">
+          <DiagramCanvas ref="canvas" />
+          <EditorSidebar
+            :backups-available="store.kind === 'browser'"
+            @canvas:reveal="revealCanvas"
+          />
+        </main>
+        <!-- key で作り直すのは、別のお知らせに替わったときに、出てくる動きと消えるまでの時間を付け直すため -->
+        <NoticeBanner
+          v-if="notice"
+          :key="noticeKey"
+          :notice
+          @notice:close="(closed) => editor.dismissNotice(closed)"
+        />
+        <MenuDialog
+          v-if="dialog === 'menu'"
+          :theme
+          @dialog:open="openDialog"
+          @dialog:close="closeMenu"
+        />
+        <ImportDialog v-if="dialog === 'import'" @dialog:close="closeDialog" />
+        <ExportDialog v-if="dialog === 'export'" @dialog:close="closeDialog" />
+        <ScreenshotDialog v-if="dialog === 'screenshot'" :capture @dialog:close="closeDialog" />
+        <div class="drop-overlay" aria-hidden="true">
+          <p>JSON ファイルをドロップして読み込む</p>
+        </div>
+      </div>
+      <ToastViewport as-child label="お知らせ（{hotkey}）">
+        <ol class="notice-viewport" />
+      </ToastViewport>
+    </TooltipProvider>
+  </ToastProvider>
 </template>
 
 <style scoped>
+/* .app の中に入れ子にしないのは、reka-ui が読み上げの領域の div で包んで描くため */
+.notice-viewport {
+  position: fixed;
+  inset-block-start: 68px;
+  inset-inline: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  inline-size: min(480px, calc(100vw - 32px));
+  margin-inline: auto;
+  outline: none;
+}
+
 .app {
   display: grid;
   block-size: 100dvh;

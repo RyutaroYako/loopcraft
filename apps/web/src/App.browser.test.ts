@@ -71,7 +71,7 @@ describe("エディタ", () => {
     const target = document.querySelector('[data-variable-id="staff"] .body-rect')!;
     await userEvent.dragAndDrop(page.elementLocator(handle), page.elementLocator(target));
     await expect.poll(() => loopItems().length).toBeGreaterThan(before);
-    await expect.element(page.getByText("関連", { exact: true })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "関連" })).toBeVisible();
   });
 
   it("フォーカスした変数を Delete で消す", async () => {
@@ -168,10 +168,9 @@ describe("案内", () => {
     mount(browserStartup(createSampleDiagram()));
     await expect.element(node("売上")).toBeVisible();
     window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
-    await expect
-      .element(page.getByRole("alert"))
-      .toMatchTextContent(/予期しないエラーが起きました/);
-    expect(notice()?.textContent).toContain("boom");
+    await expect.element(notice()).toMatchTextContent(/予期しないエラーが起きました/);
+    await expect.element(notice()).toHaveAttribute("data-tone", "error");
+    await expect.element(notice()).toMatchTextContent(/boom/);
 
     window.dispatchEvent(
       new PromiseRejectionEvent("unhandledrejection", {
@@ -179,9 +178,20 @@ describe("案内", () => {
         reason: "rejected",
       }),
     );
-    await expect.element(page.getByRole("alert")).toMatchTextContent(/rejected/);
+    await expect.element(notice()).toMatchTextContent(/rejected/);
     await page.getByRole("button", { name: "閉じる" }).click();
-    await expect.element(page.getByRole("alert")).not.toBeInTheDocument();
+    await expect.element(notice()).not.toBeInTheDocument();
+  });
+
+  it("案内は時間で消え、エラーは閉じるまで残る", async () => {
+    mount(fileStartup({ status: "missing" }));
+    await expect.element(notice()).toMatchTextContent(/growth\.json はまだありません/);
+    await expect.element(notice()).not.toBeInTheDocument();
+
+    window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+    await expect.element(notice()).toMatchTextContent(/boom/);
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    await expect.element(notice()).toMatchTextContent(/boom/);
   });
 
   it("壊れたブラウザのデータは退避したことを知らせ、書き出せる", async () => {
@@ -191,9 +201,7 @@ describe("案内", () => {
         kind: "browser",
         stored: { status: "invalid", raw: "{", errors: ["壊れています"], backupKey: "k" },
       });
-      await expect
-        .element(page.getByRole("alert"))
-        .toMatchTextContent(/前回の図を開けませんでした/);
+      await expect.element(notice()).toMatchTextContent(/前回の図を開けませんでした/);
       await page.getByRole("button", { name: "開けなかったデータを書き出す" }).click();
       expect(downloads.files).toEqual(["system-diagram-unreadable.json"]);
     } finally {
@@ -203,9 +211,7 @@ describe("案内", () => {
 
   it("serve の情報が読めなければ、ブラウザに保存することを知らせる", async () => {
     mount({ kind: "browser", stored: { status: "empty" }, sessionInvalid: true });
-    await expect
-      .element(page.getByRole("alert"))
-      .toMatchTextContent(/loopcraft serve の情報を読めませんでした/);
+    await expect.element(notice()).toMatchTextContent(/loopcraft serve の情報を読めませんでした/);
     await expect.element(page.getByRole("button", { name: "ページを再読み込み" })).toBeVisible();
   });
 });
@@ -233,12 +239,15 @@ describe("serve で開いたとき", () => {
     try {
       mount(fileStartup(ok(), { readonly: true }));
       await expect.element(page.getByText("読み取り専用", { exact: true })).not.toBeVisible();
+      const badge = () =>
+        page.getByText(/編集も保存もできません/).element().parentElement as HTMLElement;
       await expect
-        .poll(
-          () =>
-            document.querySelector('[title^="loopcraft serve"] svg')?.getBoundingClientRect().width,
-        )
+        .poll(() => badge().querySelector("svg")?.getBoundingClientRect().width)
         .toBeGreaterThan(0);
+      badge().focus();
+      await expect
+        .element(page.getByRole("tooltip"))
+        .toMatchTextContent(/loopcraft serve --readonly で開いています/);
     } finally {
       await page.viewport(original.width, original.height);
     }
@@ -246,19 +255,16 @@ describe("serve で開いたとき", () => {
 
   it("ファイルがまだ無ければ、最初の保存で作ることを知らせる", async () => {
     mount(fileStartup({ status: "missing" }));
-    await expect
-      .element(page.getByRole("status"))
-      .toMatchTextContent(/growth\.json はまだありません/);
+    await expect.element(notice()).toMatchTextContent(/growth\.json はまだありません/);
+    await expect.element(notice()).toHaveAttribute("data-tone", "info");
   });
 
   it("開けなかったファイルは理由を知らせ、多すぎる理由は件数でまとめる", async () => {
     const errors = Array.from({ length: 10 }, (_, index) => `title: 問題${index}`);
     mount(fileStartup({ status: "invalid", revision: "r", errors }));
-    await expect
-      .element(page.getByRole("alert"))
-      .toMatchTextContent(/growth\.json を開けませんでした/);
-    expect(notice()?.textContent).toContain("title: 問題6");
-    expect(notice()?.textContent).toContain("ほか 3 件");
+    await expect.element(notice()).toMatchTextContent(/growth\.json を開けませんでした/);
+    await expect.element(notice()).toMatchTextContent(/title: 問題6/);
+    await expect.element(notice()).toMatchTextContent(/ほか 3 件/);
     await expect.element(page.getByRole("button", { name: /自動保存を停止中/ })).toBeVisible();
   });
 
@@ -271,7 +277,7 @@ describe("serve で開いたとき", () => {
     await expect.element(indicator).toBeVisible();
     await page.getByRole("button", { name: "閉じる" }).click();
     await indicator.click();
-    await expect.element(page.getByRole("alert")).toMatchTextContent(/disk full/);
+    await expect.element(notice()).toMatchTextContent(/disk full/);
 
     control.saveResult = { ok: true };
     await page.getByRole("button", { name: "保存し直す" }).click();
@@ -289,7 +295,7 @@ describe("serve で開いたとき", () => {
     await expect.element(warning).toBeVisible();
     await page.getByRole("button", { name: "閉じる" }).click();
     await warning.click();
-    await expect.element(page.getByRole("alert")).toMatchTextContent(/EMFILE/);
+    await expect.element(notice()).toMatchTextContent(/EMFILE/);
 
     control.handlers().lost("disconnected");
     await expect.element(page.getByRole("button", { name: /接続が切れました/ })).toBeVisible();
@@ -303,9 +309,7 @@ describe("serve で開いたとき", () => {
     await expect.element(node("売上")).toBeVisible();
     control.reloadResult = { ok: true, diagram: { ...createSampleDiagram(), title: "外で直した" } };
     control.handlers().change();
-    await expect
-      .element(page.getByRole("status"))
-      .toMatchTextContent(/growth\.json の変更を読み込みました/);
+    await expect.element(notice()).toMatchTextContent(/growth\.json の変更を読み込みました/);
     await expect
       .element(page.getByRole("textbox", { name: "図のタイトル" }))
       .toHaveValue("外で直した");

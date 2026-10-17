@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, useId, useTemplateRef } from "vue";
+import { ref, useId, useTemplateRef } from "vue";
 import { parseDiagramJson } from "@loopcraft/core/io";
 import { injectEditor } from "../editor/useEditor.ts";
 import BaseButton from "../primitives/BaseButton.vue";
@@ -18,10 +18,7 @@ const editor = injectEditor();
 const text = ref("");
 const errors = ref<string[]>([]);
 const dialog = useTemplateRef<InstanceType<typeof ModalDialog>>("dialog");
-const field = useTemplateRef<InstanceType<typeof TextField>>("field");
 const formId = useId();
-
-onMounted(() => field.value?.focus());
 
 function close() {
   dialog.value?.close();
@@ -55,7 +52,7 @@ async function openFile() {
   <ModalDialog ref="dialog" title="JSON を読み込む" @dialog:close="() => emit('dialog:close')">
     <form :id="formId" @submit.prevent="submit">
       <TextField
-        ref="field"
+        initial-focus
         label="図の JSON を貼り付けてください。今の図は置き換わります（元に戻せます）"
         :value="text"
         :placeholder="PLACEHOLDER"

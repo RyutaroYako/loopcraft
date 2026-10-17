@@ -299,17 +299,11 @@ describe("メニュー", () => {
     await atPhoneSize(async () => {
       await expect.element(page.getByRole("button", { name: /^テーマ/ })).not.toBeInTheDocument();
       await button("メニュー").click();
-      const theme = dialog("メニュー").getByRole("group", { name: "テーマ" });
-      await expect
-        .element(theme.getByRole("button", { name: "システム" }))
-        .toHaveAttribute("aria-pressed", "true");
-      await theme.getByRole("button", { name: "ダーク" }).click();
-      await expect
-        .element(theme.getByRole("button", { name: "ダーク" }))
-        .toHaveAttribute("aria-pressed", "true");
-      await expect
-        .element(theme.getByRole("button", { name: "システム" }))
-        .toHaveAttribute("aria-pressed", "false");
+      const theme = dialog("メニュー").getByRole("radiogroup", { name: "テーマ" });
+      await expect.element(theme.getByRole("radio", { name: "システム" })).toBeChecked();
+      await theme.getByRole("radio", { name: "ダーク" }).click();
+      await expect.element(theme.getByRole("radio", { name: "ダーク" })).toBeChecked();
+      await expect.element(theme.getByRole("radio", { name: "システム" })).not.toBeChecked();
       expect(document.documentElement.dataset.theme).toBe("dark");
       await expect.element(dialog("メニュー")).toBeVisible();
     });

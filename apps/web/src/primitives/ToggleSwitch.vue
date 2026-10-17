@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useId } from "vue";
+import { SwitchRoot, SwitchThumb } from "reka-ui";
+
 const {
   label,
   checked,
@@ -15,23 +18,21 @@ const {
 
 const emit = defineEmits<{ "update:checked": [checked: boolean] }>();
 
-function onChange(event: Event) {
-  emit("update:checked", (event.currentTarget as HTMLInputElement).checked);
-}
+const id = useId();
 </script>
 
 <template>
-  <label class="toggle-switch">
-    <input
-      class="switch-input"
-      role="switch"
+  <label class="toggle-switch" :for="id">
+    <SwitchRoot
+      :id
+      class="switch-track"
       :name
-      type="checkbox"
-      :checked
+      :model-value="checked"
       :disabled
-      @change="onChange"
-    />
-    <span class="switch-track" aria-hidden="true" />
+      @update:model-value="(next) => emit('update:checked', next)"
+    >
+      <SwitchThumb class="switch-thumb" />
+    </SwitchRoot>
     <span class="label-area">
       <span class="label-text">{{ label }}</span>
       <span v-if="hint" class="hint-text">{{ hint }}</span>
@@ -49,12 +50,6 @@ function onChange(event: Event) {
     gap: 12px;
     cursor: pointer;
 
-    > .switch-input {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
-
     > .switch-track {
       position: relative;
       margin-block-start: 1px;
@@ -64,7 +59,16 @@ function onChange(event: Event) {
       background: var(--color-line-strong);
       transition: background-color 250ms var(--ease-out);
 
-      &::after {
+      &[data-state="checked"] {
+        background: var(--color-accent);
+      }
+
+      &:focus-visible {
+        outline: 1.5px solid var(--color-accent);
+        outline-offset: 2px;
+      }
+
+      > .switch-thumb {
         position: absolute;
         inset-block-start: 2px;
         inset-inline-start: 2px;
@@ -73,22 +77,12 @@ function onChange(event: Event) {
         border-radius: var(--radius-full);
         background: var(--color-surface);
         box-shadow: var(--shadow-knob);
-        content: "";
         transition: transform 250ms var(--ease-out);
+
+        &[data-state="checked"] {
+          transform: translateX(14px);
+        }
       }
-    }
-
-    > .switch-input:checked + .switch-track {
-      background: var(--color-accent);
-
-      &::after {
-        transform: translateX(14px);
-      }
-    }
-
-    > .switch-input:focus-visible + .switch-track {
-      outline: 1.5px solid var(--color-accent);
-      outline-offset: 2px;
     }
 
     > .label-area {

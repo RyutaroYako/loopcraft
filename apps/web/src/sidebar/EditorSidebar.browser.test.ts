@@ -70,9 +70,7 @@ describe("図の概要", () => {
       // localStorage を直接消すのは、別のタブで消された状態をまねるため
       localStorage.removeItem("loopcraft:document:backup:1700000000000");
       await button("書き出す").click();
-      await expect
-        .element(page.getByRole("alert"))
-        .toMatchTextContent(/退避したデータが見つかりません/);
+      await expect.element(notice()).toMatchTextContent(/退避したデータが見つかりません/);
       await expect.element(page.getByText("退避したデータ")).not.toBeInTheDocument();
     } finally {
       downloads.restore();
@@ -157,14 +155,21 @@ describe("関連", () => {
     polarity().focus();
     await expect.element(heading("関連")).toBeVisible();
     await expect.element(page.getByText("社員数が増えると売上も増える")).toBeVisible();
-    await button(/逆向きに動く/).click();
+    const polarityGroup = page.getByRole("radiogroup", { name: "極性" });
+    await expect
+      .element(polarityGroup.getByRole("radio", { name: /同じ向きに動く/ }))
+      .toBeChecked();
+    await polarityGroup.getByRole("radio", { name: /逆向きに動く/ }).click();
     await expect.element(page.getByText("社員数が増えると売上は減る")).toBeVisible();
-    await button(/同じ向きに動く/).click();
-    // チェックボックスを直接押さないのは、見た目のスイッチの裏に隠れているため
+    // 押して離すだけにしないのは、矢印を押している間に移った項目だけを選ぶ作りのため
+    await userEvent.keyboard("{ArrowLeft>}");
+    await expect.element(page.getByText("社員数が増えると売上も増える")).toBeVisible();
+    await userEvent.keyboard("{/ArrowLeft}");
+    const delay = page.getByRole("switch", { name: /遅れがある/ });
+    await delay.click();
+    await expect.element(delay).toBeChecked();
     await page.getByText("遅れがある").click();
-    await expect.element(page.getByRole("switch", { name: /遅れがある/ })).toBeChecked();
-    await page.getByText("遅れがある").click();
-    await expect.element(page.getByRole("switch", { name: /遅れがある/ })).not.toBeChecked();
+    await expect.element(delay).not.toBeChecked();
     await writeAndClearDescription(
       (diagram) => diagram.links.find((item) => item.id === "l_sales")?.description,
     );
@@ -372,7 +377,7 @@ describe("読み取り専用", () => {
     (
       page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement
     ).focus();
-    await expect.element(button(/逆向きに動く/)).toBeDisabled();
-    expect(notice()).toBeNull();
+    await expect.element(page.getByRole("radio", { name: /逆向きに動く/ })).toBeDisabled();
+    await expect.element(notice()).not.toBeInTheDocument();
   });
 });

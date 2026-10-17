@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { onMounted, useSlots, useTemplateRef } from "vue";
+import { ref, useId, useSlots, useTemplateRef } from "vue";
+import {
+  DialogClose,
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from "reka-ui";
 import IconButton from "./IconButton.vue";
 import SvgIcon from "./SvgIcon.vue";
 
@@ -15,7 +23,7 @@ const {
 
 const emit = defineEmits<{ "dialog:close": [] }>();
 
-// 自動で引き継がせないのは、テンプレートの先頭のコメントで根が複数ある扱いになり、使う側の class が dialog に届かないため
+// 自動で引き継がせないのは、根の DialogRoot は要素を描かず、使う側の class が中身の要素に届かないため
 defineOptions({ inheritAttrs: false });
 
 defineSlots<{
@@ -25,80 +33,101 @@ defineSlots<{
 }>();
 
 const slots = useSlots();
-const dialog = useTemplateRef<HTMLDialogElement>("dialog");
+const open = ref(true);
+const content = useTemplateRef<HTMLDivElement>("content");
+// reka-ui に任せないのは、開くボタンを DialogTrigger で作らないと、空の id が付くため
+const id = useId();
 
-onMounted(() => {
-  dialog.value?.showModal();
-});
-
-/** 使う側が close イベントを自分で送らないのは、close() で閉じれば dialog の close イベントとして届くため */
 function close() {
-  dialog.value?.close();
+  open.value = false;
+  emit("dialog:close");
+}
+
+function onOpenChange(next: boolean) {
+  if (!next) close();
+}
+
+// 先頭のボタンへ移さないのは、すぐ打ち込む入力欄があるダイアログでは、閉じるボタンに止まると一手余計にかかるため
+function onOpenAutoFocus(event: Event) {
+  const target = content.value?.querySelector<HTMLElement>("[data-autofocus]");
+  if (!target) return;
+  event.preventDefault();
+  target.focus();
 }
 
 defineExpose({ close });
-
-// 座標で枠の外かを測らないのは、背景のクリックは dialog 自身に当たるため
-function onClick(event: MouseEvent) {
-  if (event.target === event.currentTarget) close();
-}
 </script>
 
 <template>
-  <!-- 背景のクリックにキーボードの代わりを付けないのは、dialog は Escape で閉じられるため -->
-  <!-- eslint-disable-next-line a11y/click-events-have-key-events -->
-  <dialog
-    v-bind="$attrs"
-    ref="dialog"
-    class="modal-dialog"
-    :data-size="size"
-    :data-layout="layout"
-    :aria-label="title"
-    @close="() => emit('dialog:close')"
-    @click="onClick"
-  >
-    <!-- header と footer にしないのは、dialog は区分コンテンツでなく、ページ全体のバナーや末尾と同じ役割に数えられるため -->
-    <div class="dialog-head">
-      <h2 class="title-heading">{{ title }}</h2>
-      <IconButton aria-label="閉じる" @click="close">
-        <SvgIcon name="close" />
-      </IconButton>
-    </div>
-    <div class="dialog-body">
-      <slot />
-    </div>
-    <div class="dialog-foot">
-      <template v-if="slots['footer-start']">
-        <slot name="footer-start" />
-        <span class="footer-spacer" />
-      </template>
-      <slot name="footer" />
-    </div>
-  </dialog>
+  <DialogRoot :open @update:open="onOpenChange">
+    <DialogPortal>
+      <!-- 自分の div で描かせるのは、reka-ui の要素には scoped の印が付かず、スタイルが当たらないため -->
+      <DialogOverlay as-child>
+        <div class="dialog-overlay" />
+      </DialogOverlay>
+      <!-- 説明の要素を結び付けないのは、本文がフォームや一覧で、まとめて読み上げる一文が無いため -->
+      <DialogContent :id as-child :aria-describedby="undefined" @open-auto-focus="onOpenAutoFocus">
+        <div
+          v-bind="$attrs"
+          ref="content"
+          class="modal-dialog"
+          :data-size="size"
+          :data-layout="layout"
+        >
+          <!-- header と footer にしないのは、ダイアログは区分コンテンツでなく、ページ全体のバナーや末尾と同じ役割に数えられるため -->
+          <div class="dialog-head">
+            <DialogTitle as-child>
+              <h2 class="title-heading">{{ title }}</h2>
+            </DialogTitle>
+            <DialogClose as-child>
+              <IconButton aria-label="閉じる">
+                <SvgIcon name="close" />
+              </IconButton>
+            </DialogClose>
+          </div>
+          <div class="dialog-body">
+            <slot />
+          </div>
+          <div class="dialog-foot">
+            <template v-if="slots['footer-start']">
+              <slot name="footer-start" />
+              <span class="footer-spacer" />
+            </template>
+            <slot name="footer" />
+          </div>
+        </div>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
 </template>
 
 <style scoped>
+/* 入れ子にせず 2 つを並べて書くのは、背景と本体を body の直下へ別々に移して描くため */
 @layer components {
+  .dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-dialog);
+    background: var(--color-scrim);
+    animation: var(--animate-backdrop-in);
+  }
+
   .modal-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-dialog);
+    display: flex;
+    flex-direction: column;
     margin: auto;
     inline-size: min(640px, calc(100vw - 32px));
+    block-size: fit-content;
     max-block-size: calc(100dvh - 64px);
     border: 1px solid var(--color-line);
     border-radius: var(--radius-xl);
     background: var(--color-surface);
     color: var(--color-ink);
     box-shadow: var(--shadow-float);
-
-    &[open] {
-      display: flex;
-      flex-direction: column;
-      animation: var(--animate-dialog-in);
-    }
-
-    &::backdrop {
-      background: var(--color-scrim);
-      animation: var(--animate-backdrop-in);
-    }
+    animation: var(--animate-dialog-in);
 
     &[data-size="small"] {
       inline-size: min(420px, calc(100vw - 32px));

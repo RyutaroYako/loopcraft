@@ -1,7 +1,5 @@
 import type { Ref } from "vue";
-import { onScopeDispose, ref, shallowRef } from "vue";
-
-const NOTICE_MS = 3200;
+import { ref, shallowRef } from "vue";
 
 export interface Notice {
   tone: "error" | "info";
@@ -15,24 +13,18 @@ export function useNotices() {
   const notice = shallowRef<Notice | null>(null);
   // お知らせそのものを key にしないのは、key に渡せるのが文字列・数・symbol だけのため
   const key = ref(0);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  onScopeDispose(() => clearTimeout(timer));
 
   function notify(next: Notice) {
     // 案内で上書きしないのは、操作を求めるエラーをすぐ消える案内で押し流さないため
     const shown = notice.value;
     if (next.tone === "info" && shown?.tone === "error" && shown.actions?.length) return;
-    clearTimeout(timer);
     notice.value = next;
     key.value++;
-    if (next.tone === "info") timer = setTimeout(() => dismiss(), NOTICE_MS);
   }
 
   /** only を渡すのは、閉じるまでに別のお知らせへ替わっていたら、それを閉じないため */
   function dismiss(only?: Notice) {
     if (only !== undefined && notice.value !== only) return;
-    clearTimeout(timer);
     notice.value = null;
   }
 

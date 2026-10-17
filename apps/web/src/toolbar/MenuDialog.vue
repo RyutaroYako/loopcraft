@@ -87,10 +87,11 @@ function iconOf(value: string) {
         </button>
       </li>
     </ul>
-    <div class="theme-group" role="group" :aria-labelledby="themeLabelId">
+    <div class="theme-field">
       <span :id="themeLabelId" class="theme-label">テーマ</span>
       <!-- 押しても閉じないのは、切り替わった見た目をその場で確かめられるようにするため -->
       <SegmentedControl
+        :aria-labelledby="themeLabelId"
         :options="themeOptions"
         :value="theme.choice.value"
         size="large"
@@ -149,7 +150,7 @@ function iconOf(value: string) {
     }
   }
 
-  .theme-group {
+  .theme-field {
     display: grid;
     gap: 8px;
     margin-block-start: 8px;

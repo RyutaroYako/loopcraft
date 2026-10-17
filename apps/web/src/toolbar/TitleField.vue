@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import VisuallyHidden from "../primitives/VisuallyHidden.vue";
+import { VisuallyHidden } from "reka-ui";
 
 const { title, readonly } = defineProps<{ title: string; readonly: boolean }>();
 

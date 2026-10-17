@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import * as edit from "@loopcraft/core/edit";
+import { VisuallyHidden } from "reka-ui";
 import { injectEditor } from "../editor/useEditor.ts";
 import type { AutosaveStatus } from "../persistence/autosave.ts";
 import type { Autosave } from "../persistence/useAutosave.ts";
 import BaseButton from "../primitives/BaseButton.vue";
+import HintTooltip from "../primitives/HintTooltip.vue";
 import IconButton from "../primitives/IconButton.vue";
 import SvgIcon from "../primitives/SvgIcon.vue";
-import VisuallyHidden from "../primitives/VisuallyHidden.vue";
 import ThemeMenu from "../theme/ThemeMenu.vue";
 import type { Theme } from "../theme/useTheme.ts";
 import AutosaveIndicator from "./AutosaveIndicator.vue";
@@ -46,12 +47,15 @@ function setTitle(title: string) {
       <VisuallyHidden>Loopcraft</VisuallyHidden>
     </h1>
     <TitleField :title="diagram.title" :readonly="!editor.editable" @update:title="setTitle" />
-    <span v-if="readonly" class="readonly-badge" title="loopcraft serve --readonly で開いています">
-      <!-- 見えている文言を読ませないのは、狭い画面で印だけに縮めると読み上げまで変わるため -->
-      <span class="readonly-text" aria-hidden="true">読み取り専用</span>
-      <span class="lock-icon" aria-hidden="true"><SvgIcon name="lock" /></span>
-      <VisuallyHidden>読み取り専用。編集も保存もできません</VisuallyHidden>
-    </span>
+    <!-- 印をフォーカスできるようにするのは、キーボードでも説明の吹き出しを出せるようにするため -->
+    <HintTooltip v-if="readonly" text="loopcraft serve --readonly で開いています">
+      <span class="readonly-badge" tabindex="0">
+        <!-- 見えている文言を読ませないのは、狭い画面で印だけに縮めると読み上げまで変わるため -->
+        <span class="readonly-text" aria-hidden="true">読み取り専用</span>
+        <span class="lock-icon" aria-hidden="true"><SvgIcon name="lock" /></span>
+        <VisuallyHidden>読み取り専用。編集も保存もできません</VisuallyHidden>
+      </span>
+    </HintTooltip>
     <AutosaveIndicator
       :status="autosave.status.value"
       :unwatched="autosave.unwatched.value"
@@ -61,58 +65,58 @@ function setTitle(title: string) {
     />
     <HistoryButtons class="undo-redo-buttons" />
     <!-- 中くらいの幅でボタンの文字を消すのは、残すとタイトル欄が潰れ、右端のテーマの切り替えが画面からはみ出すため -->
-    <BaseButton
-      v-if="editor.editable"
-      class="layout-button"
-      variant="ghost"
-      :disabled="diagram.variables.length < 2"
-      aria-label="整列"
-      title="変数の配置を自動で整える（元に戻せます）"
-      @click="editor.autoLayout"
-    >
-      <SvgIcon name="layout" />
-      <span class="button-label">整列</span>
-    </BaseButton>
+    <HintTooltip v-if="editor.editable" text="変数の配置を自動で整える（元に戻せます）">
+      <BaseButton
+        class="layout-button"
+        variant="ghost"
+        :disabled="diagram.variables.length < 2"
+        aria-label="整列"
+        @click="editor.autoLayout"
+      >
+        <SvgIcon name="layout" />
+        <span class="button-label">整列</span>
+      </BaseButton>
+    </HintTooltip>
     <div class="file-button-group" role="group" aria-label="ファイル">
       <template v-if="editor.editable">
-        <BaseButton
-          variant="ghost"
-          aria-label="新規"
-          title="新しい図を作る（元に戻せます）"
-          @click="editor.newDiagram"
-        >
-          <SvgIcon name="file" />
-          <span class="button-label">新規</span>
-        </BaseButton>
-        <BaseButton
-          variant="ghost"
-          aria-label="読み込み"
-          title="JSON を貼り付けるか、ファイルから読み込む"
-          @click="() => emit('dialog:open', 'import')"
-        >
-          <SvgIcon name="open" />
-          <span class="button-label">読み込み</span>
-        </BaseButton>
+        <HintTooltip text="新しい図を作る（元に戻せます）">
+          <BaseButton variant="ghost" aria-label="新規" @click="editor.newDiagram">
+            <SvgIcon name="file" />
+            <span class="button-label">新規</span>
+          </BaseButton>
+        </HintTooltip>
+        <HintTooltip text="JSON を貼り付けるか、ファイルから読み込む">
+          <BaseButton
+            variant="ghost"
+            aria-label="読み込み"
+            @click="() => emit('dialog:open', 'import')"
+          >
+            <SvgIcon name="open" />
+            <span class="button-label">読み込み</span>
+          </BaseButton>
+        </HintTooltip>
       </template>
-      <BaseButton
-        variant="ghost"
-        :disabled="diagram.variables.length === 0"
-        aria-label="画像"
-        title="図全体を画像にしてコピー・保存する"
-        @click="() => emit('dialog:open', 'screenshot')"
-      >
-        <SvgIcon name="image" />
-        <span class="button-label">画像</span>
-      </BaseButton>
-      <BaseButton
-        variant="primary"
-        aria-label="JSON を書き出す"
-        :title="`JSON をコピーするか、ファイルに保存する（${mod}S でファイルに保存）`"
-        @click="() => emit('dialog:open', 'export')"
-      >
-        <SvgIcon name="save" />
-        <span class="button-label">JSON を書き出す</span>
-      </BaseButton>
+      <HintTooltip text="図全体を画像にしてコピー・保存する">
+        <BaseButton
+          variant="ghost"
+          :disabled="diagram.variables.length === 0"
+          aria-label="画像"
+          @click="() => emit('dialog:open', 'screenshot')"
+        >
+          <SvgIcon name="image" />
+          <span class="button-label">画像</span>
+        </BaseButton>
+      </HintTooltip>
+      <HintTooltip :text="`JSON をコピーするか、ファイルに保存する（${mod}S でファイルに保存）`">
+        <BaseButton
+          variant="primary"
+          aria-label="JSON を書き出す"
+          @click="() => emit('dialog:open', 'export')"
+        >
+          <SvgIcon name="save" />
+          <span class="button-label">JSON を書き出す</span>
+        </BaseButton>
+      </HintTooltip>
     </div>
     <ThemeMenu class="theme-switcher" :theme />
     <IconButton

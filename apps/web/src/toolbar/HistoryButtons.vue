@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { injectEditor } from "../editor/useEditor.ts";
+import HintTooltip from "../primitives/HintTooltip.vue";
 import IconButton from "../primitives/IconButton.vue";
 import SvgIcon from "../primitives/SvgIcon.vue";
 import { mod } from "./shortcut.ts";
@@ -12,24 +13,26 @@ const historySize = editor.historySize;
 
 <template>
   <div class="history-buttons" :data-size="size" role="group" aria-label="履歴">
-    <IconButton
-      class="undo-button"
-      :disabled="!editor.editable || historySize.undo === 0"
-      :title="`元に戻す (${mod}Z)`"
-      aria-label="元に戻す"
-      @click="editor.undo"
-    >
-      <SvgIcon name="undo" />
-    </IconButton>
-    <IconButton
-      class="redo-button"
-      :disabled="!editor.editable || historySize.redo === 0"
-      :title="`やり直す (${mod}Shift+Z)`"
-      aria-label="やり直す"
-      @click="editor.redo"
-    >
-      <SvgIcon name="redo" />
-    </IconButton>
+    <HintTooltip :text="`元に戻す (${mod}Z)`">
+      <IconButton
+        class="undo-button"
+        :disabled="!editor.editable || historySize.undo === 0"
+        aria-label="元に戻す"
+        @click="editor.undo"
+      >
+        <SvgIcon name="undo" />
+      </IconButton>
+    </HintTooltip>
+    <HintTooltip :text="`やり直す (${mod}Shift+Z)`">
+      <IconButton
+        class="redo-button"
+        :disabled="!editor.editable || historySize.redo === 0"
+        aria-label="やり直す"
+        @click="editor.redo"
+      >
+        <SvgIcon name="redo" />
+      </IconButton>
+    </HintTooltip>
   </div>
 </template>
 

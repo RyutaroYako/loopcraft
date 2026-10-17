@@ -38,6 +38,8 @@ release. Add a tool name to select part of the graph. For example, run
 - 状態の遷移とロジックは素の TS（`history.ts` `autosave.ts` など）に置き、`use*.ts` は ref と computed でつなぐだけにする。テストは素の TS と、アプリ全体を描くブラウザでのテストで書き、部品だけを描くテストは書かない
 - ディレクトリは機能ごとに分け（`canvas/` `sidebar/` など）、部品・composable・テストを同じ場所に置く。どの画面からも使う見た目だけの部品は `primitives/`
 - `provide` / `inject` はエディタ（`injectEditor()`）だけにする。ほかは props と emit で渡す
+- ダイアログ・メニュー・タブ・ラジオ・スイッチ・お知らせ・ツールチップなど、reka-ui に部品があるものは reka-ui で組み、自前やブラウザの要素で書かない
+- 説明は `title` でなく `HintTooltip` で出す。ボタンでない要素に付けるときは `tabindex="0"` でフォーカスできるようにし、キーボードでも出せるようにする
 - `vp check` は .vue の型とテンプレートを見ないので、`vp run @loopcraft/web#check:vue` と `vp run @loopcraft/web#lint:vue`（Vize の opinionated）も通す
 
 # スタイル（apps/web）
@@ -47,6 +49,7 @@ release. Add a tool name to select part of the graph. For example, run
 - ルートのクラスは部品名のケバブケースにする（`EditorToolbar` なら `.editor-toolbar`）。`ModalDialog` のように外側が別の部品なら、その部品に自分の部品名のクラスを付けてそこから書き始める
 - ほかのクラスは「役割＋要素の種類」で名付け、CSS だけで何の要素か分かるようにする（`.add` や `.add-variable` でなく `.add-variable-button`）。種類の語は `-heading` `-button` `-buttons`（ボタンの並び） `-group`（`role="group"`） `-list` `-item` `-field`（ラベル・入力・説明の組） `-input` `-text` `-label` `-icon` `-image` `-badge` `-area`（並べるだけの入れ物） `-rect` `-circle` `-path`（SVG の図形）などから選ぶ
 - タグや role では選ばず、スタイルを当てる要素にはすべてクラスを付ける（`<h2 class="title-heading">` `<ul class="step-list">`）。クラスは見た目のためだけでなく、マークアップの意味を表すもの。子をまとめて扱うときだけ `> *` を使う
+- reka-ui の部品が描く要素には、scoped の印が付かないことがある（body へ移すもの、包む div を挟むもの）。`as-child` で自分の要素を描かせ、その要素にクラスを付ける。body へ移すものはルートの入れ子に入れず、そのクラスから書き始める
 - いくつもの画面で同じ見た目を使うときは、CSS を共通にせずコンポーネントにする。全体に効く CSS は tokens.css と base.css（リセットと土台）だけ
 - いくつもの親から使う部品は、既定の見た目を `@layer components` に入れる。親は部品に自分のクラスを付けて、層の外から寸法や表示を変える
 - 子コンポーネントに付けるクラスも「役割＋種類」にし、部品名とは別の名前にする（`<ThemeMenu class="theme-switcher">`）。親のクラス名が子の外側の要素のクラス名と重なると、scoped でも親のスタイルがそこに当たる

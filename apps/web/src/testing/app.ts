@@ -96,7 +96,12 @@ export const inlineLabel = () =>
   document.querySelector<HTMLInputElement>('input[aria-label="変数の名前"]');
 export const canvas = () => page.getByRole("group", { name: "システム図のキャンバス" });
 export const node = (name: string) => page.getByRole("button", { name, exact: true });
-export const notice = () => document.querySelector('[aria-label="お知らせ"]');
+/** 先頭に絞るのは、お知らせの中の詳しい説明も箇条書きで、項目として数えられるため */
+export const notice = () =>
+  page
+    .getByRole("region", { name: /^お知らせ/ })
+    .getByRole("listitem")
+    .first();
 /** getByRole で取らないのは、広い画面では display: none で、アクセシビリティツリーに載らないため */
 export const expandButton = () =>
   [...document.querySelectorAll<HTMLElement>('section[aria-label="選んだ項目"] button')].find(

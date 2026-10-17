@@ -16,6 +16,7 @@
     "@fontsource-variable/geist-mono": "5.3.0",
     "@loopcraft/core": "workspace:*",
     "modern-screenshot": "catalog:",
+    "reka-ui": "catalog:",
     "valibot": "catalog:",
     "vue": "catalog:"
   },

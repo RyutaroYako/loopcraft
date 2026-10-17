@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T extends string">
+import { RadioGroupItem, RadioGroupRoot } from "reka-ui";
+
 const {
   options,
   value,
@@ -17,20 +19,25 @@ defineSlots<{ icon?: (props: { value: T }) => unknown }>();
 </script>
 
 <template>
-  <div class="segmented-control" :data-size="size" :style="{ '--segment-count': options.length }">
-    <button
+  <RadioGroupRoot
+    class="segmented-control"
+    :model-value="value"
+    :disabled
+    orientation="horizontal"
+    :data-size="size"
+    :style="{ '--segment-count': options.length }"
+    @update:model-value="(next) => emit('update:value', next as T)"
+  >
+    <RadioGroupItem
       v-for="option in options"
       :key="option.value"
       class="segment-button"
-      type="button"
-      :aria-pressed="option.value === value"
-      :disabled
-      @click="() => emit('update:value', option.value)"
+      :value="option.value"
     >
       <slot name="icon" :value="option.value" />
       {{ option.label }}
-    </button>
-  </div>
+    </RadioGroupItem>
+  </RadioGroupRoot>
 </template>
 
 <style scoped>
@@ -58,7 +65,7 @@ defineSlots<{ icon?: (props: { value: T }) => unknown }>();
       transition-duration: var(--duration-fast);
       transition-timing-function: var(--ease-out);
 
-      &[aria-pressed="true"] {
+      &[aria-checked="true"] {
         border-color: var(--color-line);
         background: var(--color-surface);
         color: var(--color-ink);

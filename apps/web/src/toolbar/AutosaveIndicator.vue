@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import type { AutosaveStatus } from "../persistence/autosave.ts";
 import type { DocumentStore } from "../persistence/store.ts";
+import HintTooltip from "../primitives/HintTooltip.vue";
 
 const { status, unwatched, store } = defineProps<{
   status: AutosaveStatus;
@@ -37,11 +38,14 @@ function explain() {
 </script>
 
 <template>
-  <span v-if="healthy" class="autosave-indicator" :title="savedTitle">
-    <!-- accent にしないのは、橙が警告の印と同じ系統に見え、保存できているのに注意を引くため -->
-    <span class="status-dot" aria-hidden="true" />
-    <span class="status-label">{{ label }}</span>
-  </span>
+  <!-- 表示をフォーカスできるようにするのは、キーボードでも説明の吹き出しを出せるようにするため -->
+  <HintTooltip v-if="healthy" :text="savedTitle">
+    <span class="autosave-indicator" tabindex="0">
+      <!-- accent にしないのは、橙が警告の印と同じ系統に見え、保存できているのに注意を引くため -->
+      <span class="status-dot" aria-hidden="true" />
+      <span class="status-label">{{ label }}</span>
+    </span>
+  </HintTooltip>
   <button
     v-else
     type="button"

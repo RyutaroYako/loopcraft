@@ -1,54 +1,63 @@
 <script setup lang="ts">
+import { ToastClose, ToastDescription, ToastRoot, ToastTitle } from "reka-ui";
 import BaseButton from "../primitives/BaseButton.vue";
 import DetailList from "../primitives/DetailList.vue";
 import IconButton from "../primitives/IconButton.vue";
 import SvgIcon from "../primitives/SvgIcon.vue";
 import type { Notice } from "./useNotices.ts";
 
+const INFO_MS = 3200;
+
 const { notice } = defineProps<{ notice: Notice }>();
 
-const emit = defineEmits<{ "click:close": [] }>();
+const emit = defineEmits<{ "notice:close": [notice: Notice] }>();
+
+function onOpenChange(open: boolean) {
+  if (!open) emit("notice:close", notice);
+}
 </script>
 
 <template>
-  <div
-    class="notice-banner"
-    :data-tone="notice.tone"
-    :role="notice.tone === 'error' ? 'alert' : 'status'"
-    aria-label="お知らせ"
+  <!-- エラーを時間で消さないのは、読み終える前や、対処のボタンを押す前に消えてしまうため -->
+  <ToastRoot
+    as-child
+    :type="notice.tone === 'error' ? 'foreground' : 'background'"
+    :duration="notice.tone === 'error' ? Infinity : INFO_MS"
+    @update:open="onOpenChange"
   >
-    <div class="message-body">
-      <p class="message-title">{{ notice.title }}</p>
-      <DetailList v-if="notice.details?.length" :items="notice.details" />
-      <div v-if="notice.actions?.length" class="action-buttons">
-        <BaseButton
-          v-for="action in notice.actions"
-          :key="action.label"
-          size="small"
-          @click="action.run"
-        >
-          {{ action.label }}
-        </BaseButton>
+    <li class="notice-banner" :data-tone="notice.tone">
+      <div class="message-body">
+        <ToastTitle as-child>
+          <p class="message-title">{{ notice.title }}</p>
+        </ToastTitle>
+        <ToastDescription v-if="notice.details?.length" as-child>
+          <DetailList :items="notice.details" />
+        </ToastDescription>
+        <div v-if="notice.actions?.length" class="action-buttons">
+          <BaseButton
+            v-for="action in notice.actions"
+            :key="action.label"
+            size="small"
+            @click="action.run"
+          >
+            {{ action.label }}
+          </BaseButton>
+        </div>
       </div>
-    </div>
-    <IconButton aria-label="閉じる" @click="() => emit('click:close')">
-      <SvgIcon name="close" />
-    </IconButton>
-  </div>
+      <ToastClose as-child>
+        <IconButton aria-label="閉じる">
+          <SvgIcon name="close" />
+        </IconButton>
+      </ToastClose>
+    </li>
+  </ToastRoot>
 </template>
 
 <style scoped>
-/* -50% だけずらす translate を使わないのは、translate プロパティが登場アニメーションの transform と重なり、二重にずれるため */
 .notice-banner {
-  position: fixed;
-  inset-block-start: 68px;
-  inset-inline-start: 50%;
-  z-index: var(--z-overlay);
   display: flex;
-  inline-size: min(480px, calc(100vw - 32px));
   align-items: flex-start;
   gap: 12px;
-  transform: translateX(-50%);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
@@ -59,6 +68,15 @@ const emit = defineEmits<{ "click:close": [] }>();
 
   &[data-tone="error"] {
     border-color: var(--color-negative-line);
+  }
+
+  &[data-swipe="move"] {
+    translate: 0 var(--reka-toast-swipe-move-y);
+  }
+
+  &[data-swipe="cancel"] {
+    translate: 0 0;
+    transition: translate var(--duration-fast) var(--ease-out);
   }
 
   > .message-body {

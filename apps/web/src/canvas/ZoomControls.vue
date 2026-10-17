@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { injectEditor } from "../editor/useEditor.ts";
+import HintTooltip from "../primitives/HintTooltip.vue";
 import IconButton from "../primitives/IconButton.vue";
 import SvgIcon from "../primitives/SvgIcon.vue";
 
@@ -20,22 +21,28 @@ const viewport = editor.viewport;
     role="toolbar"
     aria-label="表示倍率"
   >
-    <IconButton class="zoom-out-button" title="縮小" @click="() => editor.zoomBy(1 / 1.2)">
-      <SvgIcon name="minus" />
-    </IconButton>
+    <HintTooltip text="縮小">
+      <IconButton class="zoom-out-button" aria-label="縮小" @click="() => editor.zoomBy(1 / 1.2)">
+        <SvgIcon name="minus" />
+      </IconButton>
+    </HintTooltip>
     <span class="level-text">{{ Math.round(viewport.zoom * 100) }}%</span>
-    <IconButton class="zoom-in-button" title="拡大" @click="() => editor.zoomBy(1.2)">
-      <SvgIcon name="plus" />
-    </IconButton>
+    <HintTooltip text="拡大">
+      <IconButton class="zoom-in-button" aria-label="拡大" @click="() => editor.zoomBy(1.2)">
+        <SvgIcon name="plus" />
+      </IconButton>
+    </HintTooltip>
     <span class="divider" />
-    <IconButton
-      class="fit-button"
-      title="全体を表示"
-      :disabled="empty"
-      @click="() => editor.fitView()"
-    >
-      <SvgIcon name="fit" />
-    </IconButton>
+    <HintTooltip text="全体を表示">
+      <IconButton
+        class="fit-button"
+        aria-label="全体を表示"
+        :disabled="empty"
+        @click="() => editor.fitView()"
+      >
+        <SvgIcon name="fit" />
+      </IconButton>
+    </HintTooltip>
   </div>
 </template>
 

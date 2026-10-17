@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { injectEditor } from "../editor/useEditor.ts";
 import BaseButton from "../primitives/BaseButton.vue";
+import HintTooltip from "../primitives/HintTooltip.vue";
 import SvgIcon from "../primitives/SvgIcon.vue";
 import HistoryButtons from "../toolbar/HistoryButtons.vue";
 
@@ -19,16 +20,12 @@ function addVariable() {
     <!-- 広い画面で出さないのは、ツールバーに同じボタンがあるため -->
     <HistoryButtons class="undo-redo-buttons" size="large" />
     <!-- 空のときに出さないのは、案内に同じボタンがあるため -->
-    <BaseButton
-      v-if="!empty"
-      class="add-variable-button"
-      variant="primary"
-      title="空いた所のダブルクリックでも追加できます"
-      @click="addVariable"
-    >
-      <SvgIcon name="plus" />
-      変数を追加
-    </BaseButton>
+    <HintTooltip v-if="!empty" text="空いた所のダブルクリックでも追加できます">
+      <BaseButton class="add-variable-button" variant="primary" @click="addVariable">
+        <SvgIcon name="plus" />
+        変数を追加
+      </BaseButton>
+    </HintTooltip>
   </div>
 </template>
 

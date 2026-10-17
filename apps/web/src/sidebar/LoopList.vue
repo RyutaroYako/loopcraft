@@ -4,11 +4,7 @@ import EmptyMessage from "./EmptyMessage.vue";
 import LoopListItem from "./LoopListItem.vue";
 import RowList from "./RowList.vue";
 
-const { id, hidden, labelledBy } = defineProps<{
-  id: string;
-  hidden: boolean;
-  labelledBy: string;
-}>();
+const { hidden } = defineProps<{ hidden: boolean }>();
 
 const editor = injectEditor();
 const detection = editor.detection;
@@ -16,7 +12,7 @@ const loopEntries = editor.loopEntries;
 </script>
 
 <template>
-  <div :id class="loop-list" role="tabpanel" :hidden :aria-labelledby="labelledBy">
+  <div class="loop-list" :hidden>
     <p v-if="detection.truncated" class="truncated-warning">
       ループが多すぎるため、先頭の {{ detection.loops.length }} 件だけを表示しています
     </p>

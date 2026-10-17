@@ -6,3 +6,6 @@ export const isInteractive = (target: EventTarget | null) =>
 export const isTextInput = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
+export const isInMenu = (target: EventTarget | null) =>
+  target instanceof Element && target.closest('[role="menu"]') !== null;

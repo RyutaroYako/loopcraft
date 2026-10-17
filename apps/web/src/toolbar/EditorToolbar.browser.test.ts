@@ -121,7 +121,7 @@ describe("JSON の読み込み", () => {
     await button("読み込む").click();
     await expect.element(dialog()).not.toBeInTheDocument();
     await expect.element(node("社員数")).toBeVisible();
-    expect(notice()?.textContent).toContain("JSON を読み込みました");
+    await expect.element(notice()).toMatchTextContent(/JSON を読み込みました/);
   });
 
   it("ファイルからも選べ、選ばなければダイアログに戻る", async () => {
@@ -145,12 +145,14 @@ describe("JSON の読み込み", () => {
 
     await button("読み込み").click();
     await userEvent.keyboard("{Control>}z{/Control}");
-    (dialog().element() as HTMLDialogElement).dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Delete", bubbles: true }),
-    );
-    await expect.element(node("社員数")).toBeVisible();
-    // 背景の位置を狙わずに dialog 自身を押すのは、背景のクリックが dialog に当たるため
-    (dialog().element() as HTMLDialogElement).click();
+    dialog()
+      .element()
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+    // 左上の隅を押すのは、ダイアログは画面の中央に出て、隅には背景しかないため。
+    // ふつうに押さないのは、背景は読み上げから外れていて、テストの押す操作が届かないため
+    document
+      .elementFromPoint(4, 4)!
+      .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
     await expect.element(dialog()).not.toBeInTheDocument();
     await expect.element(node("社員数")).toBeVisible();
   });
@@ -290,7 +292,7 @@ describe("入力欄", () => {
 
 describe("テーマ", () => {
   const themeButton = () => page.getByRole("button", { name: /^テーマ/ });
-  const themeMenu = () => page.getByRole("menu", { name: "テーマ" });
+  const themeMenu = () => page.getByRole("menu", { name: /^テーマ/ });
   const option = (name: string) => themeMenu().getByRole("menuitemradio", { name });
   const canvasColor = () =>
     getComputedStyle(document.documentElement).getPropertyValue("--color-canvas").trim();
@@ -321,9 +323,32 @@ describe("テーマ", () => {
     await expect.element(themeMenu()).not.toBeInTheDocument();
 
     await themeButton().click();
+    await userEvent.keyboard("{ArrowDown}");
     await expect.element(option("システムに合わせる")).toHaveFocus();
-    await userEvent.keyboard("{ArrowDown}{Escape}");
+    await userEvent.keyboard("{Escape}");
     await expect.element(themeMenu()).not.toBeInTheDocument();
     await expect.element(themeButton()).toHaveFocus();
+  });
+
+  it("開いている間は、メニューで押したキーが図のショートカットに届かない", async () => {
+    mount(browserStartup(createSampleDiagram()));
+    await node("社員数").click();
+    await themeButton().click();
+    await userEvent.keyboard("{ArrowDown}{Delete}{Control>}z{/Control}{Escape}");
+    await expect.element(themeMenu()).not.toBeInTheDocument();
+    await expect.element(node("社員数")).toBeVisible();
+    expect(document.querySelector(".canvas-node.selected")?.getAttribute("aria-label")).toBe(
+      "社員数",
+    );
+  });
+});
+
+describe("ボタンの説明", () => {
+  it("フォーカスしたボタンの説明を出し、Escape で消す", async () => {
+    mount(browserStartup(createSampleDiagram()));
+    (button("整列").element() as HTMLButtonElement).focus();
+    await expect.element(page.getByRole("tooltip")).toMatchTextContent(/変数の配置を自動で整える/);
+    await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("tooltip")).not.toBeInTheDocument();
   });
 });

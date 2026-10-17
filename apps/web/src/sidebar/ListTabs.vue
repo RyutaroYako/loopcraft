@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, useId, useTemplateRef } from "vue";
+import { computed, ref } from "vue";
+import { TabsContent, TabsList, TabsRoot, TabsTrigger, VisuallyHidden } from "reka-ui";
 import { injectEditor } from "../editor/useEditor.ts";
-import VisuallyHidden from "../primitives/VisuallyHidden.vue";
 import LoopList from "./LoopList.vue";
 import VariableList from "./VariableList.vue";
 
@@ -11,63 +11,33 @@ const emit = defineEmits<{ "canvas:reveal": [] }>();
 
 const editor = injectEditor();
 const tab = ref<Tab>("loops");
-const tabList = useTemplateRef<HTMLDivElement>("tabList");
-const id = useId();
-function tabId(value: Tab) {
-  return `${id}-tab-${value}`;
-}
 
-function panelId(value: Tab) {
-  return `${id}-panel-${value}`;
-}
 const tabs = computed(() => [
   { value: "loops" as const, label: "ループ", count: editor.loopEntries.value.length },
   { value: "variables" as const, label: "変数", count: editor.diagram.value.variables.length },
 ]);
-
-// Tab キーでタブを巡らせないのは、WAI-ARIA のタブの作法に従うため（Tab は一覧へ進む）
-function onKeyDown(event: KeyboardEvent) {
-  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-  event.preventDefault();
-  const next = tab.value === "loops" ? "variables" : "loops";
-  tab.value = next;
-  tabList.value?.querySelector<HTMLButtonElement>(`#${CSS.escape(tabId(next))}`)?.focus();
-}
 </script>
 
 <template>
-  <section class="list-tabs">
+  <!-- 隠したタブを外さないのは、絞り込みやスクロール位置が消えるため -->
+  <TabsRoot v-model="tab" as="section" class="list-tabs" :unmount-on-hide="false">
     <!-- 他と同じ 20px にしないのは、タブ自体の内側の余白があり、文字が下の一覧より右にずれるため -->
-    <div ref="tabList" class="tab-list" role="tablist" aria-label="一覧">
-      <button
-        v-for="item in tabs"
-        :id="tabId(item.value)"
-        :key="item.value"
-        class="tab-button"
-        type="button"
-        role="tab"
-        :aria-controls="panelId(item.value)"
-        :aria-selected="tab === item.value"
-        :tabindex="tab === item.value ? 0 : -1"
-        @click="() => (tab = item.value)"
-        @keydown="onKeyDown"
-      >
+    <TabsList class="tab-list" aria-label="一覧">
+      <TabsTrigger v-for="item in tabs" :key="item.value" class="tab-button" :value="item.value">
         {{ item.label }}
         <span class="count-text">
           {{ item.count }}
           <VisuallyHidden>件</VisuallyHidden>
         </span>
-      </button>
-    </div>
-    <!-- v-if で切り替えないのは、絞り込みやスクロール位置が消えるため -->
-    <LoopList :id="panelId('loops')" :hidden="tab !== 'loops'" :labelled-by="tabId('loops')" />
-    <VariableList
-      :id="panelId('variables')"
-      :hidden="tab !== 'variables'"
-      :labelled-by="tabId('variables')"
-      @canvas:reveal="() => emit('canvas:reveal')"
-    />
-  </section>
+      </TabsTrigger>
+    </TabsList>
+    <TabsContent value="loops" as-child>
+      <LoopList :hidden="tab !== 'loops'" />
+    </TabsContent>
+    <TabsContent value="variables" as-child>
+      <VariableList :hidden="tab !== 'variables'" @canvas:reveal="() => emit('canvas:reveal')" />
+    </TabsContent>
+  </TabsRoot>
 </template>
 
 <style scoped>

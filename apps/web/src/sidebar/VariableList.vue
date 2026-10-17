@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { VariableId } from "@loopcraft/core/schema";
+import { VisuallyHidden } from "reka-ui";
 import { UNNAMED } from "../editor/boxes.ts";
 import { injectEditor } from "../editor/useEditor.ts";
-import VisuallyHidden from "../primitives/VisuallyHidden.vue";
 import EmptyMessage from "./EmptyMessage.vue";
 import ListRow from "./ListRow.vue";
 import RowList from "./RowList.vue";
 
-const { id, hidden, labelledBy } = defineProps<{
-  id: string;
-  hidden: boolean;
-  labelledBy: string;
-}>();
+const { hidden } = defineProps<{ hidden: boolean }>();
 
 const emit = defineEmits<{ "canvas:reveal": [] }>();
 
@@ -62,7 +58,7 @@ function onSearch(event: Event) {
 </script>
 
 <template>
-  <div :id class="variable-list" role="tabpanel" :hidden :aria-labelledby="labelledBy">
+  <div class="variable-list" :hidden>
     <label v-if="diagram.variables.length > 0" class="search-field">
       <VisuallyHidden>変数を名前で絞り込む</VisuallyHidden>
       <input

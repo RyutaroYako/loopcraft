@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useTemplateRef } from "vue";
 import FieldHint from "./FieldHint.vue";
 import FieldLabel from "./FieldLabel.vue";
 
@@ -12,6 +11,7 @@ const {
   multiline = false,
   code = false,
   readonly = false,
+  initialFocus = false,
 } = defineProps<{
   label: string;
   value: string;
@@ -21,21 +21,13 @@ const {
   multiline?: boolean;
   code?: boolean;
   readonly?: boolean;
+  initialFocus?: boolean;
 }>();
 
 const emit = defineEmits<{
   "update:value": [value: string];
   "focus:field": [event: FocusEvent];
 }>();
-
-const textarea = useTemplateRef<HTMLTextAreaElement>("textarea");
-const input = useTemplateRef<HTMLInputElement>("input");
-
-function focus() {
-  (textarea.value ?? input.value)?.focus();
-}
-
-defineExpose({ focus });
 
 // 変換中に知らせないのは、確定前の読みを図に書き込むと、取り消しや自動保存が読みの途中で走るため
 function onInput(event: Event) {
@@ -53,13 +45,13 @@ function onCompositionEnd(event: CompositionEvent) {
     <FieldLabel>{{ label }}</FieldLabel>
     <textarea
       v-if="multiline || code"
-      ref="textarea"
       class="value-textarea"
       :data-code="code ? '' : undefined"
       :name
       :value
       :placeholder
       :readonly
+      :data-autofocus="initialFocus ? '' : undefined"
       :rows="3"
       :spellcheck="code ? false : undefined"
       @input="onInput"
@@ -68,12 +60,12 @@ function onCompositionEnd(event: CompositionEvent) {
     />
     <input
       v-else
-      ref="input"
       class="value-input"
       :name
       :value
       :placeholder
       :readonly
+      :data-autofocus="initialFocus ? '' : undefined"
       @input="onInput"
       @compositionend="onCompositionEnd"
       @focus="(event) => emit('focus:field', event)"

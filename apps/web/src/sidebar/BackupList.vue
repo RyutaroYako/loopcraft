@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, useTemplateRef } from "vue";
+import { VisuallyHidden } from "reka-ui";
 import { refocusWhenLost } from "../editor/focus.ts";
 import { injectEditor } from "../editor/useEditor.ts";
 import { readBackup, removeBackup } from "../persistence/storage.ts";
@@ -7,7 +8,6 @@ import type { Backup } from "../persistence/storage.ts";
 import BaseButton from "../primitives/BaseButton.vue";
 import FieldHint from "../primitives/FieldHint.vue";
 import FieldLabel from "../primitives/FieldLabel.vue";
-import VisuallyHidden from "../primitives/VisuallyHidden.vue";
 import { downloadText } from "../transfer/file.ts";
 
 const { backups } = defineProps<{ backups: readonly Backup[] }>();
