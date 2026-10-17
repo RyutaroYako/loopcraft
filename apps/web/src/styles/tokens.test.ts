@@ -21,7 +21,7 @@ function blockAfter(marker: string) {
   throw new Error(`${marker} が閉じていません`);
 }
 
-const light = declarations(blockAfter("@theme static"));
+const light = declarations(blockAfter(":root {"));
 const themes = {
   light,
   dark: new Map([...light, ...declarations(blockAfter(':root[data-theme="dark"]'))]),

@@ -32,12 +32,24 @@ release. Add a tool name to select part of the graph. For example, run
 - **コミットメッセージ**には why を書く。なぜこの変更が必要だったか（何が困っていたか）
 - **コメント**には why not を書く。素直な書き方や他の選択肢を、なぜ採らなかったか。コードを読めば分かる what や、コミットに書くべき why はコメントにしない
 
+# Vue（apps/web）
+
+- SFC（`<script setup lang="ts">`）で書き、[ubugeeei/style-guide.vue](https://github.com/ubugeeei/style-guide.vue) に沿う。コメントの書き方はこのファイルの「コード規約」を優先する
+- 状態の遷移とロジックは素の TS（`history.ts` `autosave.ts` など）に置き、`use*.ts` は ref と computed でつなぐだけにする。テストは素の TS と、アプリ全体を描くブラウザでのテストで書き、部品だけを描くテストは書かない
+- ディレクトリは機能ごとに分け（`canvas/` `sidebar/` など）、部品・composable・テストを同じ場所に置く。どの画面からも使う見た目だけの部品は `primitives/`
+- `provide` / `inject` はエディタ（`injectEditor()`）だけにする。ほかは props と emit で渡す
+- `vp check` は .vue の型とテンプレートを見ないので、`vp run @loopcraft/web#check:vue` と `vp run @loopcraft/web#lint:vue`（Vize の opinionated）も通す
+
 # スタイル（apps/web）
 
-- 新しく書く UI は Tailwind のユーティリティで書く。値は `src/styles/tokens.css` のトークン（`text-ink`, `text-sm`, `rounded-md`, `shadow-float` など）を使い、`[13.5px]` のような任意値はトークンにない場合だけにする
-- 余白は 4px 単位（`gap-6` = 24px）。`:root` が 14px のため、rem 基準の Tailwind 既定値は tokens.css で消してある
-- 色・文字サイズ・角丸を足すときは tokens.css に足す。CSS に値を直書きしない
-- 同じプロパティのユーティリティを 1 つの要素に重ねない（`bg-transparent` と `bg-accent` など）。勝ち負けは書いた順でなく生成順で決まるので、状態で変えるときは条件で片方だけ付ける
-- `group` は名前付き（`group/item` など）で使う。名前が無いと、外側の別の `group` の hover まで拾う
-- CSS に残すのは、複数の画面で使う部品（`primitives.css` の `.button` `.field` など）と、キャンバスの SVG・アイコン（`canvas.css`）だけ
-- テストやコードから要素を探すときは、クラス名でなく role・`aria-*`・`data-*` を使う（状態は `aria-current` `aria-pressed`、領域は `<section aria-label>`）。`data-testid` で済ませず、取れないときは要素に役割と名前を付ける。クラスは見た目のためだけに使う。キャンバスの SVG は canvas.css の状態クラス（`.node.selected` など）で探してよい
+- 見た目は各コンポーネントの `<style scoped>` に書く。値は `src/styles/tokens.css` のトークン（`var(--color-ink)` `var(--text-sm)` `var(--radius-md)` など）を使う。色・文字サイズ・角丸・`z-index` を足すときは tokens.css に足し、直書きしない
+- `<style scoped>` はテンプレートの入れ子をそのまま写す。ルートのクラスから始めて子要素を同じ順・同じ深さでネストし、状態（`&[aria-pressed="true"]` など）はその要素の中に書く。CSS だけを読んでも、どの領域の何の要素かが分かるようにする
+- ルートのクラスは部品名のケバブケースにする（`EditorToolbar` なら `.editor-toolbar`）。`ModalDialog` のように外側が別の部品なら、その部品に自分の部品名のクラスを付けてそこから書き始める
+- ほかのクラスは「役割＋要素の種類」で名付け、CSS だけで何の要素か分かるようにする（`.add` や `.add-variable` でなく `.add-variable-button`）。種類の語は `-heading` `-button` `-buttons`（ボタンの並び） `-group`（`role="group"`） `-list` `-item` `-field`（ラベル・入力・説明の組） `-input` `-text` `-label` `-icon` `-image` `-badge` `-area`（並べるだけの入れ物） `-rect` `-circle` `-path`（SVG の図形）などから選ぶ
+- タグや role では選ばず、スタイルを当てる要素にはすべてクラスを付ける（`<h2 class="title-heading">` `<ul class="step-list">`）。クラスは見た目のためだけでなく、マークアップの意味を表すもの。子をまとめて扱うときだけ `> *` を使う
+- いくつもの画面で同じ見た目を使うときは、CSS を共通にせずコンポーネントにする。全体に効く CSS は tokens.css と base.css（リセットと土台）だけ
+- いくつもの親から使う部品は、既定の見た目を `@layer components` に入れる。親は部品に自分のクラスを付けて、層の外から寸法や表示を変える
+- 子コンポーネントに付けるクラスも「役割＋種類」にし、部品名とは別の名前にする（`<ThemeMenu class="theme-switcher">`）。親のクラス名が子の外側の要素のクラス名と重なると、scoped でも親のスタイルがそこに当たる
+- ブレークポイントは `@media (width < 48rem)`（狭い画面）、`(width < 80rem)`（ボタンの文字を省く幅）、`(height <= 760px)`（低い画面）。`@custom-media` は SFC から見えないので使わない
+- 左右は論理プロパティ（`inset-inline-start` `padding-inline` など）で書く。ネストを基本にし、状態は `[aria-pressed="true"]` や `data-*` の属性セレクタで変える
+- テストやコードから要素を探すときは、クラス名でなく role・`aria-*`・`data-*` を使う（状態は `aria-current` `aria-pressed`、領域は `<section aria-label>`）。`data-testid` で済ませず、取れないときは要素に役割と名前を付ける。キャンバスの SVG は状態のクラス（`.canvas-node.selected` など）で探してよい

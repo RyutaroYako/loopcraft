@@ -1,14 +1,11 @@
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { Diagram } from "@loopcraft/core/schema";
-import { createRoot, flush } from "solid-js";
-import { createEditor } from "../editor/editor.ts";
+import { effectScope } from "vue";
+import { useEditor } from "../editor/useEditor.ts";
 
-/** createRoot で包むのは、createEditor の createMemo などに所有者が要るため */
+/** effectScope で包むのは、閉じたときに computed や後始末をまとめて止めるため */
 export function setupEditor(initial: Diagram = createSampleDiagram(), editable = true) {
-  let dispose = () => {};
-  const editor = createRoot((d) => {
-    dispose = d;
-    return createEditor(initial, { editable });
-  });
-  return { editor, dispose, flush };
+  const scope = effectScope();
+  const editor = scope.run(() => useEditor(initial, { editable }))!;
+  return { editor, dispose: () => scope.stop() };
 }

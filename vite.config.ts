@@ -24,13 +24,10 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
-      include: ["packages/core/src/**/*.ts", "apps/cli/src/**/*.ts", "apps/web/src/**/*.{ts,tsx}"],
-      exclude: [
-        "**/*.test.{ts,tsx}",
-        "**/testing/**",
-        "apps/cli/src/cli.ts",
-        "apps/web/src/index.tsx",
-      ],
+      // .vue を測らないのは、Vize が開発時に足す CSS の差し込みや HMR のコードまで <style> の行に対応づけて数え、
+      // 書いたコードと関係なく割合が上下するため。画面はブラウザでのテストで確かめる
+      include: ["packages/core/src/**/*.ts", "apps/cli/src/**/*.ts", "apps/web/src/**/*.ts"],
+      exclude: ["**/*.test.ts", "**/testing/**", "apps/cli/src/cli.ts", "apps/web/src/main.ts"],
       reporter: ["text", "json", "json-summary"],
       // 全体だけでなく、パッケージごとにも下回らないようにする
       thresholds: {
