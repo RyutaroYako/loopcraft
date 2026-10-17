@@ -56,8 +56,8 @@ export function EmptyState() {
           <li class="grid grid-cols-[32px_1fr] items-baseline animate-rise [animation-delay:80ms]">
             <span class="font-mono text-xs text-accent">02</span>
             <span>
-              変数を選んで<strong class="font-semibold text-ink">「矢印を引く」</strong>
-              から、因果の矢印を引く
+              変数の<strong class="font-semibold text-ink">端の点をドラッグ</strong>
+              して、因果の矢印を引く
             </span>
           </li>
           <li class="grid grid-cols-[32px_1fr] items-baseline animate-rise [animation-delay:160ms]">

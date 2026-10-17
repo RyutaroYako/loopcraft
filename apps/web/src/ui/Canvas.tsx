@@ -1,9 +1,7 @@
-import { For, Show, createEffect, createSignal, onSettled, useContext } from "solid-js";
+import { For, Show, createSignal, onSettled, useContext } from "solid-js";
 import { EditorContext, type Gesture } from "../editor/editor.ts";
 import * as edit from "@loopcraft/core/edit";
-import type { LinkId, LoopId, Point, VariableId } from "@loopcraft/core/schema";
-import { ContextMenu, type MenuItem, type MenuState } from "./ContextMenu.tsx";
-import { linkActions, variableActions } from "./itemActions.ts";
+import type { LoopId, Point, VariableId } from "@loopcraft/core/schema";
 import {
   InlineLabelEditor,
   LinkDraftView,
@@ -28,7 +26,6 @@ type Drag = DragBase &
     | { kind: "pan"; origin: Point }
     | { kind: "move"; id: VariableId; origin: Point; grab: Point; gesture: Gesture }
     | { kind: "connect"; from: VariableId }
-    | { kind: "tap"; id: VariableId }
     | { kind: "marker"; id: LoopId; offset: Point; gesture: Gesture }
   );
 
@@ -92,13 +89,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
   const onNodePointerDown = (event: PointerEvent, id: VariableId) => {
     if (!canStartDrag(event)) return;
-    if (editor.connectingFrom() !== null) {
-      // preventDefault しないと、押した変数にフォーカスが移り、選択がつないだ矢印からその変数に戻る
-      event.preventDefault();
-      // 押した時点でつながないのは、2 本指の 1 本目やパンの始まりでも矢印ができてしまうため
-      startDrag(event, () => ({ kind: "tap", id }));
-      return;
-    }
     // 押した時点で選ばないのは、2 本指の 1 本目だと、拡大縮小のつもりで選択が変わりシートまで上がるため。
     // 動かし始めるか離したときに選ぶ
     if (editor.editingVariable() === id) return;
@@ -115,8 +105,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
   };
 
   const onHandlePointerDown = (event: PointerEvent, from: VariableId) => {
-    // つなぐ途中に点からドラッグを始めないのは、指では点と変数を打ち分けられず、どちらもつなぐ先のつもりで触れるため
-    if (editor.connectingFrom() !== null) return onNodePointerDown(event, from);
     if (!canStartDrag(event)) return;
     editor.setEditingVariable(null);
     startDrag(event, () => ({ kind: "connect", from }));
@@ -149,8 +137,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     }
     const point = editor.screenToWorld(screen);
     switch (drag.kind) {
-      case "tap":
-        return;
       case "pan": {
         setPanning(true);
         const x = drag.origin.x + screen.x - drag.start.x;
@@ -215,13 +201,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
           editor.setFocusedLoop(null);
         }
         return;
-      case "tap": {
-        if (cancelled || finished.moved) return;
-        const from = editor.connectingFrom();
-        editor.stopConnecting();
-        if (from !== null && from !== finished.id) editor.connect(from, finished.id);
-        return;
-      }
       case "move":
         if (!finished.moved && !cancelled) editor.select({ kind: "variable", id: finished.id });
         if (cancelled) finished.gesture.cancel();
@@ -242,83 +221,11 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
     }
   };
 
-  const [menu, setMenu] = createSignal<MenuState | null>(null);
-  let menuOrigin: HTMLElement | SVGElement | undefined;
-
-  const canvasMenu = (point: Point): MenuItem[] => [
-    {
-      label: "ここに変数を追加",
-      run: () => editor.addVariableAt({ x: Math.round(point.x), y: Math.round(point.y) }),
-    },
-    {
-      label: "整列",
-      disabled: editor.diagram().variables.length < 2,
-      run: () => editor.autoLayout(),
-    },
-    {
-      label: "全体を表示",
-      disabled: editor.diagram().variables.length === 0,
-      run: () => editor.fitView(),
-    },
-  ];
-
-  const onContextMenu = (event: MouseEvent) => {
-    // 読み取り専用で preventDefault しないのは、ブラウザ自身のメニューを残すため
-    if (!editor.editable() || !svg) return;
-    event.preventDefault();
-    if (drag !== undefined) {
-      // 動かしている途中で開かないのは、キャプチャで target が常に svg になり、狙いと違うメニューになるため
-      if (drag.moved) return;
-      // ドラッグ中でも一律に断らないのは、macOS の Ctrl+クリックやタッチの長押しが
-      // 左ボタンの押下に続いて contextmenu を送るため
-      cancelDrag();
-    }
-    const target = event.target instanceof Element ? event.target : svg;
-    const node = target.closest<SVGElement>("[data-variable-id]");
-    const link = target.closest<SVGElement>("[data-link-id]");
-    // 届いた位置をそのまま使わないのは、メニューキーで開くと 0, 0 で届くため
-    const origin = node ?? link ?? svg;
-    // 矢印の線（g 要素）に戻さないのは、フォーカスを受け取れないため
-    menuOrigin = node ?? link?.querySelector<SVGElement>(".polarity") ?? svg;
-    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
-    const rect = origin.getBoundingClientRect();
-    const at = fromKeyboard
-      ? { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }
-      : event;
-    const position = screenPoint(at);
-    editor.setEditingVariable(null);
-    if (node) {
-      const id = node.dataset.variableId as VariableId;
-      editor.select({ kind: "variable", id });
-      const label = editor.variableById().get(id)?.label || "名称未設定";
-      setMenu({ ...position, label: `「${label}」の操作`, items: variableActions(editor, id) });
-    } else if (link) {
-      const id = link.dataset.linkId as LinkId;
-      editor.select({ kind: "link", id });
-      setMenu({ ...position, label: "関連の操作", items: linkActions(editor, id) });
-    } else {
-      setMenu({
-        ...position,
-        label: "キャンバスの操作",
-        items: canvasMenu(worldPoint(at)),
-      });
-    }
+  // 動かし始める前のドラッグを残さないのは、macOS の Ctrl+クリックやタッチの長押しが
+  // 左ボタンの押下に続いて contextmenu を送り、ブラウザのメニューを閉じた後もドラッグが続いてしまうため
+  const onContextMenu = () => {
+    if (drag && !drag.moved) cancelDrag();
   };
-
-  const closeMenu = (restoreFocus: boolean) => {
-    setMenu(null);
-    if (restoreFocus) menuOrigin?.focus();
-  };
-
-  // 古くなったメニューを隠すだけにしないのは、元に戻すで同じ図に戻ると、古い項目のまま復活するため
-  createEffect(
-    () => [editor.diagram(), editor.viewport()],
-    () => {
-      if (!menu()) return;
-      closeMenu(document.activeElement?.closest("[role=menu]") != null);
-    },
-    { defer: true },
-  );
 
   // dblclick 自体に pointerType を持たせられないので、直前の pointerdown から覚えておく
   let lastPointerType = "mouse";
@@ -518,42 +425,6 @@ export function Canvas(props: { svgRef?: (svg: SVGSVGElement) => void }) {
 
       <Show when={isEmpty()}>
         <EmptyState />
-      </Show>
-
-      <Show when={editor.connectingFrom()} keyed>
-        {(from) => (
-          // 狭い画面で右端まで広げないのは、右上の全体表示と重なるため
-          <section
-            aria-label="矢印を引く"
-            class={[
-              "absolute top-3 right-3 left-3 z-3 max-w-[480px] animate-[rise_0.3s_var(--ease-out)_both] max-md:right-16",
-              "flex items-center gap-3 rounded-lg bg-accent py-2.5 pr-2.5 pl-4 text-on-strong shadow-float",
-            ]}
-          >
-            <p class="grid min-w-0 flex-1 font-medium" role="status">
-              「{editor.variableById().get(from)?.label || "名称未設定"}
-              」からつなぐ先を選ぶ
-              <span class="text-sm font-normal opacity-85">空いた所を押すとやめる</span>
-            </p>
-            <button
-              type="button"
-              class="button small border-on-strong-line bg-transparent text-on-strong enabled:hover:border-on-strong enabled:hover:bg-on-strong-hover"
-              onClick={() => editor.stopConnecting()}
-            >
-              やめる
-            </button>
-          </section>
-        )}
-      </Show>
-
-      <Show when={menu()} keyed>
-        {(current) => (
-          <ContextMenu
-            menu={current}
-            bounds={{ width: container?.clientWidth ?? 0, height: container?.clientHeight ?? 0 }}
-            onClose={closeMenu}
-          />
-        )}
       </Show>
 
       {/* ツールバーの履歴と別に置くのは、狭い画面では親指の届く下端に操作を寄せるため */}

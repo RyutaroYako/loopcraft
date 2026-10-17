@@ -89,22 +89,14 @@ describe("図の概要", () => {
 });
 
 describe("変数", () => {
-  it("広い画面でも、選んだ項目の操作から矢印を引き、下端のボタンで変数を足す", async () => {
+  it("広い画面では、選んでも一覧の位置を変えず、下端のボタンで変数を足す", async () => {
     await open();
-    const bar = page.getByRole("toolbar", { name: "選んだ項目の操作" });
     const listTop = () => document.querySelector("[role=tablist]")!.getBoundingClientRect().top;
     const before = listTop();
     nodeElement("profit").focus();
-    await expect.element(bar).toBeVisible();
+    await expect.element(button("変数を削除")).toBeVisible();
     expect(listTop()).toBe(before);
     expect(getComputedStyle(expandButton()).display).toBe("none");
-
-    const links = () => document.querySelectorAll("[data-link-id]").length;
-    const linkCount = links();
-    await bar.getByRole("button", { name: "矢印を引く" }).click();
-    await node("教育コスト").click();
-    expect(links()).toBe(linkCount + 1);
-    await expect.element(heading("関連")).toBeVisible();
 
     const variables = () => document.querySelectorAll("[data-variable-id]").length;
     const count = variables();
@@ -112,7 +104,7 @@ describe("変数", () => {
     expect(variables()).toBe(count + 1);
   });
 
-  it("名前と説明を書き換え、原因と結果を辿って追加し、削除する", async () => {
+  it("名前と説明を書き換え、原因と結果を辿り、削除する", async () => {
     await open();
     nodeElement("sales").focus();
     await expect.element(heading("変数")).toBeVisible();
@@ -122,22 +114,15 @@ describe("変数", () => {
       (diagram) => diagram.variables.find((item) => item.id === "sales")?.description,
     );
 
-    const add = page.getByRole("button", { name: "追加", exact: true });
-    await expect.element(add.first()).toBeDisabled();
-    await page.getByRole("combobox", { name: "原因を追加" }).selectOptions("教育コスト");
-    await add.first().click();
-    // 選び直さないと、作った関連が選ばれたままになる
-    await expect.element(heading("関連")).toBeVisible();
-    nodeElement("sales").focus();
-    await page.getByRole("combobox", { name: "結果を追加" }).selectOptions("離職数");
-    await add.last().click();
+    await inspector()
+      .getByRole("button", { name: /社員数$/ })
+      .click();
     await expect.element(heading("関連")).toBeVisible();
     await inspector().getByRole("button", { name: "売上高" }).click();
     await expect.element(heading("変数")).toBeVisible();
-    await expect.element(inspector().getByRole("button", { name: /教育コスト$/ })).toBeVisible();
 
     await inspector()
-      .getByRole("button", { name: /離職数$/ })
+      .getByRole("button", { name: /一人あたりの業務量$/ })
       .click();
     await expect.element(heading("関連")).toBeVisible();
     await inspector().getByRole("button", { name: "売上高" }).click();
@@ -156,9 +141,6 @@ describe("変数", () => {
     nodeElement("a").focus();
     await expect.element(page.getByText("この変数に影響する矢印はありません")).toBeVisible();
     await expect.element(page.getByText("この変数から出る矢印はありません")).toBeVisible();
-    await page.getByRole("combobox", { name: "結果を追加" }).selectOptions("社員数");
-    await page.getByRole("button", { name: "追加", exact: true }).last().click();
-    await expect.element(inspector().getByRole("button", { name: "名称未設定" })).toBeVisible();
   });
 });
 
@@ -256,7 +238,7 @@ describe("ループ", () => {
     );
     await button("記号の位置を戻す").click();
     await page
-      .getByRole("toolbar", { name: "選んだ項目の操作" })
+      .getByRole("region", { name: "選んだ項目" })
       .getByRole("button", { name: "見出しを外す" })
       .click();
     await expect.element(heading("図の概要")).toBeVisible();
@@ -381,7 +363,6 @@ describe("読み取り専用", () => {
       .toBeVisible();
     nodeElement("sales").focus();
     await expect.element(field("名前")).toHaveAttribute("readonly");
-    expect(document.querySelector('select[aria-label$="を追加"]')).toBeNull();
     await expect.element(button(/変数を削除/)).not.toBeInTheDocument();
     (
       page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement

@@ -51,13 +51,9 @@ describe("アクセシビリティ", () => {
     expect(await violations()).toEqual([]);
   });
 
-  it("変数の一覧と右クリックメニュー", async () => {
+  it("変数の一覧", async () => {
     mount(browserStartup(createSampleDiagram()));
     await page.getByRole("tab", { name: /変数/ }).click();
-    expect(await violations()).toEqual([]);
-
-    await node("社員数").click({ button: "right" });
-    await expect.element(page.getByRole("menu")).toBeVisible();
     expect(await violations()).toEqual([]);
   });
 

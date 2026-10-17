@@ -10,7 +10,6 @@ import {
   centerOf,
   cleanup,
   dragFrom,
-  fileStartup,
   mount,
   node,
   nodeElement,
@@ -189,9 +188,9 @@ describe("ポインタでの操作", () => {
     dragFrom(element, start, offset(start, 50, 50));
     await expect.element(heading("自己強化ループ").or(heading("バランスループ"))).toBeVisible();
     const reset = page.getByRole("button", { name: "記号の位置を戻す" });
-    await expect.element(reset).not.toBeDisabled();
     await reset.click();
-    await expect.element(reset).toBeDisabled();
+    await expect.element(reset).not.toBeInTheDocument();
+    await expect.poll(() => document.activeElement?.id).toBe("inspector");
   });
 
   it("ダブルクリックした変数の名前を編集する", async () => {
@@ -397,21 +396,6 @@ describe("表示", () => {
   });
 });
 
-// 位置を省くと 0, 0 で送るのは、キーボードのメニューキーで開くとそう届くため
-function openMenu(target: Element, point?: { x: number; y: number }) {
-  target.dispatchEvent(
-    new MouseEvent("contextmenu", {
-      bubbles: true,
-      cancelable: true,
-      button: 2,
-      clientX: point?.x ?? 0,
-      clientY: point?.y ?? 0,
-    }),
-  );
-}
-const menu = (name: string) => page.getByRole("menu", { name });
-const menuItem = (name: string | RegExp) => page.getByRole("menuitem", { name });
-
 describe("選んだ変数のまわり", () => {
   it("変数を選ぶと、直接の原因と結果だけを残してほかを薄くする", async () => {
     await open();
@@ -440,116 +424,23 @@ describe("選んだ変数のまわり", () => {
   });
 });
 
-describe("右クリックのメニュー", () => {
-  it("変数のメニューで名前を変え、削除でき、Escape で閉じると変数へフォーカスを戻す", async () => {
+describe("右クリック", () => {
+  it("押したまま（macOS の Ctrl+クリックや長押し）でメニューが開いたら、ドラッグを続けない", async () => {
     await open();
     const sales = nodeElement("sales");
-    openMenu(sales, centerOf(sales));
-    await expect.element(menu("「売上」の操作")).toBeVisible();
-    await expect.element(menuItem(/名前を変える/)).toHaveFocus();
-    await userEvent.keyboard("{ArrowDown}");
-    await expect.element(menuItem(/矢印を引く/)).toHaveFocus();
-    await userEvent.keyboard("{ArrowDown}");
-    await expect.element(menuItem(/変数を削除/)).toHaveFocus();
-    await userEvent.keyboard("{ArrowDown}");
-    await expect.element(menuItem(/名前を変える/)).toHaveFocus();
-    await userEvent.keyboard("{Escape}");
-    await expect.element(menu("「売上」の操作")).not.toBeInTheDocument();
-    await expect.element(node("売上")).toHaveFocus();
-
-    openMenu(nodeElement("sales"));
-    await menuItem(/名前を変える/).click();
-    await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
-    await userEvent.keyboard("{Escape}");
-
-    openMenu(nodeElement("sales"), centerOf(nodeElement("sales")));
-    await expect.element(menuItem(/名前を変える/)).toHaveFocus();
-    await userEvent.keyboard("{Delete}");
-    await expect.element(node("売上")).toBeVisible();
-
-    await menuItem(/変数を削除/).click();
-    await expect.element(node("売上")).not.toBeInTheDocument();
-  });
-
-  it("図や表示範囲が変わったら閉じ、項目を選んだ後は元の要素へフォーカスを戻す", async () => {
-    await open();
-    const link = () => document.querySelector('[data-link-id="l_sales"]')!;
-    const at = () => centerOf(link().querySelector(".polarity")!);
-    openMenu(link().querySelector(".link-hit")!, at());
-    await menuItem("遅れを付ける").click();
-    await expect.poll(() => document.activeElement?.closest("[data-link-id]")).toBe(link());
-
-    openMenu(link().querySelector(".link-hit")!, at());
-    await expect.element(menu("関連の操作")).toBeVisible();
-    // ショートカットで元に戻さないのは、メニューを開いている間はキーが図に届かないため
-    (document.querySelector('[aria-label="元に戻す"]') as HTMLButtonElement).click();
-    await expect.element(menu("関連の操作")).not.toBeInTheDocument();
-
-    openMenu(document.querySelector(".grid-bg")!, canvasPoint(40, 40));
-    await expect.element(menu("キャンバスの操作")).toBeVisible();
-    (document.querySelector('[title="拡大"]') as HTMLButtonElement).click();
-    await expect.element(menu("キャンバスの操作")).not.toBeInTheDocument();
-  });
-
-  it("関連のメニューで極性と遅れを切り替え、削除できる", async () => {
-    await open();
-    const link = () => document.querySelector('[data-link-id="l_sales"]')!;
-    const hit = () => link().querySelector(".link-hit")!;
-    openMenu(hit(), centerOf(link().querySelector(".polarity")!));
-    await menuItem("極性を −（逆向き）にする").click();
-    await expect.poll(() => link().classList.contains("negative")).toBe(true);
-    openMenu(hit(), centerOf(link().querySelector(".polarity")!));
-    await menuItem("遅れを付ける").click();
-    await expect.poll(() => link().querySelector(".delay-mark")).not.toBeNull();
-    openMenu(hit(), centerOf(link().querySelector(".polarity")!));
-    await menuItem(/関連を削除/).click();
-    await expect.poll(() => document.querySelector('[data-link-id="l_sales"]')).toBeNull();
-  });
-
-  it("押したまま（macOS の Ctrl+クリックや長押し）でも開き、Tab で閉じると元へ戻り、拡大縮小で閉じる", async () => {
-    await open();
-    const sales = nodeElement("sales");
-    press(sales, centerOf(sales));
-    openMenu(sales, centerOf(sales));
-    await expect.element(menu("「売上」の操作")).toBeVisible();
-    await userEvent.keyboard("{Tab}");
-    await expect.element(menu("「売上」の操作")).not.toBeInTheDocument();
-    await expect.element(node("売上")).toHaveFocus();
-
-    openMenu(sales, centerOf(sales));
-    await expect.element(menu("「売上」の操作")).toBeVisible();
-    canvas()
-      .element()
-      .dispatchEvent(
-        new WheelEvent("wheel", { bubbles: true, cancelable: true, ctrlKey: true, deltaY: -50 }),
-      );
-    await expect.element(menu("「売上」の操作")).not.toBeInTheDocument();
-  });
-
-  it("キャンバスのメニューで変数を足し、外側を押すと閉じる。読み取り専用では開かない", async () => {
-    await open();
-    const background = document.querySelector(".grid-bg")!;
-    const point = canvasPoint(40, 40);
-    openMenu(background, point);
-    await expect.element(menuItem("整列")).toBeEnabled();
-    await menuItem("ここに変数を追加").click();
-    await expect.poll(() => document.querySelectorAll(".node").length).toBe(8);
-
-    openMenu(background, point);
-    await expect.element(menu("キャンバスの操作")).toBeVisible();
-    background.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-    await expect.element(menu("キャンバスの操作")).not.toBeInTheDocument();
-
-    mount(
-      fileStartup(
-        { status: "ok", diagram: createSampleDiagram(), revision: "r" },
-        { readonly: true },
-      ),
+    const before = sales.getAttribute("transform");
+    const start = centerOf(sales);
+    press(sales, start);
+    sales.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    document.querySelector(".canvas-svg")!.dispatchEvent(
+      new PointerEvent("pointermove", {
+        pointerId: 1,
+        bubbles: true,
+        clientX: start.x + 60,
+        clientY: start.y + 60,
+      }),
     );
-    await settle();
-    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
-    document.querySelector(".grid-bg")!.dispatchEvent(event);
-    expect(document.querySelector("[role=menu]")).toBeNull();
-    expect(event.defaultPrevented).toBe(false);
+    flush();
+    expect(nodeElement("sales").getAttribute("transform")).toBe(before);
   });
 });

@@ -230,7 +230,7 @@ export function NodeView(props: {
         <text class="node-label" text-anchor="middle" dominant-baseline="central">
           {label() || "名称未設定"}
         </text>
-        {/* キーボードで操作できなくてよいのは、検査パネルから関連を追加できるため */}
+        {/* キーボードで操作できなくてよいのは、矢印はドラッグで引くものに絞っているため */}
         <g
           class="node-handle"
           aria-hidden="true"
