@@ -3,6 +3,8 @@ import { EditorContext } from "../editor/editor.ts";
 import { AutosaveIndicator } from "./AutosaveIndicator.tsx";
 import { HistoryButtons } from "./HistoryButtons.tsx";
 import { mod } from "./shortcut.ts";
+import { ThemeMenu } from "./ThemeMenu.tsx";
+import type { Theme } from "../editor/theme.ts";
 import * as edit from "@loopcraft/core/edit";
 import {
   FileIcon,
@@ -18,7 +20,11 @@ import {
 
 export type DialogKind = "import" | "export" | "screenshot" | "menu";
 
-export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogKind) => void }) {
+export function Toolbar(props: {
+  readonly: boolean;
+  theme: Theme;
+  onOpenDialog: (kind: DialogKind) => void;
+}) {
   const editor = useContext(EditorContext);
   const setTitle = (title: string) =>
     editor.commit(edit.setTitle(editor.current(), title), "title");
@@ -61,6 +67,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
       </Show>
       <AutosaveIndicator />
       <HistoryButtons class="flex items-center gap-0.5 max-md:hidden" />
+      {/* 中くらいの幅でボタンの文字を消すのは、残すとタイトル欄が潰れ、右端のテーマの切り替えが画面からはみ出すため */}
       <Show when={editor.editable()}>
         <button
           type="button"
@@ -71,7 +78,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           title="変数の配置を自動で整える（元に戻せます）"
         >
           <LayoutIcon />
-          <span>整列</span>
+          <span class="max-xl:hidden">整列</span>
         </button>
       </Show>
       <div
@@ -88,7 +95,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
             title="新しい図を作る（元に戻せます）"
           >
             <FileIcon />
-            <span>新規</span>
+            <span class="max-xl:hidden">新規</span>
           </button>
           <button
             type="button"
@@ -98,7 +105,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
             title="JSON を貼り付けるか、ファイルから読み込む"
           >
             <OpenIcon />
-            <span>読み込み</span>
+            <span class="max-xl:hidden">読み込み</span>
           </button>
         </Show>
         <button
@@ -110,7 +117,7 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           title="図全体を画像にしてコピー・保存する"
         >
           <ImageIcon />
-          <span>画像</span>
+          <span class="max-xl:hidden">画像</span>
         </button>
         <button
           type="button"
@@ -120,9 +127,10 @@ export function Toolbar(props: { readonly: boolean; onOpenDialog: (kind: DialogK
           title={`JSON をコピーするか、ファイルに保存する（${mod}S でファイルに保存）`}
         >
           <SaveIcon />
-          <span>JSON を書き出す</span>
+          <span class="max-xl:hidden">JSON を書き出す</span>
         </button>
       </div>
+      <ThemeMenu theme={props.theme} class="max-md:hidden" />
       <button
         type="button"
         class="icon-button hidden max-md:inline-grid max-md:size-11"

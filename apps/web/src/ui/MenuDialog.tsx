@@ -1,8 +1,10 @@
-import { Show, useContext } from "solid-js";
+import { For, Show, useContext } from "solid-js";
 import { EditorContext } from "../editor/editor.ts";
 import { Dialog } from "./Dialog.tsx";
 import { FileIcon, ImageIcon, LayoutIcon, OpenIcon, SaveIcon } from "./icons.tsx";
 import type { DialogKind } from "./Toolbar.tsx";
+import type { Theme } from "../editor/theme.ts";
+import { THEME_OPTIONS } from "./ThemeMenu.tsx";
 
 const menuItemClass =
   "flex min-h-13 items-center gap-3.5 rounded-md px-3 text-left text-lg enabled:hover:bg-surface-2 disabled:cursor-default disabled:opacity-40";
@@ -10,6 +12,7 @@ const noteClass = "ml-auto text-sm text-muted";
 
 /** 狭い画面でツールバーに並べないのは、タイトルが読めないほど押し縮められるため */
 export function MenuDialog(props: {
+  theme: Theme;
   onOpenDialog: (kind: Exclude<DialogKind, "menu">) => void;
   onClose: () => void;
 }) {
@@ -71,6 +74,39 @@ export function MenuDialog(props: {
         画像
         <span class={noteClass}>PNG でコピー・保存</span>
       </button>
+      <div
+        class="mt-2 grid gap-2 border-t border-line px-3 pt-4 pb-2"
+        role="group"
+        aria-labelledby="menu-theme-label"
+      >
+        <span id="menu-theme-label" class="text-sm text-muted">
+          テーマ
+        </span>
+        {/* 押しても閉じないのは、切り替わった見た目をその場で確かめられるようにするため */}
+        <div class="grid grid-cols-3 gap-1 rounded-md bg-surface-2 p-1">
+          <For each={THEME_OPTIONS}>
+            {(option) => {
+              const active = () => props.theme.choice() === option.choice;
+              return (
+                <button
+                  type="button"
+                  class={[
+                    "inline-flex h-11 items-center justify-center gap-1.5 rounded-xs border text-base font-medium transition-[background-color,color]",
+                    active()
+                      ? "border-line bg-surface text-ink shadow-raised"
+                      : "border-transparent text-muted",
+                  ]}
+                  aria-pressed={active() ? "true" : "false"}
+                  onClick={() => props.theme.choose(option.choice)}
+                >
+                  {option.icon()}
+                  {option.shortLabel}
+                </button>
+              );
+            }}
+          </For>
+        </div>
+      </div>
     </Dialog>
   );
 }

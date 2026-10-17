@@ -24,7 +24,7 @@ function blockAfter(marker: string) {
 const light = declarations(blockAfter("@theme static"));
 const themes = {
   light,
-  dark: new Map([...light, ...declarations(blockAfter("@media (prefers-color-scheme: dark)"))]),
+  dark: new Map([...light, ...declarations(blockAfter(':root[data-theme="dark"]'))]),
 };
 
 function parse(value: string): Rgba {

@@ -4,6 +4,7 @@ import { createEditor, EditorContext } from "./editor/editor.ts";
 import { createNotices } from "./editor/notices.ts";
 import { captureDiagram } from "./editor/screenshot.ts";
 import { resolveStartup, type Startup } from "./editor/startup.ts";
+import { createTheme } from "./editor/theme.ts";
 import { Canvas } from "./ui/Canvas.tsx";
 import { ExportDialog, ImportDialog } from "./ui/JsonDialogs.tsx";
 import { MenuDialog } from "./ui/MenuDialog.tsx";
@@ -41,6 +42,7 @@ function App(props: { startup: Startup }) {
     onRecovered: () => notices.recovered(),
   });
 
+  const theme = createTheme();
   const [dropping, setDropping] = createSignal(false);
   const [dialog, setDialog] = createSignal<DialogKind | null>(null);
   let canvasSvg: SVGSVGElement | undefined;
@@ -138,7 +140,7 @@ function App(props: { startup: Startup }) {
             if (file) void editor.importFile(file);
           }}
         >
-          <Toolbar readonly={readonly} onOpenDialog={setDialog} />
+          <Toolbar readonly={readonly} theme={theme} onOpenDialog={setDialog} />
           {/* 狭い画面でページごとスクロールさせないのは、キャンバスのパンとページのスクロールが同じ指の操作で取り合うため */}
           <main class="grid min-h-0 grid-cols-[minmax(0,1fr)_368px] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto]">
             <Canvas svgRef={(svg) => (canvasSvg = svg)} />
@@ -148,6 +150,7 @@ function App(props: { startup: Startup }) {
           <Show when={dialog() === "menu"}>
             {/* 確かめずに閉じないのは、他のダイアログへ切り替えた後に閉じた知らせが届くと、その切り替えを取り消すため */}
             <MenuDialog
+              theme={theme}
               onOpenDialog={setDialog}
               onClose={() => dialog() === "menu" && closeDialog()}
             />

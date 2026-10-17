@@ -145,6 +145,26 @@ export const MoreIcon = () => (
   </Icon>
 );
 
+export const SunIcon = () => (
+  <Icon>
+    <circle cx="10" cy="10" r="3.25" />
+    <path d="M10 2.75v1.5M10 15.75v1.5M2.75 10h1.5M15.75 10h1.5M4.87 4.87l1.06 1.06M14.07 14.07l1.06 1.06M4.87 15.13l1.06-1.06M14.07 5.93l1.06-1.06" />
+  </Icon>
+);
+
+export const MoonIcon = () => (
+  <Icon>
+    <path d="M16 11.6A6.25 6.25 0 1 1 8.4 4a5 5 0 0 0 7.6 7.6Z" />
+  </Icon>
+);
+
+export const MonitorIcon = () => (
+  <Icon>
+    <rect x="3" y="4" width="14" height="9.5" rx="1.5" />
+    <path d="M7.5 16.5h5M10 13.5v3" />
+  </Icon>
+);
+
 export const LogoMark = () => (
   <svg class="logo-mark" viewBox="0 0 64 64" aria-hidden="true">
     <rect class="fill-brand-tile" width="64" height="64" rx="14" />

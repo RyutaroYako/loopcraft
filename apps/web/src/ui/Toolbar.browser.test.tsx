@@ -277,3 +277,43 @@ describe("入力欄", () => {
     await expect.element(node("収益")).toBeVisible();
   });
 });
+
+describe("テーマ", () => {
+  const themeButton = () => page.getByRole("button", { name: /^テーマ/ });
+  const themeMenu = () => page.getByRole("menu", { name: "テーマ" });
+  const option = (name: string) => themeMenu().getByRole("menuitemradio", { name });
+  const canvasColor = () =>
+    getComputedStyle(document.documentElement).getPropertyValue("--color-canvas").trim();
+
+  it("メニューで選んだテーマで表示し、開き直しても覚えている", async () => {
+    mount(browserStartup(createSampleDiagram()));
+    const light = canvasColor();
+    await themeButton().click();
+    await expect.element(option("システムに合わせる")).toHaveAttribute("aria-checked", "true");
+    await option("ダーク").click();
+    await expect.element(themeMenu()).not.toBeInTheDocument();
+    await expect.element(page.getByRole("button", { name: "テーマ: ダーク" })).toHaveFocus();
+    expect(canvasColor()).not.toBe(light);
+
+    mount(browserStartup(createSampleDiagram()));
+    expect(canvasColor()).not.toBe(light);
+    await themeButton().click();
+    await expect.element(option("ダーク")).toHaveAttribute("aria-checked", "true");
+    await option("システムに合わせる").click();
+    expect(canvasColor()).toBe(light);
+  });
+
+  it("開いているときにボタンを押すと閉じ、Escape でも閉じてボタンに戻る", async () => {
+    mount(browserStartup(createSampleDiagram()));
+    await themeButton().click();
+    await expect.element(themeMenu()).toBeVisible();
+    await themeButton().click();
+    await expect.element(themeMenu()).not.toBeInTheDocument();
+
+    await themeButton().click();
+    await expect.element(option("システムに合わせる")).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}{Escape}");
+    await expect.element(themeMenu()).not.toBeInTheDocument();
+    await expect.element(themeButton()).toHaveFocus();
+  });
+});

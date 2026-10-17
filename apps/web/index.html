@@ -10,6 +10,19 @@
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#17212b" media="(prefers-color-scheme: dark)" />
     <title>Loopcraft</title>
+    <!-- theme.ts に任せず CSS より前で決めるのは、モジュールの実行を待つと最初の一瞬だけ違うテーマで描かれるため -->
+    <script>
+      {
+        let choice = null;
+        try {
+          choice = localStorage.getItem("loopcraft:theme");
+        } catch {}
+        const dark =
+          choice === "dark" ||
+          (choice !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

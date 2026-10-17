@@ -1,4 +1,5 @@
 import { For, onCleanup } from "solid-js";
+import { CheckIcon } from "./icons.tsx";
 
 export interface MenuItem {
   label: string;
@@ -6,6 +7,7 @@ export interface MenuItem {
   shortcut?: string;
   danger?: boolean;
   disabled?: boolean;
+  checked?: boolean;
   run: () => void;
 }
 
@@ -16,12 +18,14 @@ export interface MenuState {
   items: MenuItem[];
 }
 
-const MENU_WIDTH = 220;
+export const MENU_WIDTH = 220;
 const ITEM_HEIGHT = 34;
 
 export function ContextMenu(props: {
   menu: MenuState;
   bounds: { width: number; height: number };
+  /** ここを押しても閉じないのは、開いたボタン自身が開け閉めを切り替えるため */
+  anchor?: Element;
   onClose: (restoreFocus: boolean) => void;
 }) {
   let element: HTMLDivElement | undefined;
@@ -40,7 +44,10 @@ export function ContextMenu(props: {
   };
 
   const onPointerDown = (event: PointerEvent) => {
-    if (element && !element.contains(event.target as Node)) props.onClose(false);
+    const target = event.target as Node;
+    if (element && !element.contains(target) && !props.anchor?.contains(target)) {
+      props.onClose(false);
+    }
   };
   document.addEventListener("pointerdown", onPointerDown, true);
   onCleanup(() => document.removeEventListener("pointerdown", onPointerDown, true));
@@ -51,7 +58,7 @@ export function ContextMenu(props: {
         element = node;
         queueMicrotask(() => buttons()[0]?.focus());
       }}
-      class="absolute z-20 grid rounded-md border border-line bg-surface p-1 shadow-float"
+      class="pointer-events-auto absolute z-20 grid rounded-md border border-line bg-surface p-1 shadow-float"
       role="menu"
       aria-label={props.menu.label}
       style={{ left: `${left()}px`, top: `${top()}px`, width: `${MENU_WIDTH}px` }}
@@ -75,7 +82,8 @@ export function ContextMenu(props: {
         {(item) => (
           <button
             type="button"
-            role="menuitem"
+            role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+            aria-checked={item.checked === undefined ? undefined : item.checked ? "true" : "false"}
             // フォーカスを薄い背景だけにしないのは、白地との差が小さく、キーボードではどの項目が選ばれているか読めないため
             class={[
               "flex h-8 items-center justify-between gap-3 rounded-xs px-2.5 text-left text-base focus:bg-surface-2 focus:outline-none focus-visible:shadow-focus-inset",
@@ -96,6 +104,11 @@ export function ContextMenu(props: {
               <kbd class="text-xs text-muted" aria-hidden="true">
                 {item.shortcut}
               </kbd>
+            )}
+            {item.checked && (
+              <span class="text-accent" aria-hidden="true">
+                <CheckIcon />
+              </span>
             )}
           </button>
         )}
