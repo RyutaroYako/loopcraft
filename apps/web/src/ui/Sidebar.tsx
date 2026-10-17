@@ -855,7 +855,8 @@ function segmentClass(active: boolean) {
 function badgeColor(kind: LoopKind, featured: boolean) {
   if (featured)
     return kind === "reinforcing" ? "bg-accent text-on-strong" : "bg-ink-2 text-on-strong";
-  return kind === "reinforcing" ? "bg-accent-soft text-accent" : "bg-surface-2 text-ink-2";
+  // 文字を accent にしないのは、薄い橙の地では 4.5:1 に届かないため
+  return kind === "reinforcing" ? "bg-accent-soft text-accent-strong" : "bg-surface-2 text-ink-2";
 }
 
 function pressedState(value: boolean) {

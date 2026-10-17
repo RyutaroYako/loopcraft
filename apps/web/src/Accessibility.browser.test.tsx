@@ -15,7 +15,7 @@ afterEach(cleanup);
 
 async function violations() {
   const result = await axe.run(document, {
-    // 色のコントラストを外すのは、アニメーションの途中の色で判定がぶれるため。トークンを決めるときに別に確かめる
+    // 色のコントラストを外すのは、アニメーションの途中の色で判定がぶれるため。トークンの組み合わせは tokens.test.ts で確かめる
     rules: { "color-contrast": { enabled: false } },
   });
   return result.violations.map((violation) => ({

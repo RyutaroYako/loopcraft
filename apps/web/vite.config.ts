@@ -9,6 +9,8 @@ export default defineConfig({
   test: {
     name: "web",
     environment: "jsdom",
+    // CSS をすべて処理しないのは、コンポーネントのテストは見た目を確かめず、処理を待つ分だけ遅くなるため
+    css: { include: [/tokens\.css/] },
     exclude: ["**/node_modules/**", "**/*.browser.test.tsx"],
   },
 });

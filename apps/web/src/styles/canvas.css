@@ -39,7 +39,7 @@
   fill: var(--color-surface);
   stroke: var(--color-line-strong);
   stroke-width: 1;
-  filter: drop-shadow(0 1px 1.5px rgb(24 24 27 / 0.06));
+  filter: drop-shadow(0 1px 1.5px rgb(21 32 43 / 0.06));
   transition:
     stroke 0.2s var(--ease-out),
     fill 0.2s var(--ease-out);
