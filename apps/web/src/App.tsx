@@ -72,7 +72,6 @@ function App(props: { startup: Startup }) {
       event.preventDefault();
       editor.deleteSelection();
     } else if (event.key === "Escape") {
-      editor.stopConnecting();
       editor.select(null);
       editor.setFocusedLoop(null);
     } else if (event.key === "Enter" && !isInteractive(event.target)) {

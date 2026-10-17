@@ -1,13 +1,4 @@
-import {
-  For,
-  Match,
-  Show,
-  Switch,
-  createEffect,
-  createMemo,
-  createSignal,
-  useContext,
-} from "solid-js";
+import { For, Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
 import { AutosaveContext } from "../editor/autosave.ts";
 import { canvasElement, EditorContext, type Editor } from "../editor/editor.ts";
 import type { LoopEntry } from "@loopcraft/core/loops";
@@ -19,23 +10,11 @@ import { defaultCurvature } from "@loopcraft/core/geometry";
 import type { LoopKind } from "@loopcraft/core/loop";
 import type { Link, LinkId, LoopId, VariableId } from "@loopcraft/core/schema";
 import { createBottomSheet, SheetHandle } from "./BottomSheet.tsx";
-import type { MenuItem } from "./ContextMenu.tsx";
-import { linkActions, loopActions, variableActions } from "./itemActions.ts";
 import { ArrowRightIcon, PinIcon } from "./icons.tsx";
 
 /** 狭い画面用に別の部品を作らないのは、中身も状態も同じで、並べ方だけが違うため */
 export function Sidebar() {
-  const editor = useContext(EditorContext);
   const sheet = createBottomSheet();
-
-  createEffect(
-    () => editor.connectingFrom(),
-    (from) => {
-      // 開いたままにしないのは、つなぐ先の変数がシートの下に隠れるため
-      if (from !== null) sheet.setSize("peek");
-    },
-    { defer: true },
-  );
 
   return (
     <aside
@@ -81,13 +60,10 @@ function SelectionBar(props: { expandable: boolean; onExpand: () => void }) {
     }
     return editor.loopEntryByLoopId().get(selection.id)?.featured?.loop.name || "ループ";
   };
-  const actions = (): MenuItem[] => {
-    const selection = editor.selection();
-    if (!selection || !editor.editable()) return [];
-    if (selection.kind === "variable") return variableActions(editor, selection.id);
-    if (selection.kind === "link") return linkActions(editor, selection.id);
-    return loopActions(editor, selection.id);
-  };
+  const deleteLabel = () =>
+    ({ variable: "変数を削除", link: "関連を削除", loop: "見出しを外す" })[
+      editor.selection()?.kind ?? "variable"
+    ];
   return (
     <Show when={editor.selection()}>
       <section
@@ -96,37 +72,28 @@ function SelectionBar(props: { expandable: boolean; onExpand: () => void }) {
       >
         <div class="flex items-center justify-between gap-2">
           <h2 class="min-w-0 truncate text-lg font-semibold">{title()}</h2>
-          {/* 広い画面で出さないのは、一覧がキャンバスの横に並び、広げるものが無いため */}
-          <button
-            type="button"
-            class={["button ghost small hidden", { "max-md:inline-flex": props.expandable }]}
-            onClick={props.onExpand}
-          >
-            詳しく
-          </button>
-        </div>
-        <Show when={actions().length > 0}>
-          {/* 狭い画面で折り返さないのは、畳んだシートの高さに収まらず、2 段目の操作が隠れるため */}
-          <div
-            class="-ml-2 flex flex-wrap gap-1 max-md:flex-nowrap max-md:overflow-x-auto max-md:*:min-h-10"
-            role="toolbar"
-            aria-label="選んだ項目の操作"
-          >
-            {/* 項目でキーにしないのは、極性を変えるたびに一覧が作り直され、押したボタンからフォーカスが外れるため */}
-            <For each={actions()} keyed={false}>
-              {(action) => (
-                <button
-                  type="button"
-                  class={["button ghost small", { "danger-text": action().danger }]}
-                  disabled={action().disabled}
-                  onClick={() => action().run()}
-                >
-                  {action().label}
-                </button>
-              )}
-            </For>
+          <div class="flex flex-none gap-1 max-md:*:min-h-10">
+            {/* 広い画面で出さないのは、一覧がキャンバスの横に並び、広げるものが無いため */}
+            <button
+              type="button"
+              class={["button ghost small hidden", { "max-md:inline-flex": props.expandable }]}
+              onClick={props.onExpand}
+            >
+              詳しく
+            </button>
+            {/* Delete キーだけにしないのは、指で使うときにはキーが無いため */}
+            <Show when={editor.editable()}>
+              <button
+                type="button"
+                class="button ghost small danger-text"
+                aria-keyshortcuts="Delete"
+                onClick={() => editor.deleteSelection()}
+              >
+                {deleteLabel()}
+              </button>
+            </Show>
           </div>
-        </Show>
+        </div>
       </section>
     </Show>
   );
@@ -511,13 +478,6 @@ function VariableInspector(props: { id: VariableId }) {
       effects: links.filter((link) => link.from === props.id),
     };
   });
-  const candidates = (linked: VariableId[]) => {
-    const excluded = new Set<VariableId>([props.id, ...linked]);
-    return editor
-      .diagram()
-      .variables.filter((variable) => !excluded.has(variable.id))
-      .map((variable) => ({ id: variable.id, label: variable.label || "名称未設定" }));
-  };
   const update = (patch: Parameters<typeof edit.updateVariable>[2], key: string) =>
     editor.commit(edit.updateVariable(editor.current(), props.id, patch), `${key}:${props.id}`);
   return (
@@ -544,18 +504,12 @@ function VariableInspector(props: { id: VariableId }) {
           empty="この変数に影響する矢印はありません"
           links={related().causes}
           labelOf={(link) => labelOf(editor, link.from)}
-          addLabel="原因を追加"
-          candidates={candidates(related().causes.map((link) => link.from))}
-          onAdd={(other) => editor.connect(other, props.id)}
         />
         <RelationList
           title="結果"
           empty="この変数から出る矢印はありません"
           links={related().effects}
           labelOf={(link) => labelOf(editor, link.to)}
-          addLabel="結果を追加"
-          candidates={candidates(related().effects.map((link) => link.to))}
-          onAdd={(other) => editor.connect(props.id, other)}
         />
       </div>
     </div>
@@ -571,9 +525,6 @@ function RelationList(props: {
   empty: string;
   links: Link[];
   labelOf: (link: Link) => string;
-  addLabel: string;
-  candidates: { id: VariableId; label: string }[];
-  onAdd: (id: VariableId) => void;
 }) {
   const editor = useContext(EditorContext);
   return (
@@ -600,58 +551,6 @@ function RelationList(props: {
           </For>
         </ul>
       </Show>
-      <Show when={editor.editable() && props.candidates.length > 0}>
-        <RelationPicker label={props.addLabel} candidates={props.candidates} onAdd={props.onAdd} />
-      </Show>
-    </div>
-  );
-}
-
-/**
- * 選んだ時点で関連を作らないのは、閉じた select が矢印キーだけで値を変えるブラウザがあるため
- */
-function RelationPicker(props: {
-  label: string;
-  candidates: { id: VariableId; label: string }[];
-  onAdd: (id: VariableId) => void;
-}) {
-  const [chosen, setChosen] = createSignal<VariableId | "">("");
-  const valid = () => props.candidates.some((candidate) => candidate.id === chosen());
-  return (
-    <div class="mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] gap-1">
-      <select
-        class={[
-          "h-7 w-full min-w-0 cursor-pointer rounded-xs border border-dashed border-line-strong px-1.5 text-sm text-muted transition-[border-color]",
-          "hover:border-accent hover:text-ink focus-visible:border-accent focus-visible:text-ink",
-        ]}
-        name={props.label}
-        aria-label={props.label}
-        onChange={(event) => setChosen(event.currentTarget.value as VariableId | "")}
-      >
-        <option value="" selected={!valid()}>
-          {props.label}…
-        </option>
-        <For each={props.candidates} keyed={(candidate) => candidate.id}>
-          {(candidate) => (
-            <option value={candidate().id} selected={chosen() === candidate().id}>
-              {candidate().label}
-            </option>
-          )}
-        </For>
-      </select>
-      <button
-        type="button"
-        class="button small"
-        disabled={!valid()}
-        onClick={() => {
-          const id = chosen();
-          if (!id) return;
-          setChosen("");
-          props.onAdd(id);
-        }}
-      >
-        追加
-      </button>
     </div>
   );
 }
@@ -823,6 +722,21 @@ function LoopInspector(props: { id: LoopId }) {
         <LoopPath links={entry()?.links ?? []} variables={entry()?.variables ?? []} />
         <span class="field-hint">{kindExplanation(negatives())}</span>
       </div>
+      <Show when={editor.editable() && loop()?.marker !== undefined}>
+        <div class="-mt-1.5 flex gap-2">
+          <button
+            type="button"
+            class="button ghost small"
+            onClick={() => {
+              update({ marker: undefined });
+              // 戻さないと、押したボタンが消えてフォーカスが失われる
+              refocusWhenLost(inspectorElement);
+            }}
+          >
+            記号の位置を戻す
+          </button>
+        </div>
+      </Show>
     </div>
   );
 }

@@ -90,8 +90,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
   const [hoveredLoop, setHoveredLoop] = createSignal<string | null>(null);
   /** selection で表さないのは、見出していないループには LoopId が無いため */
   const [focusedLoop, setFocusedLoop] = createSignal<string | null>(null);
-  /** ドラッグで引くだけにしないのは、指では変数の端の小さな点を狙いにくいため */
-  const [connectingSource, setConnectingSource] = createSignal<VariableId | null>(null);
   const [viewport, setViewport] = createSignal<Viewport>({ x: 0, y: 0, zoom: 1 });
   /** シグナルにしないのは、描画には使わないため */
   let currentSize: Size = { width: 0, height: 0 };
@@ -282,14 +280,7 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     setNotice(null);
   }
 
-  /** 選択は必ずここで変える。つなぐ途中なのは、元の変数を選んでいる間だけに保つため */
   function select(next: Selection | null) {
-    // 別の項目を選んだらつなぐのをやめるのは、案内がシートに隠れ、次のタップで思わぬ矢印ができるため。
-    // 選択が外れるのを待って隠すだけにしないのは、元に戻すで消えた変数がやり直しで戻ると、つなぐ途中まで黙って戻るため
-    const source = connectingSource();
-    if (source !== null && !(next?.kind === "variable" && next.id === source)) {
-      setConnectingSource(null);
-    }
     setSelection(next);
     if (next) setFocusedLoop(null);
   }
@@ -359,16 +350,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     if (editingVariable() && !next.variables.some((item) => item.id === editingVariable())) {
       setEditingVariableSignal(null);
     }
-  }
-
-  function startConnecting(id: VariableId) {
-    if (!isEditable) return;
-    setEditingVariable(null);
-    setConnectingSource(id);
-  }
-
-  function stopConnecting() {
-    setConnectingSource(null);
   }
 
   function setEditingVariable(id: VariableId | null) {
@@ -520,7 +501,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     editingVariable,
     hoveredLoop,
     focusedLoop,
-    connectingFrom: connectingSource,
     viewport,
     notice,
 
@@ -533,8 +513,6 @@ export function createEditor(initial: Diagram, options: { editable?: boolean } =
     setEditingVariable,
     setHoveredLoop,
     setFocusedLoop,
-    startConnecting,
-    stopConnecting,
     setViewportSize,
     dismissNotice,
     notify,
