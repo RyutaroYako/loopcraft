@@ -21,7 +21,6 @@ describe("createFileClient", () => {
       .mockResolvedValueOnce(respond(200, { status: "saved", revision: "r3" }));
     vi.stubGlobal("fetch", fetch);
     const { load, store } = createFileClient(session);
-    expect(store.kind).toBe("file");
     expect(store.label).toBe("a.json");
     expect(await load()).toMatchObject({ status: "ok", revision: "r1" });
     expect(fetch.mock.calls[0]![1]).toMatchObject({ headers: { "x-loopcraft-token": "tok" } });

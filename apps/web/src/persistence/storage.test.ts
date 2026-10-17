@@ -1,14 +1,7 @@
 import { stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import {
-  listBackups,
-  loadStoredDiagram,
-  readBackup,
-  removeBackup,
-  storeDiagram,
-  watchOtherTabs,
-} from "./storage.ts";
+import { loadStoredDiagram, storeDiagram, watchOtherTabs } from "./storage.ts";
 
 const KEY = "loopcraft:document";
 
@@ -17,60 +10,35 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("storage", () => {
   it("保存した図を読み直す", () => {
-    expect(loadStoredDiagram()).toEqual({ status: "empty" });
+    expect(loadStoredDiagram()).toEqual({ status: "missing" });
     expect(storeDiagram(createSampleDiagram())).toEqual({ ok: true });
     expect(loadStoredDiagram()).toMatchObject({ status: "ok" });
   });
 
-  it("読めない図は退避し、同じ内容なら退避を増やさない", () => {
+  it("読めない図は、元の文字列と理由を返し、保存先には触らない", () => {
     localStorage.setItem(KEY, "{");
-    const first = loadStoredDiagram();
-    expect(first).toMatchObject({ status: "invalid", raw: "{" });
-    const second = loadStoredDiagram();
-    expect(second.status === "invalid" && second.backupKey).toBe(
-      first.status === "invalid" && first.backupKey,
-    );
-    expect(listBackups()).toHaveLength(1);
+    expect(loadStoredDiagram()).toMatchObject({ status: "unreadable", raw: "{" });
+    expect([...Array(localStorage.length).keys()].map((index) => localStorage.key(index))).toEqual([
+      KEY,
+    ]);
+    expect(localStorage.getItem(KEY)).toBe("{");
   });
 
-  it("退避できなければ backupKey が無い", () => {
-    localStorage.setItem(KEY, "{");
+  it("書き込めなければ失敗を返す", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("quota");
     });
-    expect(loadStoredDiagram()).toMatchObject({ status: "invalid", backupKey: undefined });
     expect(storeDiagram(createSampleDiagram())).toMatchObject({ ok: false });
   });
 
-  it("localStorage が使えなければ unavailable", () => {
+  it("localStorage が使えなければ、その理由で開けなかったとする", () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("SecurityError");
     });
-    expect(loadStoredDiagram()).toMatchObject({ status: "unavailable" });
-    expect(readBackup("x")).toBeUndefined();
-  });
-
-  it("退避したデータを新しい順に並べ、読み、消す", () => {
-    localStorage.setItem(`${KEY}:backup:100`, "old");
-    localStorage.setItem(`${KEY}:backup:200`, "new");
-    localStorage.setItem("other", "x");
-    const backups = listBackups();
-    expect(backups.map((backup) => backup.key)).toEqual([`${KEY}:backup:200`, `${KEY}:backup:100`]);
-    expect(readBackup(`${KEY}:backup:100`)).toBe("old");
-    expect(readBackup("none")).toBeUndefined();
-    removeBackup(`${KEY}:backup:100`);
-    expect(listBackups()).toHaveLength(1);
-  });
-
-  it("一覧や削除で storage が使えなくても落ちない", () => {
-    vi.spyOn(Storage.prototype, "key").mockImplementation(() => {
-      throw new Error("SecurityError");
+    expect(loadStoredDiagram()).toEqual({
+      status: "unreadable",
+      problems: ["Error: SecurityError"],
     });
-    expect(listBackups()).toEqual([]);
-    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
-      throw new Error("SecurityError");
-    });
-    expect(() => removeBackup("x")).not.toThrow();
   });
 
   it("別のタブでの保存だけを知らせる", () => {

@@ -1,5 +1,5 @@
 import type { Diagram } from "@loopcraft/core/schema";
-import { storeDiagram, watchOtherTabs } from "./storage.ts";
+import { loadStoredDiagram, storeDiagram, watchOtherTabs } from "./storage.ts";
 
 export type SaveResult =
   | { ok: true }
@@ -8,10 +8,13 @@ export type SaveResult =
   /** ページを読み込み直すまで保存できない（serve を止めた・起動し直したなど） */
   | { ok: false; reason: "disconnected" };
 
-export type ReloadResult =
-  | { ok: true; diagram: Diagram }
-  /** 読み直せない保存先では problems が空 */
-  | { ok: false; problems: string[] };
+export type Opened =
+  | { status: "ok"; diagram: Diagram }
+  | { status: "missing" }
+  /** raw は、開けなかった内容を書き出せるよう手元に持っているときだけある */
+  | { status: "unreadable"; problems: string[]; raw?: string };
+
+export type ReloadResult = { ok: true; diagram: Diagram } | { ok: false; problems: string[] };
 
 export interface WatchHandlers {
   change(): void;
@@ -21,7 +24,6 @@ export interface WatchHandlers {
 }
 
 export interface DocumentStore {
-  readonly kind: "browser" | "file";
   readonly label: string;
   save(diagram: Diagram, options?: { force?: boolean; keepalive?: boolean }): Promise<SaveResult>;
   watch(handlers: WatchHandlers): () => void;
@@ -30,14 +32,19 @@ export interface DocumentStore {
 
 export const createBrowserStore = (): DocumentStore => {
   return {
-    kind: "browser",
     label: "ブラウザ",
     save: async (diagram) => {
       const result = storeDiagram(diagram);
       return result.ok ? { ok: true } : { ok: false, reason: "failed", error: result.error };
     },
     watch: (handlers) => watchOtherTabs(() => handlers.change()),
-    // 取り込まずに再読み込みを促すのは、別のタブの内容を黙って取り込むと、このタブの取り消し履歴と食い違うため
-    reload: async () => ({ ok: false, problems: [] }),
+    reload: async () => {
+      const opened = loadStoredDiagram();
+      if (opened.status === "ok") return { ok: true, diagram: opened.diagram };
+      if (opened.status === "missing") {
+        return { ok: false, problems: ["保存されていた図が消されました"] };
+      }
+      return { ok: false, problems: opened.problems };
+    },
   };
 };

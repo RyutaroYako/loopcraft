@@ -7,68 +7,69 @@ import { createFileClient } from "./fileStore.ts";
 import type { LoadResult } from "./fileStore.ts";
 import { readSession } from "./session.ts";
 import { loadStoredDiagram } from "./storage.ts";
-import type { StoredDiagram } from "./storage.ts";
 import { createBrowserStore } from "./store.ts";
-import type { DocumentStore } from "./store.ts";
+import type { DocumentStore, Opened } from "./store.ts";
 
-export type Startup =
-  /** sessionInvalid: serve の情報が埋め込まれていたのに読めず、ブラウザに保存している */
-  | { kind: "browser"; stored: StoredDiagram; sessionInvalid?: boolean }
-  | { kind: "file"; session: Session; loaded: LoadResult; store: DocumentStore };
+export interface Startup {
+  store: DocumentStore;
+  opened: Opened;
+  /** 開けなかったときと、まだ無いときに始める図 */
+  blank: Diagram;
+  /** serve --readonly */
+  readonly: boolean;
+  /** serve の情報が埋め込まれていたのに読めず、ブラウザに保存している */
+  sessionInvalid: boolean;
+}
 
 export const prepareStartup = async (doc: Document = document): Promise<Startup> => {
   const session = readSession(doc);
-  if (session === undefined) return { kind: "browser", stored: loadStoredDiagram() };
-  if (session === "invalid") {
-    return { kind: "browser", stored: loadStoredDiagram(), sessionInvalid: true };
+  if (session === undefined || session === "invalid") {
+    return startInBrowser(loadStoredDiagram(), session === "invalid");
   }
   const client = createFileClient(session);
-  const loaded = await client.load();
-  return { kind: "file", session, loaded, store: client.store };
+  return startWithFile(session, await client.load(), client.store);
 };
+
+export const startInBrowser = (opened: Opened, sessionInvalid = false): Startup => ({
+  store: createBrowserStore(),
+  opened,
+  blank: createEmptyDiagram(),
+  readonly: false,
+  sessionInvalid,
+});
+
+export const startWithFile = (
+  session: Session,
+  loaded: LoadResult,
+  store: DocumentStore,
+): Startup => ({
+  store,
+  opened:
+    loaded.status === "invalid"
+      ? { status: "unreadable", problems: loaded.errors }
+      : loaded.status === "error"
+        ? { status: "unreadable", problems: [String(loaded.error)] }
+        : loaded,
+  blank: session.sample ? createSampleDiagram() : createEmptyDiagram(titleOf(session.file)),
+  readonly: session.readonly,
+  sessionInvalid: false,
+});
 
 export interface ResolvedStartup {
   initial: Diagram;
   store: DocumentStore;
-  /** serve --readonly */
   readonly: boolean;
   initialStatus: AutosaveStatus | undefined;
 }
 
-export const resolveStartup = (startup: Startup): ResolvedStartup => {
-  if (startup.kind === "browser") {
-    const { stored } = startup;
-    return {
-      initial: stored.status === "ok" ? stored.diagram : createEmptyDiagram(),
-      store: createBrowserStore(),
-      readonly: false,
-      // 保存先が使えないときと、開けなかった前回の図を退避できなかったときに ok で始めないのは、
-      // ツールバーに最初から問題を出し、書き出してもらうまで上書きしないため
-      initialStatus:
-        stored.status === "unavailable"
-          ? { kind: "failing", error: stored.error }
-          : stored.status === "invalid" && stored.backupKey === undefined
-            ? { kind: "suspended", reason: "unreadable" }
-            : undefined,
-    };
-  }
-  const { session, loaded, store } = startup;
-  return {
-    initial:
-      loaded.status === "ok"
-        ? loaded.diagram
-        : loaded.status === "missing" && session.sample
-          ? createSampleDiagram()
-          : createEmptyDiagram(titleOf(session.file)),
-    store,
-    readonly: session.readonly,
-    // ok で始めると、読めなかったファイルを空の図で上書きしてしまう
-    initialStatus:
-      loaded.status === "invalid" || loaded.status === "error"
-        ? { kind: "suspended", reason: "unreadable" }
-        : undefined,
-  };
-};
+export const resolveStartup = ({ store, opened, blank, readonly }: Startup): ResolvedStartup => ({
+  initial: opened.status === "ok" ? opened.diagram : blank,
+  store,
+  readonly,
+  // ok で始めると、開けなかった図を空の図で上書きしてしまう
+  initialStatus:
+    opened.status === "unreadable" ? { kind: "suspended", reason: "unreadable" } : undefined,
+});
 
 const titleOf = (file: string) => {
   const name = file.split(/[\\/]/).at(-1) ?? file;

@@ -4,7 +4,6 @@ import type { Diagram, LinkId, VariableId } from "@loopcraft/core/schema";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 import {
   browserStartup,
-  captureDownloads,
   cleanup,
   expandButton,
   fileStartup,
@@ -47,42 +46,6 @@ describe("図の概要", () => {
     await expect.element(heading("図の概要")).toBeVisible();
     await userEvent.fill(field(/^この図で伝えたいこと/), "成長と負荷");
     await expect.element(field(/^この図で伝えたいこと/)).toHaveValue("成長と負荷");
-  });
-
-  it("退避したデータを書き出し、確かめてから削除する", async () => {
-    const downloads = captureDownloads();
-    try {
-      localStorage.setItem("loopcraft:document:backup:1700000000000", "{");
-      localStorage.setItem("loopcraft:document:backup:1700000001000", "[");
-      mount(browserStartup(createSampleDiagram()));
-      await expect.element(page.getByText("退避したデータ")).toBeVisible();
-      await button("書き出す").first().click();
-      expect(downloads.files).toEqual(["system-diagram-backup-1700000001000.json"]);
-
-      await button("削除").first().click();
-      await expect.element(button("削除する")).toBeVisible();
-      await button("やめる").click();
-      await expect.element(button("削除する")).not.toBeInTheDocument();
-      await button("削除").first().click();
-      await button("削除する").click();
-      await expect.poll(() => button("書き出す").all().length).toBe(1);
-
-      // localStorage を直接消すのは、別のタブで消された状態をまねるため
-      localStorage.removeItem("loopcraft:document:backup:1700000000000");
-      await button("書き出す").click();
-      await expect.element(notice()).toMatchTextContent(/退避したデータが見つかりません/);
-      await expect.element(page.getByText("退避したデータ")).not.toBeInTheDocument();
-    } finally {
-      downloads.restore();
-    }
-  });
-
-  it("最後の退避データを消したら、検査パネルにフォーカスを戻す", async () => {
-    localStorage.setItem("loopcraft:document:backup:1700000000000", "{");
-    mount(browserStartup(createSampleDiagram()));
-    await button("削除").click();
-    await button("削除する").click();
-    await expect.element(page.getByRole("region", { name: "選択中の項目" })).toHaveFocus();
   });
 });
 

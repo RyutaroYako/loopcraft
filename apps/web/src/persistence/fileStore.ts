@@ -49,7 +49,6 @@ export const createFileClient = (session: Session, base = "") => {
   };
 
   const store: DocumentStore = {
-    kind: "file",
     label: session.file,
     async save(diagram, options = {}): Promise<SaveResult> {
       const body = JSON.stringify({ diagram, baseRevision, force: options.force });
