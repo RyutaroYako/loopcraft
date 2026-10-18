@@ -10,7 +10,7 @@ import {
 } from "./geometry.ts";
 import type { Size } from "./geometry.ts";
 import { linkPairKey } from "./integrity.ts";
-import type { Diagram, DiagramShape, LoopId, Point, VariableId } from "./schema.ts";
+import type { Diagram, DiagramShape, LinkId, LoopId, Point, VariableId } from "./schema.ts";
 
 /*
  * 初期配置に乱数を使わないのは、毎回同じ結果にするため。
@@ -28,6 +28,8 @@ const FALLBACK_SIZE: Size = { width: NODE_MIN_WIDTH, height: NODE_HEIGHT };
 export interface LayoutOptions {
   /** 動かさない変数。1 つでもあれば、それを基準に置くので、図全体の重心は合わせ直さない */
   fixed?: ReadonlySet<VariableId>;
+  /** 変数が動いても曲がり具合を残す関連 */
+  keepCurvature?: ReadonlySet<LinkId>;
 }
 
 export const autoLayout = (
@@ -90,6 +92,7 @@ export const autoLayout = (
   let next = moveVariables(diagram, moved);
   for (const link of diagram.links) {
     if (!changed.has(link.from) && !changed.has(link.to)) continue;
+    if (options.keepCurvature?.has(link.id)) continue;
     next = updateLink(next, link.id, { curvature: undefined });
   }
   const markers = placeMarkers(next, sizes);

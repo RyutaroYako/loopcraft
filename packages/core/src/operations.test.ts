@@ -167,7 +167,7 @@ describe("applyOperations", () => {
     expect(
       failed(sample, ops({ op: "remove-link", id: "l_sales", from: "sales", to: "profit" })),
     ).toMatchObject({
-      message: 'id の "l_sales" と from・to の "l_profit" が別の関連を指しています',
+      message: '関連 "l_sales" は "staff" から "sales" への関連で、from・to と食い違っています',
     });
     expect(
       applied(sample, ops({ op: "remove-link", id: "l_sales", to: "sales" })).diagram.links,
@@ -277,5 +277,21 @@ describe("applyOperations", () => {
       ops({ op: "remove-variable", id: "staff" }, { op: "add-link", from: "staff", to: "sales" }),
     );
     expect(JSON.stringify(sample)).toBe(before);
+  });
+
+  it("同じ操作の中で、置く変数につながる関連に付けた曲がり具合を残す", () => {
+    const { diagram } = applied(
+      createEmptyDiagram(),
+      ops(
+        { op: "add-variable", id: "a", label: "a" },
+        { op: "add-variable", id: "b", label: "b" },
+        { op: "add-variable", id: "c", label: "c" },
+        { op: "add-link", from: "a", to: "b" },
+        { op: "add-link", from: "b", to: "c" },
+        { op: "add-link", from: "c", to: "a" },
+        { op: "update-link", from: "c", to: "a", curvature: 0.4 },
+      ),
+    );
+    expect(diagram.links.find((link) => link.id === "c_a")!.curvature).toBe(0.4);
   });
 });

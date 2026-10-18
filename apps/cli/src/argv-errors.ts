@@ -59,25 +59,35 @@ export function explainCommanderError(
   program: Command,
   args: readonly string[],
 ): Failure {
-  const command = program.commands.find((item) => args.includes(item.name()));
+  const at = commandIndex(program, args);
+  const command =
+    at === undefined ? undefined : program.commands.find((item) => item.name() === args[at]);
   const help = `loopcraft ${command ? `${command.name()} ` : ""}--help`;
   const text = error.message.replace(/^error: /, "");
   const quoted = [...text.matchAll(/'([^']*)'/g)].map((match) => match[1]!);
 
   switch (error.code) {
     case "commander.unknownOption": {
-      const positional = args.find((arg) => !arg.startsWith("-"));
       // オプションの誤りとして返さないのは、--format json を付けて打ち違えると、コマンド名の案内が出なくなるため
-      if (!command && positional !== undefined) {
+      if (!command && at !== undefined) {
         return explainUnknownCommand(program, [
-          positional,
-          ...args.filter((arg) => arg !== positional),
+          args[at]!,
+          ...args.filter((_, index) => index !== at),
         ]);
       }
       const option = quoted[0] ?? "";
       const flags = (command ?? program).options
         .flatMap((item) => [item.long, item.short])
         .filter((flag) => flag !== undefined);
+      const position = args.indexOf(option);
+      if (command && at !== undefined && position < at && flags.includes(option)) {
+        const width = takesValue(program, option) ? 2 : 1;
+        const moved = args.slice(position, position + width);
+        const rest = args.filter((_, index) => index < position || index >= position + width);
+        return usageError(`${option} は ${command.name()} の後に書きます`, {
+          suggestions: [commandLine([...rest, ...moved])],
+        });
+      }
       const fix = OPTION_FIXES[option];
       const near = fix && flags.includes(fix.split(" ")[0]!) ? fix : closest(option, flags);
       return usageError(`知らないオプション ${option} です`, {
@@ -108,6 +118,25 @@ export function explainCommanderError(
     default:
       return usageError(text, { suggestions: [help] });
   }
+}
+
+/** 値を取るオプションの次の引数を飛ばすのは、--format json の json をコマンド名と取り違えないため */
+function commandIndex(program: Command, args: readonly string[]) {
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index]!;
+    if (!arg.startsWith("-")) return index;
+    if (!arg.includes("=") && takesValue(program, arg)) index++;
+  }
+  return undefined;
+}
+
+function takesValue(program: Command, flag: string) {
+  return program.commands.some((command) =>
+    command.options.some(
+      (option) =>
+        (option.long === flag || option.short === flag) && (option.required || option.optional),
+    ),
+  );
 }
 
 function replaceOption(args: readonly string[], option: string, fix: string) {

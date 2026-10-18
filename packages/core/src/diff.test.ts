@@ -105,4 +105,19 @@ describe("diffDiagrams", () => {
       ],
     });
   });
+
+  it("同じ名前の注目するループの片方を消しても、違いとして挙げる", () => {
+    const before = edited(createSampleDiagram(), {
+      op: "update-loop",
+      id: "p_training",
+      name: "成長エンジン",
+    });
+    const after = edited(before, { op: "remove-loop", id: "p_training" });
+    expect(diffDiagrams(before, after)).toMatchObject({
+      changed: true,
+      featured: { added: [], removed: ["成長エンジン"] },
+    });
+    const renamed = edited(before, { op: "update-loop", id: "p_growth", name: "伸び" });
+    expect(diffDiagrams(before, renamed).other).toEqual(["loops.p_growth.name"]);
+  });
 });

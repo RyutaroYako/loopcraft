@@ -33,7 +33,7 @@ export async function layout(
   const { diagram: current, shown, unplaced } = loaded;
 
   let next: Diagram = current;
-  let placed: VariableId[] = unplaced;
+  let moved: VariableId[] = unplaced;
   if (options.all) {
     const pinned = new Set<VariableId>();
     for (const ref of options.pin ?? []) {
@@ -43,31 +43,18 @@ export async function layout(
     }
     next = autoLayout(current, estimateNodeSizes(current.variables), { fixed: pinned });
     const before = new Map(current.variables.map((variable) => [variable.id, variable.position]));
-    placed = next.variables.flatMap((variable) => {
+    moved = next.variables.flatMap((variable) => {
       const old = before.get(variable.id)!;
       return old.x === variable.position.x && old.y === variable.position.y ? [] : [variable.id];
     });
-  } else if (unplaced.length === 0) {
-    const report = layoutReport(current);
-    const message =
-      "座標の無い変数はありません。座標のある変数も並べ直すには --all を付けてください";
-    if (options.format === "json") {
-      printData(log, { file: shown, written: false, moved: [], message, layout: report });
-    } else {
-      log.info(message);
-      printLayoutIssues(
-        log,
-        report.issues.filter((issue) => issue.severity === "error"),
-      );
-    }
-    return done;
   }
 
-  // --all でないときに図の変化で決めないのは、読み込みで置いた座標はまだファイルに無く、図は変わらないため
-  const written = !options.all || next !== current;
+  // 図が変わったかで決めないのは、--all でなければ、読み込みで置いた座標はまだファイルに無いのに、図は変わらないため
+  const written = options.all ? next !== current : unplaced.length > 0;
   if (written) await writeDiagramFile(loaded.path, next);
   const report = layoutReport(next);
-  const data = { file: shown, written, moved: placed, layout: report };
+  const data = { file: shown, written, moved, layout: report };
+
   // 崩れが残っても成功にしないのは、check と layout が互いを勧め合い、同じ往復を繰り返すため
   if (report.errors > 0) {
     if (options.format === "text") {
@@ -81,7 +68,7 @@ export async function layout(
       {
         code: "LAYOUT_UNRESOLVED",
         suggestions: [
-          "layout.issues の hint に沿って、edit の update-variable で position をずらすか、update-link で curvature を付けて直してください",
+          "それぞれの崩れの hint に沿って、edit の update-variable で position をずらすか、update-link で curvature を付けて直してください",
         ],
         data,
       },
@@ -89,17 +76,17 @@ export async function layout(
   }
   if (options.format === "json") {
     printData(log, data);
-    return done;
-  }
-  if (!written) {
+  } else if (written) {
+    log.success(`${shown} の ${moved.length} 個の変数を配置しました`);
+    if (report.warnings > 0) {
+      log.note(
+        `  ほかに直したほうがよい点が ${report.warnings} 件あります（loopcraft check ${shown}）`,
+      );
+    }
+  } else if (options.all) {
     log.info("配置は変わりませんでした");
-    return done;
-  }
-  log.success(`${shown} の ${placed.length} 個の変数を配置しました`);
-  if (report.warnings > 0) {
-    log.note(
-      `  ほかに直したほうがよい点が ${report.warnings} 件あります（loopcraft check ${shown}）`,
-    );
+  } else {
+    log.info("座標の無い変数はありません。座標のある変数も並べ直すには --all を付けてください");
   }
   return done;
 }

@@ -105,6 +105,10 @@ describe("layout", () => {
     });
     expect(stderr[0]).toMatch(/^✗ "a" → "c" の矢印が "b" を突き抜けています$/);
     expect(await readFile(path, "utf8")).toBe(before);
+    expect(await layout("line.json", { format: "json" }, context)).toMatchObject({
+      code: "LAYOUT_UNRESOLVED",
+      data: { written: false },
+    });
 
     const tidy = await createWorkspace();
     await writeSample(tidy.cwd);

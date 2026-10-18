@@ -167,6 +167,10 @@ export const applyOperations = (start: Diagram, operations: readonly Operation[]
   if (unplaced.size > 0) {
     diagram = autoLayout(diagram, estimateNodeSizes(diagram.variables), {
       fixed: new Set(placed.map((variable) => variable.id)),
+      // 置いた変数につながる曲がり具合を消さないのは、そこにある曲がり具合は、同じ操作の中で書き手が付けたものだけのため
+      keepCurvature: new Set(
+        diagram.links.flatMap((link) => (link.curvature === undefined ? [] : [link.id])),
+      ),
     });
   }
   // 操作ごとの確認で済ませないのは、組み合わせで整合性が崩れることがあるため
@@ -359,14 +363,15 @@ const variableRef = (diagram: Diagram, ref: string): VariableId => {
 const linkRef = (diagram: Diagram, ref: { id?: string; from?: string; to?: string }): Link => {
   if (ref.id !== undefined) {
     const link = diagram.links.find((item) => item.id === ref.id);
-    if (link && (ref.from !== undefined || ref.to !== undefined)) {
-      const paired = linkRef(diagram, { from: ref.from ?? link.from, to: ref.to ?? link.to });
-      if (paired.id !== link.id) {
-        throw new Failure(
-          `id の "${link.id}" と from・to の "${paired.id}" が別の関連を指しています`,
-          "id か、from と to の組の、どちらか一方で指してください",
-        );
-      }
+    const mismatched =
+      link &&
+      ((ref.from !== undefined && variableRef(diagram, ref.from) !== link.from) ||
+        (ref.to !== undefined && variableRef(diagram, ref.to) !== link.to));
+    if (link && mismatched) {
+      throw new Failure(
+        `関連 "${link.id}" は "${link.from}" から "${link.to}" への関連で、from・to と食い違っています`,
+        "id か、from と to の組の、どちらか一方で指してください",
+      );
     }
     if (link) return link;
     const near = closest(

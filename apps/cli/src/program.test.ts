@@ -99,6 +99,17 @@ describe("runCli", () => {
     expect(JSON.parse(typo.stdout.join(""))).toMatchObject({
       error: { suggestions: ["loopcraft check diagram.json --format json"] },
     });
+    const before = await run(["--format", "json", "check", "diagram.json"]);
+    expect(JSON.parse(before.stdout.join(""))).toMatchObject({
+      error: {
+        message: "--format は check の後に書きます",
+        suggestions: ["loopcraft check diagram.json --format json"],
+      },
+    });
+    const typoAfterOption = await run(["--format", "json", "chek", "diagram.json"]);
+    expect(JSON.parse(typoAfterOption.stdout.join(""))).toMatchObject({
+      error: { message: "不明なコマンドです: chek" },
+    });
     await expectError(["zzz"], "不明なコマンドです: zzz", [
       "使えるコマンドは serve, validate, loops, check, edit, layout, render, diff, agent-init, schema です（loopcraft --help）",
     ]);

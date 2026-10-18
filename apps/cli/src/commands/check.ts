@@ -116,7 +116,7 @@ export async function check(
         // 突き抜けに layout --all を勧めないのは、並べ直しても残ることがあり、同じ案内を繰り返すため
         ...(layout.issues.some((issue) => issue.kind === "link-through")
           ? [
-              "突き抜けは layout.issues の hint に沿って、edit の update-variable で position をずらすか、update-link で curvature を付けて直してください",
+              "突き抜けは、それぞれの hint に沿って、edit の update-variable で position をずらすか、update-link で curvature を付けて直してください",
             ]
           : []),
         ...(failures.length > 0

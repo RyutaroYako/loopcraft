@@ -44,7 +44,7 @@ export interface DiagramDiff {
     flipped: (LoopSummary & { before: "R" | "B" })[];
   };
   featured: { added: string[]; removed: string[] };
-  /** 構造に関わらない変更（説明・曲がり具合・ループ記号の位置）の場所 */
+  /** ほかの項目に出ない変更（説明・曲がり具合・注目するループの名前や経路・記号の位置）の場所 */
   other: string[];
 }
 
@@ -126,19 +126,23 @@ export const diffDiagrams = (before: Diagram, after: Diagram): DiagramDiff => {
     if (!afterLoops.has(key)) loops.removed.push(loop);
   }
 
-  const names = (diagram: Diagram) => new Set(diagram.loops.map((loop) => loop.name || loop.id));
-  const beforeFeatured = names(before);
-  const afterFeatured = names(after);
+  // 名前で突き合わせないのは、同じ名前のループが 2 つあると、片方を消しても違いが出ないため
+  const beforeIds = new Set(before.loops.map((loop) => loop.id));
+  const afterIds = new Set(after.loops.map((loop) => loop.id));
   const featured = {
-    added: [...afterFeatured].filter((name) => !beforeFeatured.has(name)),
-    removed: [...beforeFeatured].filter((name) => !afterFeatured.has(name)),
+    added: after.loops
+      .filter((loop) => !beforeIds.has(loop.id))
+      .map((loop) => loop.name || loop.id),
+    removed: before.loops
+      .filter((loop) => !afterIds.has(loop.id))
+      .map((loop) => loop.name || loop.id),
   };
 
   const other = [
     ...(before.description === after.description ? [] : ["description"]),
     ...otherChanges("variables", before.variables, after.variables, ["description"]),
     ...otherChanges("links", before.links, after.links, ["description", "curvature"]),
-    ...otherChanges("loops", before.loops, after.loops, ["description", "marker"]),
+    ...otherChanges("loops", before.loops, after.loops, ["name", "links", "description", "marker"]),
   ];
   const title =
     before.title === after.title ? undefined : { before: before.title, after: after.title };

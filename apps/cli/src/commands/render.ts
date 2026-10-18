@@ -82,13 +82,18 @@ export async function render(
 async function svgToPng(svg: string, scale: number): Promise<Uint8Array> {
   const { Resvg } = await import("@resvg/resvg-js");
   const font = { loadSystemFonts: true, defaultFontFamily: "Noto Sans CJK JP" };
-  // 確かめずに描かないのは、フォントが 1 つも無いと resvg は失敗せず、文字の無い画像を返すため
-  const probe = new Resvg(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="24"><text x="2" y="18" font-size="16">売A</text></svg>',
-    { font },
-  ).render();
-  if (!probe.pixels.some((value, at) => at % 4 === 3 && value > 0)) {
-    throw new Error("文字を描けるフォントが見つかりません");
+  // 確かめずに描かないのは、日本語のフォントが無くても resvg は失敗せず、文字が空白か豆腐（□）の画像を返すため。
+  // どのフォントにも無い私用領域の文字と同じ形に描かれたら、日本語の字形が無いとみなす
+  const glyph = (text: string) =>
+    new Resvg(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><text x="2" y="18" font-size="16">${text}</text></svg>`,
+      { font },
+    ).render().pixels;
+  const japanese = glyph("売");
+  const missing = glyph("\uE000");
+  const blank = !japanese.some((value, at) => at % 4 === 3 && value > 0);
+  if (blank || japanese.every((value, at) => value === missing[at])) {
+    throw new Error("日本語を描けるフォントが見つかりません");
   }
   return new Resvg(svg, { fitTo: { mode: "zoom", value: scale }, font }).render().asPng();
 }
