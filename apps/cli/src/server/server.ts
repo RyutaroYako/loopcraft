@@ -7,6 +7,7 @@ import { CLIENT_HEADER, SaveRequestSchema, TOKEN_HEADER } from "@loopcraft/core/
 import type { DocumentResponse, Revision, SaveResponse, Session } from "@loopcraft/core/session";
 import * as v from "valibot";
 import "@valibot/i18n/ja/schema";
+import { formatDiagramError } from "@loopcraft/core/io";
 import { currentRevision, readDiagramFile, writeDiagramFile } from "../files.ts";
 import type { Logger } from "../log.ts";
 import {
@@ -129,6 +130,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     const loaded = await readDiagramFile(options.file);
     if (loaded.status === "ok") {
       return { status: "ok", diagram: loaded.diagram, revision: loaded.revision };
+    }
+    if (loaded.status === "invalid") {
+      return { ...loaded, errors: loaded.errors.map(formatDiagramError) };
     }
     return loaded;
   }

@@ -8,6 +8,7 @@ catalogMode: prefer
 savePrefix: ""
 
 catalog:
+  "@resvg/resvg-js": 2.6.2
   # vitest と @vitest/* を最新にせず vite-plus が同梱する版に揃えるのは、ずれるとカバレッジの実行が止まるため
   "@types/node": 24.19.2
   "@vitest/browser-playwright": 5.0.4

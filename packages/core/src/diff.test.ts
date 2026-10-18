@@ -1,0 +1,88 @@
+import { describe, expect, it } from "vite-plus/test";
+import { diffDiagrams } from "./diff.ts";
+import { applyOperations, parseOperation } from "./operations.ts";
+import { createSampleDiagram } from "./sample.ts";
+import type { Diagram } from "./schema.ts";
+
+const edited = (diagram: Diagram, ...items: unknown[]) => {
+  const operations = items.map((item) => {
+    const parsed = parseOperation(item);
+    if (!parsed.ok) throw new Error(parsed.message);
+    return parsed.operation;
+  });
+  const result = applyOperations(diagram, operations);
+  if (!result.ok) throw new Error(result.error.message);
+  return result.diagram;
+};
+
+describe("diffDiagrams", () => {
+  it("同じ図なら違いは無い", () => {
+    const diagram = createSampleDiagram();
+    expect(diffDiagrams(diagram, diagram)).toMatchObject({ changed: false });
+  });
+
+  it("変数・関連・ループの増減と、極性で種類が変わったループを挙げる", () => {
+    const before = createSampleDiagram();
+    const after = edited(
+      before,
+      { op: "set-title", title: "新しい題" },
+      { op: "add-variable", id: "cs", label: "顧客満足度" },
+      { op: "add-link", from: "workload", to: "cs", polarity: "-" },
+      { op: "add-link", from: "cs", to: "sales", polarity: "+" },
+      { op: "add-loop", through: ["workload", "cs", "sales"], name: "サービス品質" },
+      { op: "update-variable", id: "profit", label: "営業利益", position: { x: 9, y: 9 } },
+      { op: "update-link", id: "l_leave", delay: true },
+      { op: "update-link", id: "l_cost", polarity: "+" },
+      { op: "remove-variable", id: "attrition" },
+    );
+    const result = diffDiagrams(before, after);
+    expect(result.changed).toBe(true);
+    expect(result.title).toEqual({ before: "組織の成長と人の負荷", after: "新しい題" });
+    expect(result.variables).toEqual({
+      added: [{ id: "cs", label: "顧客満足度" }],
+      removed: [{ id: "attrition", label: "離職数" }],
+      renamed: [{ id: "profit", before: "利益", after: "営業利益" }],
+      moved: 1,
+    });
+    expect(result.links.added.map((link) => `${link.from}→${link.to}`)).toEqual([
+      "一人あたりの業務量→顧客満足度",
+      "顧客満足度→売上",
+    ]);
+    expect(result.links.removed.map((link) => link.id)).toEqual(["l_burnout", "l_leave"]);
+    expect(result.links.changed).toEqual([
+      {
+        id: "l_cost",
+        from: "教育コスト",
+        to: "営業利益",
+        polarity: "+",
+        changes: ["polarity: - -> +"],
+      },
+    ]);
+    expect(result.loops.added).toEqual([
+      { kind: "B", route: ["売上", "一人あたりの業務量", "顧客満足度"] },
+      {
+        kind: "R",
+        route: ["社員数", "一人あたりの業務量", "顧客満足度", "売上", "営業利益", "採用数"],
+      },
+    ]);
+    expect(result.loops.removed).toEqual([
+      { kind: "R", route: ["社員数", "一人あたりの業務量", "離職数"] },
+      { kind: "B", route: ["社員数", "売上", "一人あたりの業務量", "離職数"] },
+    ]);
+    expect(result.loops.flipped).toEqual([
+      { kind: "R", before: "B", route: ["社員数", "教育コスト", "営業利益", "採用数"] },
+    ]);
+    expect(result.featured).toEqual({
+      added: ["サービス品質"],
+      removed: ["負荷と離職の悪循環"],
+    });
+  });
+
+  it("遅れの有無の変化を挙げる", () => {
+    const before = createSampleDiagram();
+    const after = edited(before, { op: "update-link", id: "l_hire", delay: false });
+    expect(diffDiagrams(before, after).links.changed).toEqual([
+      expect.objectContaining({ id: "l_hire", changes: ["delay: true -> false"] }),
+    ]);
+  });
+});

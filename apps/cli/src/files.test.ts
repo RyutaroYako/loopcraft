@@ -36,7 +36,9 @@ describe("files", () => {
       }),
     );
     const dangling = await readDiagramFile(join(cwd, "dangling.json"));
-    expect(dangling.status === "invalid" && dangling.errors[0]).toMatch(/^links\.0\.to: /);
+    expect(dangling.status === "invalid" && dangling.errors[0]).toMatchObject({
+      path: "links.0.to",
+    });
   });
 
   it("ディレクトリなど読めないものはエラーを投げる", async () => {

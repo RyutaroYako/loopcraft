@@ -4,7 +4,7 @@ import { centroid, isClockwise } from "@loopcraft/core/geometry";
 import type { LoopEntry } from "@loopcraft/core/loops";
 import type { Loop, LoopId, Point } from "@loopcraft/core/schema";
 import { injectEditor } from "../editor/useEditor.ts";
-import { LOOP_ARC, LOOP_ARROW_HEAD } from "./glyphs.ts";
+import { LOOP_ARC, LOOP_ARROW_HEAD } from "@loopcraft/core/glyphs";
 
 const { loop, entry } = defineProps<{ loop: Loop; entry: LoopEntry }>();
 

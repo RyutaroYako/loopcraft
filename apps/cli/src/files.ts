@@ -12,13 +12,14 @@ import {
 } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { parseDiagramJson, stringifyDiagram } from "@loopcraft/core/io";
-import type { Diagram } from "@loopcraft/core/schema";
+import type { DiagramError } from "@loopcraft/core/io";
+import type { Diagram, VariableId } from "@loopcraft/core/schema";
 import type { Revision } from "@loopcraft/core/session";
 
 export type DiagramFile =
-  | { status: "ok"; diagram: Diagram; revision: Revision }
+  | { status: "ok"; diagram: Diagram; revision: Revision; unplaced: VariableId[] }
   | { status: "missing" }
-  | { status: "invalid"; revision: Revision; errors: string[] };
+  | { status: "invalid"; revision: Revision; errors: DiagramError[] };
 
 /** 更新時刻を使わないのは、同じ内容を同じ版として扱うため */
 export function revisionOf(text: string): Revision {
@@ -35,14 +36,10 @@ export async function readDiagramFile(path: string): Promise<DiagramFile> {
   }
   const revision = revisionOf(text);
   const result = parseDiagramJson(text);
-  if (result.ok) return { status: "ok", diagram: result.diagram, revision };
-  return {
-    status: "invalid",
-    revision,
-    errors: result.errors.map((error) =>
-      error.path ? `${error.path}: ${error.message}` : error.message,
-    ),
-  };
+  if (result.ok) {
+    return { status: "ok", diagram: result.diagram, revision, unplaced: result.unplaced };
+  }
+  return { status: "invalid", revision, errors: result.errors };
 }
 
 /**

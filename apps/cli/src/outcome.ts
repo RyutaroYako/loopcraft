@@ -1,15 +1,32 @@
-export type Failure = { kind: "usage" | "failure"; message: string };
+/**
+ * code と suggestions は --format json のときに error として返す。
+ * suggestions には、そのまま実行できるコマンドか、次に直す場所を書く
+ */
+export type Failure = {
+  kind: "usage" | "failure";
+  message: string;
+  code?: string;
+  suggestions?: string[];
+  /** 失敗しても返したい結果（検証のエラーの一覧など） */
+  data?: unknown;
+};
 
 export type Outcome = { kind: "done" } | { kind: "cancelled" } | Failure;
 
 export const done: Outcome = { kind: "done" };
 
-export function usageError(message: string): Failure {
-  return { kind: "usage", message };
+export function usageError(
+  message: string,
+  details: Pick<Failure, "code" | "suggestions"> = {},
+): Failure {
+  return { kind: "usage", message, ...details };
 }
 
-export function failure(message: string): Failure {
-  return { kind: "failure", message };
+export function failure(
+  message: string,
+  details: Pick<Failure, "code" | "suggestions" | "data"> = {},
+): Failure {
+  return { kind: "failure", message, ...details };
 }
 
 export function exitCodeOf(outcome: Outcome): number {
@@ -22,4 +39,8 @@ export function exitCodeOf(outcome: Outcome): number {
     case "failure":
       return 1;
   }
+}
+
+export function codeOf(outcome: Failure) {
+  return outcome.code ?? (outcome.kind === "usage" ? "INVALID_ARGUMENTS" : "FAILED");
 }

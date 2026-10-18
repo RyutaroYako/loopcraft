@@ -1,4 +1,4 @@
-import type { Point } from "@loopcraft/core/schema";
+import type { Point } from "./schema.ts";
 
 const polar = (radius: number, degrees: number): Point => {
   const radians = (degrees * Math.PI) / 180;
