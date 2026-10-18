@@ -80,6 +80,8 @@ vp run -r build            # ビルド
 vp run gen:schema          # JSON Schema の再生成
 ```
 
+CLI の使い方を変えたときは、エージェントに CLI を使わせて、変える前と比べます。手順と結果は [`docs/agent-dx-log.md`](docs/agent-dx-log.md) にあります。
+
 ブラウザのテストには Chromium を使います。初回は `vp exec --filter @loopcraft/web playwright install chromium` を実行してください。
 
 ## ライセンス
