@@ -109,7 +109,7 @@ function onKeyDown(event: KeyboardEvent) {
       :transform="`translate(${box.size.width / 2} 0)`"
       @pointerdown="(event) => emit('pointerdown:handle', event, id)"
     >
-      <title>ドラッグして関連を引く</title>
+      <title>ドラッグでほかの変数につなぐ</title>
       <circle class="hit-circle" r="11" />
       <circle class="dot-circle" r="4.5" />
     </g>

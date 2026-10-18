@@ -44,7 +44,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
   const selection = ref<Selection | null>(null);
   const editingVariable = ref<VariableId | null>(null);
   const hoveredLoop = ref<string | null>(null);
-  // selection で表さないのは、見出していないループには LoopId が無いため
+  // selection で表さないのは、注目していないループには LoopId が無いため
   const focusedLoop = ref<string | null>(null);
   const index = useDiagramIndex(diagram);
   const view = useViewport();

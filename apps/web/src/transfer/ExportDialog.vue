@@ -24,13 +24,7 @@ function selectAll(event: FocusEvent) {
 
 <template>
   <ModalDialog title="JSON を書き出す" @dialog:close="() => emit('dialog:close')">
-    <TextField
-      label="この JSON を貼り付ければ、別の場所で同じ図を開けます"
-      :value="text"
-      code
-      readonly
-      @focus:field="selectAll"
-    />
+    <TextField label="図の JSON" :value="text" code readonly @focus:field="selectAll" />
     <template #footer-start>
       <BaseButton variant="ghost" @click="editor.exportFile">
         <SvgIcon name="save" />

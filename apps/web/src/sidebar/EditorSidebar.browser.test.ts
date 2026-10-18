@@ -145,7 +145,7 @@ describe("関連", () => {
     expect(document.querySelector('[aria-label^="社員数から売上への関連"]')).toBeNull();
   });
 
-  it("既定の形と同じ曲がり具合なら戻すボタンを出さず、逆向きの関連があれば既定の曲がりに戻す", async () => {
+  it("既定の形と同じ曲がり具合なら戻すボタンを出さず、逆向きの関連があれば標準の曲線に戻す", async () => {
     const sample = createSampleDiagram();
     const sales = sample.links.find((link) => link.id === "l_sales")!;
     await open({
@@ -168,8 +168,8 @@ describe("関連", () => {
     (
       page.getByRole("button", { name: /^売上から社員数への関連/ }).element() as SVGGElement
     ).focus();
-    await button("既定の曲がりに戻す").click();
-    await expect.element(button("既定の曲がりに戻す")).not.toBeInTheDocument();
+    await button("標準の曲線に戻す").click();
+    await expect.element(button("標準の曲線に戻す")).not.toBeInTheDocument();
   });
 
   it("両端の変数に移れ、名前が無ければ「名称未設定」と示す", async () => {
@@ -191,14 +191,14 @@ describe("関連", () => {
 });
 
 describe("ループ", () => {
-  it("名前と説明を書き、経路と種類の理由を示し、見出しを外す", async () => {
+  it("名前と説明を書き、経路と種類の理由を示し、注目から外す", async () => {
     await open();
     await button(/成長エンジン/)
       .last()
       .click();
     await expect.element(heading("自己強化ループ")).toBeVisible();
     await expect
-      .element(page.getByText("逆向きの関連が無いので、変化が増幅し続けます"))
+      .element(page.getByText("マイナスの関連が無いので、変化が増幅し続けます"))
       .toBeVisible();
     await userEvent.fill(field("名前"), "成長");
     await writeAndClearDescription(
@@ -206,8 +206,8 @@ describe("ループ", () => {
     );
     await button("記号の位置を戻す").click();
     await page
-      .getByRole("region", { name: "選んだ項目" })
-      .getByRole("button", { name: "見出しを外す" })
+      .getByRole("region", { name: "選択中の項目の操作" })
+      .getByRole("button", { name: "注目から外す" })
       .click();
     await expect.element(heading("図の概要")).toBeVisible();
 
@@ -223,7 +223,7 @@ describe("ループ", () => {
     await expect.element(page.getByText(/奇数なので変化を打ち消す/)).toBeVisible();
   });
 
-  it("すべてのループを並べ、見出していないループは選ぶと強調し、ピンで見出す", async () => {
+  it("すべてのループを並べ、注目していないループは選ぶと強調し、ピンで注目する", async () => {
     await open();
     await expect.poll(() => document.querySelectorAll("[data-loop-key]").length).toBe(4);
     expect(document.querySelectorAll("[data-loop-key][data-kind=balancing]")).toHaveLength(2);

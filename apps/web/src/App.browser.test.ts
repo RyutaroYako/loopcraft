@@ -34,7 +34,9 @@ const ok = (diagram = createSampleDiagram()) => ({
 describe("エディタ", () => {
   it("サンプルを開くと、変数とループが並ぶ", async () => {
     mount(browserStartup());
-    await expect.element(page.getByRole("heading", { name: /最初の変数を置いて/ })).toBeVisible();
+    await expect
+      .element(page.getByRole("heading", { name: /変数を置いて、矢印でつなぐ/ }))
+      .toBeVisible();
     await page.getByRole("button", { name: "サンプルを開く" }).click();
     await expect.element(node("社員数")).toBeVisible();
     await expect.element(page.getByRole("button", { name: /成長エンジン/ }).first()).toBeVisible();
@@ -63,7 +65,7 @@ describe("エディタ", () => {
     await expect.element(node(name)).toBeVisible();
   });
 
-  it("変数の右端の点をドラッグして関連を引くと、ループが見つかる", async () => {
+  it("変数の右端の点をドラッグしてほかの変数につなぐと、ループが見つかる", async () => {
     const diagram = edit.removeLinks(createSampleDiagram(), new Set(["l_join" as LinkId]));
     mount(browserStartup(diagram));
     await expect.element(node("採用数")).toBeVisible();
@@ -189,7 +191,7 @@ describe("案内", () => {
     mount(fileStartup(ok(), { store }));
     control.reloadResult = { ok: true, diagram: { ...createSampleDiagram(), title: "外で直した" } };
     control.handlers().change();
-    await expect.element(notice()).toMatchTextContent(/ほかの場所での変更を読み込みました/);
+    await expect.element(notice()).toMatchTextContent(/外部の変更を読み込みました/);
     await expect.element(notice()).toHaveAttribute("data-tone", "info");
     await expect.element(notice()).not.toBeInTheDocument();
 
@@ -222,7 +224,7 @@ describe("案内", () => {
       stringifyDiagram({ ...createSampleDiagram(), title: "別のタブで直した" }),
     );
     window.dispatchEvent(new StorageEvent("storage", { key: "loopcraft:document" }));
-    await expect.element(notice()).toMatchTextContent(/ほかの場所での変更を読み込みました/);
+    await expect.element(notice()).toMatchTextContent(/外部の変更を読み込みました/);
     await expect.element(title).toHaveValue("別のタブで直した");
     await userEvent.keyboard("{Control>}z{/Control}");
     await expect.element(title).toHaveValue(before);
@@ -293,7 +295,7 @@ describe("serve で開いたとき", () => {
     await expect.element(notice()).toMatchTextContent(/disk full/);
 
     control.saveResult = { ok: true };
-    await page.getByRole("button", { name: "保存し直す" }).click();
+    await page.getByRole("button", { name: "再試行" }).click();
     await expect.element(page.getByText("growth.json", { exact: true })).toBeVisible();
     expect(control.saved.at(-1)?.title).toBe("新しい題");
   });
@@ -304,7 +306,7 @@ describe("serve で開いたとき", () => {
     await expect.element(page.getByText("growth.json", { exact: true })).toBeVisible();
 
     control.handlers().lost("unwatched", "EMFILE");
-    const warning = page.getByRole("button", { name: /変更を見張れません/ });
+    const warning = page.getByRole("button", { name: /外部の変更を検知できません/ });
     await expect.element(warning).toBeVisible();
     await page.getByRole("button", { name: "閉じる" }).click();
     await warning.click();
@@ -313,7 +315,9 @@ describe("serve で開いたとき", () => {
     control.handlers().lost("disconnected");
     await expect.element(page.getByRole("button", { name: /接続が切れました/ })).toBeVisible();
     control.handlers().restored();
-    await expect.element(page.getByRole("button", { name: /変更を見張れません/ })).toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: /外部の変更を検知できません/ }))
+      .toBeVisible();
   });
 
   it("ほかの場所での変更を読み込んだら知らせる", async () => {
@@ -322,7 +326,7 @@ describe("serve で開いたとき", () => {
     await expect.element(node("売上")).toBeVisible();
     control.reloadResult = { ok: true, diagram: { ...createSampleDiagram(), title: "外で直した" } };
     control.handlers().change();
-    await expect.element(notice()).toMatchTextContent(/ほかの場所での変更を読み込みました/);
+    await expect.element(notice()).toMatchTextContent(/外部の変更を読み込みました/);
     await expect
       .element(page.getByRole("textbox", { name: "図のタイトル" }))
       .toHaveValue("外で直した");

@@ -69,12 +69,12 @@ function togglePin() {
       </HintTooltip>
     </template>
     <template #after>
-      <HintTooltip :text="featured ? '見出しを外す' : 'このループを見出す'">
+      <HintTooltip :text="featured ? '注目から外す' : 'このループに注目する'">
         <IconButton
           class="pin-button"
           :data-featured="featured ? '' : undefined"
           :aria-pressed="featured"
-          :aria-label="featured ? '見出しを外す' : 'このループを見出す'"
+          :aria-label="featured ? '注目から外す' : 'このループに注目する'"
           :disabled="!editor.editable"
           @click="togglePin"
         >

@@ -278,7 +278,7 @@ describe("取り消しと例外的な操作", () => {
     await expect.element(heading("関連")).toBeVisible();
   });
 
-  it("見出したループのピンを押すと見出しを外す", async () => {
+  it("注目するループのピンを押すと注目から外す", async () => {
     await open();
     const featured = () =>
       document.querySelectorAll('[data-loop-key] [aria-pressed="true"]').length;
@@ -355,17 +355,17 @@ describe("キーボードでの操作", () => {
     await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
 
-    const polarity = page.getByRole("button", { name: /^社員数から売上への関連、極性プラス/ });
+    const polarity = page.getByRole("button", { name: "社員数から売上への関連（プラス）" });
     (polarity.element() as SVGGElement).focus();
     await expect.element(heading("関連")).toBeVisible();
     await userEvent.keyboard("{Enter}");
     await expect
-      .element(page.getByRole("button", { name: /^社員数から売上への関連、極性マイナス/ }))
+      .element(page.getByRole("button", { name: "社員数から売上への関連（マイナス）" }))
       .toBeInTheDocument();
     await userEvent.keyboard("a");
     await page.getByRole("button", { name: /^社員数から売上への関連/ }).click();
     await expect
-      .element(page.getByRole("button", { name: /^社員数から売上への関連、極性プラス/ }))
+      .element(page.getByRole("button", { name: "社員数から売上への関連（プラス）" }))
       .toBeInTheDocument();
 
     const marker = document.querySelector<SVGGElement>(

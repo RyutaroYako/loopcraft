@@ -191,7 +191,7 @@ describe("編集の操作", () => {
     expect(editor.selection.value).toBeNull();
   });
 
-  it("ループを見出し、外すと強調表示に残す", () => {
+  it("ループに注目し、外すと強調表示に残す", () => {
     const editor = setup();
     const unfeatured = editor.loopEntries.value.find((entry) => !entry.featured)!;
     editor.featureLoop(unfeatured.links);
@@ -206,7 +206,7 @@ describe("編集の操作", () => {
     expect(editor.focusedLoop.value).toBeNull();
   });
 
-  it("強調するループは、ホバー、選んだ見出し、一覧で選んだものの順", () => {
+  it("強調するループは、ホバー、選んだ注目ループ、一覧で選んだものの順", () => {
     const editor = setup();
     expect(editor.highlightedLoop.value).toBeUndefined();
     const [first, second, , fourth] = editor.loopEntries.value;

@@ -5,7 +5,7 @@ import { createSampleDiagram } from "./sample.ts";
 import { createSample } from "./testing/sample.ts";
 
 describe("listLoopEntries", () => {
-  it("見出したループを先に、種類ごとの番号付きで並べる", () => {
+  it("注目するループを先に、種類ごとの番号付きで並べる", () => {
     const diagram = createSampleDiagram();
     const entries = listLoopEntries(diagram.loops, diagram.links, findLoops(diagram.links).loops);
     expect(entries.map((entry) => entry.featured?.badge ?? entry.kind)).toEqual([

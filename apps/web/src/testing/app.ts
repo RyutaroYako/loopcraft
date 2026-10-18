@@ -97,9 +97,9 @@ export const notice = () =>
     .first();
 /** getByRole で取らないのは、広い画面では display: none で、アクセシビリティツリーに載らないため */
 export const expandButton = () =>
-  [...document.querySelectorAll<HTMLElement>('section[aria-label="選んだ項目"] button')].find(
-    (button) => button.textContent?.trim() === "詳しく",
-  )!;
+  [
+    ...document.querySelectorAll<HTMLElement>('section[aria-label="選択中の項目の操作"] button'),
+  ].find((button) => button.textContent?.trim() === "詳しく")!;
 
 export function nodeElement(id: string) {
   return document.querySelector<SVGGElement>(`[data-variable-id="${id}"]`)!;
