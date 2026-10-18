@@ -17,7 +17,8 @@ export const createDiagramJsonSchema = () => {
       Link: LinkSchema,
       Loop: LoopSchema,
     },
-    // brand を出さないのは、型レベルの区別にだけ使い、JSON 上はただの文字列のため
-    ignoreActions: ["brand"],
+    // brand を出さないのは、型レベルの区別にだけ使い、JSON 上はただの文字列のため。
+    // finite を出さないのは、JSON の数値はもともと有限で、桁あふれだけが読み込みで無限大になるため
+    ignoreActions: ["brand", "finite"],
   });
 };

@@ -4,10 +4,10 @@ import type { Diagram, VariableId } from "@loopcraft/core/schema";
 import type { Context } from "../context.ts";
 import { writeDiagramFile } from "../files.ts";
 import { isFailure, loadDiagram } from "../load.ts";
-import { done, usageError } from "../outcome.ts";
+import { done, failure, usageError } from "../outcome.ts";
 import type { Outcome } from "../outcome.ts";
 import { printData } from "../output.ts";
-import { layoutReport, printLayoutIssues } from "../summary.ts";
+import { findVariable, layoutReport, printLayoutIssues } from "../summary.ts";
 
 export interface LayoutCommandOptions {
   format: "text" | "json";
@@ -37,10 +37,8 @@ export async function layout(
   if (options.all) {
     const pinned = new Set<VariableId>();
     for (const ref of options.pin ?? []) {
-      const found =
-        current.variables.find((variable) => variable.id === ref) ??
-        current.variables.find((variable) => variable.label === ref);
-      if (!found) return usageError(`--pin の変数 "${ref}" がありません`);
+      const found = findVariable(current, ref);
+      if ("error" in found) return usageError(`--pin: ${found.error}`);
       pinned.add(found.id);
     }
     next = autoLayout(current, estimateNodeSizes(current.variables), { fixed: pinned });
@@ -65,18 +63,39 @@ export async function layout(
     return done;
   }
 
-  // 座標の無い変数は読み込んだときに置いてあるので、--all でなければそのまま書けばよい
-  await writeDiagramFile(loaded.path, next);
+  // --all でないときに図の変化で決めないのは、読み込みで置いた座標はまだファイルに無く、図は変わらないため
+  const written = !options.all || next !== current;
+  if (written) await writeDiagramFile(loaded.path, next);
   const report = layoutReport(next);
+  const data = { file: shown, written, moved: placed, layout: report };
+  // 崩れが残っても成功にしないのは、check と layout が互いを勧め合い、同じ往復を繰り返すため
+  if (report.errors > 0) {
+    if (options.format === "text") {
+      printLayoutIssues(
+        log,
+        report.issues.filter((issue) => issue.severity === "error"),
+      );
+    }
+    return failure(
+      `${written ? "配置しましたが" : "配置は変わりませんでしたが"}、崩れが ${report.errors} 件残っています`,
+      {
+        code: "LAYOUT_UNRESOLVED",
+        suggestions: [
+          "layout.issues の hint に沿って、edit の update-variable で position をずらすか、update-link で curvature を付けて直してください",
+        ],
+        data,
+      },
+    );
+  }
   if (options.format === "json") {
-    printData(log, { file: shown, written: true, moved: placed, layout: report });
+    printData(log, data);
+    return done;
+  }
+  if (!written) {
+    log.info("配置は変わりませんでした");
     return done;
   }
   log.success(`${shown} の ${placed.length} 個の変数を配置しました`);
-  printLayoutIssues(
-    log,
-    report.issues.filter((issue) => issue.severity === "error"),
-  );
   if (report.warnings > 0) {
     log.note(
       `  ほかに直したほうがよい点が ${report.warnings} 件あります（loopcraft check ${shown}）`,

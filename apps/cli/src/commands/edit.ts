@@ -72,8 +72,9 @@ export async function edit(
     parsed.map((item) => item.operation),
   );
   if (!applied.ok) {
-    const at = parsed[applied.error.index]!;
-    return failure(`${at.line} 行目（${at.operation.op}）: ${applied.error.message}`, {
+    const at = applied.error.index === undefined ? undefined : parsed[applied.error.index]!;
+    const where = at ? `${at.where}（${at.operation.op}）: ` : "";
+    return failure(`${where}${applied.error.message}`, {
       code: "INVALID_OPERATION",
       suggestions: [
         ...(applied.error.hint ? [applied.error.hint] : []),
@@ -107,7 +108,9 @@ export async function edit(
   const verb = options.dryRun
     ? "反映できます（--dry-run なので書き込んでいません）"
     : "反映しました";
-  log.success(`${shown} に ${parsed.length} 件の操作を${verb}`);
+  // 作ったことを JSON にだけ出さないのは、パスを打ち間違えたときに、別のファイルを作ったと気づけないため
+  const target = created ? `${shown} を新しく作り、` : `${shown} に `;
+  log.success(`${target}${parsed.length} 件の操作を${verb}`);
   for (const [index, id] of applied.ids.entries()) {
     if (id !== null) log.note(`  ${parsed[index]!.operation.op}: ${id}`);
   }
@@ -119,19 +122,19 @@ export async function edit(
 }
 
 interface ParsedOperation {
-  line: number;
+  /** 「3 行目」や、配列なら「3 番目」 */
+  where: string;
   operation: Operation;
 }
 
-/** 1 行に 1 つの JSON（JSONL）か、操作を並べた JSON の配列を受け付ける */
 function parseOperations(text: string): ParsedOperation[] | { message: string; hint?: string } {
   const trimmed = text.trim();
-  const items: { line: number; value: unknown }[] = [];
+  const items: { where: string; value: unknown }[] = [];
   if (trimmed.startsWith("[")) {
     try {
       const values = JSON.parse(trimmed) as unknown;
       if (!Array.isArray(values)) return { message: "操作の配列として読めません" };
-      items.push(...values.map((value, at) => ({ line: at + 1, value })));
+      items.push(...values.map((value, at) => ({ where: `${at + 1} 番目`, value })));
     } catch (error) {
       return { message: `JSON として読めません（${String(error)}）` };
     }
@@ -139,7 +142,7 @@ function parseOperations(text: string): ParsedOperation[] | { message: string; h
     for (const [at, line] of text.split("\n").entries()) {
       if (line.trim() === "") continue;
       try {
-        items.push({ line: at + 1, value: JSON.parse(line) });
+        items.push({ where: `${at + 1} 行目`, value: JSON.parse(line) });
       } catch {
         return {
           message: `${at + 1} 行目を JSON として読めません`,
@@ -149,15 +152,15 @@ function parseOperations(text: string): ParsedOperation[] | { message: string; h
     }
   }
   const operations: ParsedOperation[] = [];
-  for (const { line, value } of items) {
+  for (const { where, value } of items) {
     const result = parseOperation(value);
     if (!result.ok) {
       return {
-        message: `${line} 行目: ${result.message}`,
+        message: `${where}: ${result.message}`,
         ...(result.hint ? { hint: result.hint } : {}),
       };
     }
-    operations.push({ line, operation: result.operation });
+    operations.push({ where, operation: result.operation });
   }
   return operations;
 }

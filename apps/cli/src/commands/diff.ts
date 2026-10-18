@@ -48,9 +48,14 @@ export async function diff(
     try {
       text = await showFile(options.base, locate(files[0]!, context).path);
     } catch (error) {
-      return failure(`git から ${options.base} の版を読めません（${errorText(error)}）`, {
+      const reason = errorText(error);
+      return failure(`git から ${options.base} の版を読めません（${reason}）`, {
         code: "GIT_ERROR",
-        suggestions: ["git の管理下に無いときは、比べる 2 つのファイルを指定してください"],
+        suggestions: [
+          /not a git repository/.test(reason)
+            ? "git の管理下に無いときは、比べる 2 つのファイルを指定してください"
+            : `--base の版を git log --oneline で確かめてください`,
+        ],
       });
     }
     if (text === null) {
@@ -103,6 +108,7 @@ function printDiff({ log }: Context, base: string, file: string, result: Diagram
   }
   for (const name of featured.added) log.output(`+ 注目するループ ${name}`);
   for (const name of featured.removed) log.output(`- 注目するループ ${name}`);
+  for (const path of result.other) log.output(`~ ${path}`);
   if (variables.moved > 0) log.note(`位置だけが変わった変数: ${variables.moved} 個`);
 }
 
@@ -112,7 +118,8 @@ function gitShow(revision: string, path: string): Promise<string | null> {
     execFile(
       "git",
       ["show", `${revision}:./${basename(path)}`],
-      { cwd: dirname(path), maxBuffer: 64 * 1024 * 1024 },
+      // 言語を固定するのは、git のメッセージが訳されると、ファイルが無いことを見分けられなくなるため
+      { cwd: dirname(path), maxBuffer: 64 * 1024 * 1024, env: { ...process.env, LC_ALL: "C" } },
       (error, stdout, stderr) => {
         if (!error) return resolve(stdout);
         if (/does not exist in|exists on disk, but not in/.test(stderr)) return resolve(null);

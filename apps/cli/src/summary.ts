@@ -74,3 +74,21 @@ export function printLayoutIssues(log: Logger, issues: readonly LayoutIssue[]) {
     if (issue.hint) log.note(`  ${issue.hint}`);
   }
 }
+
+/** ラベルが重なるときに先頭を選ばないのは、書き手の思っていない変数を黙って使うため */
+export function findVariable(
+  diagram: Diagram,
+  ref: string,
+): { id: VariableId } | { error: string } {
+  const byId = diagram.variables.find((variable) => variable.id === ref);
+  if (byId) return { id: byId.id };
+  const byLabel = diagram.variables.filter((variable) => variable.label === ref);
+  if (byLabel.length === 1) return { id: byLabel[0]!.id };
+  if (byLabel.length > 1) {
+    const ids = byLabel.map((variable) => variable.id).join(", ");
+    return {
+      error: `"${ref}" というラベルの変数が ${byLabel.length} 個あります。ID で指してください（${ids}）`,
+    };
+  }
+  return { error: `変数 "${ref}" がありません` };
+}

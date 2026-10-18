@@ -14,7 +14,6 @@ export const PAIRED_CURVATURE = 0.18;
 const LINK_GAP = 6;
 
 /**
- * 表示するフォントで測れないとき（CLI やフォントの読み込み前）の見積もり。
  * 文字の種類ごとの幅を表に持たないのは、全角と半角の違いさえ合えば、重なりの判定や整列には足りるため
  */
 export const estimateLabelWidth = (text: string): number => {

@@ -74,9 +74,56 @@ describe("layout", () => {
     );
     expect(
       await layout("diagram.json", { format: "text", all: true, pin: ["ghost"] }, context),
-    ).toMatchObject({ kind: "usage", message: '--pin の変数 "ghost" がありません' });
+    ).toMatchObject({ kind: "usage", message: '--pin: 変数 "ghost" がありません' });
     expect(await layout("none.json", { format: "text" }, context)).toMatchObject({
       code: "FILE_NOT_FOUND",
+    });
+  });
+
+  it("並べ直しても崩れが残れば、直し方を添えて失敗にし、変わらなければ書き込まない", async () => {
+    const { context, stderr } = await createWorkspace();
+    const v = (id: string, x: number) => ({ id, label: id, position: { x, y: 0 } });
+    const line = {
+      version: 1,
+      title: "",
+      variables: [v("a", 0), v("b", 200), v("c", 400)],
+      links: [{ id: "ac", from: "a", to: "c", polarity: "+" }],
+      loops: [],
+    };
+    const path = join(context.cwd, "line.json");
+    await writeFile(path, JSON.stringify(line));
+    const before = await readFile(path, "utf8");
+    const outcome = await layout(
+      "line.json",
+      { format: "text", all: true, pin: ["a", "b", "c"] },
+      context,
+    );
+    expect(outcome).toMatchObject({
+      kind: "failure",
+      code: "LAYOUT_UNRESOLVED",
+      message: "配置は変わりませんでしたが、崩れが 1 件残っています",
+    });
+    expect(stderr[0]).toMatch(/^✗ "a" → "c" の矢印が "b" を突き抜けています$/);
+    expect(await readFile(path, "utf8")).toBe(before);
+
+    const tidy = await createWorkspace();
+    await writeSample(tidy.cwd);
+    await layout("diagram.json", { format: "text", all: true }, tidy.context);
+    await layout("diagram.json", { format: "text", all: true }, tidy.context);
+    expect(tidy.stderr.at(-1)).toBe("ℹ 配置は変わりませんでした");
+  });
+
+  it("--pin のラベルが複数の変数に当たれば断る", async () => {
+    const { context } = await createWorkspace();
+    const diagram = createSampleDiagram();
+    diagram.variables[1]!.label = "社員数";
+    await writeFile(join(context.cwd, "d.json"), stringifyDiagram(diagram));
+    expect(
+      await layout("d.json", { format: "text", all: true, pin: ["社員数"] }, context),
+    ).toMatchObject({
+      kind: "usage",
+      message:
+        '--pin: "社員数" というラベルの変数が 2 個あります。ID で指してください（staff, sales）',
     });
   });
 });

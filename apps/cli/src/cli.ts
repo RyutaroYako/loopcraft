@@ -5,7 +5,7 @@ import { runCli } from "./program.ts";
 import { canPrompt } from "./tty.ts";
 import { readVersion } from "./version.ts";
 
-// head などで途中まで読んで閉じられたときに、壊れたように見えるスタックトレースを出さない
+// EPIPE を投げたままにしないのは、head で途中まで読むだけでスタックトレースが出て、壊れたように見えるため
 process.stdout.on("error", (error: NodeJS.ErrnoException) => {
   if (error.code === "EPIPE") process.exit(process.exitCode ?? 0);
   throw error;

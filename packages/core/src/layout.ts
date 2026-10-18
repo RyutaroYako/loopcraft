@@ -77,16 +77,25 @@ export const autoLayout = (
     ),
   );
 
-  // 手で付けた曲がり具合を残さないのは、位置が変わると意味を失うため
+  const changed = new Set(
+    variables.flatMap((variable) => {
+      const to = moved.get(variable.id);
+      return to && (to.x !== variable.position.x || to.y !== variable.position.y)
+        ? [variable.id]
+        : [];
+    }),
+  );
+  // 動いた変数につながる曲がり具合を残さないのは、位置が変わると意味を失うため。
+  // 動かなかった矢印まで消さないのは、突き抜けを避けるために付けた曲がりが、並べ直すたびに消えるため
   let next = moveVariables(diagram, moved);
   for (const link of diagram.links) {
-    if (fixed.has(link.from) && fixed.has(link.to)) continue;
+    if (!changed.has(link.from) && !changed.has(link.to)) continue;
     next = updateLink(next, link.id, { curvature: undefined });
   }
   const markers = placeMarkers(next, sizes);
   const fromByLink = new Map(diagram.links.map((link) => [link.id, link.from]));
   for (const loop of next.loops) {
-    if (loop.links.every((link) => fixed.has(fromByLink.get(link)!))) continue;
+    if (!loop.links.some((link) => changed.has(fromByLink.get(link)!))) continue;
     const marker = markers.get(loop.id);
     // 同じ位置でも差し替えると、整列を繰り返したときに変化の無い編集が生まれる
     if (marker?.x === loop.marker?.x && marker?.y === loop.marker?.y) continue;
@@ -95,10 +104,6 @@ export const autoLayout = (
   return next;
 };
 
-/**
- * 座標の無い変数だけを、座標のある変数を動かさずに置く。
- * 1 つも座標が無ければ、図全体を並べる
- */
 export const placeMissingVariables = (diagram: DiagramShape): Diagram => {
   const placed = new Set<VariableId>();
   const variables = diagram.variables.map((variable) => {
@@ -168,7 +173,7 @@ const initialCircle = (order: readonly number[], widthOf: (at: number) => number
   return positions;
 };
 
-/** 置く順で角度をずらすのは、同じ変数のまわりに置く変数どうしを重ねないため */
+/** 同じ角度に置かないのは、同じ変数のまわりに置く変数どうしが重なるため */
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 const initialAroundNeighbors = (
@@ -261,7 +266,6 @@ const removeOverlaps = (
         if (overlapX <= 0 || overlapY <= 0) continue;
         if (pinned[a] && pinned[b]) continue;
         moved = true;
-        // 動かせない側があれば、もう一方だけを重なりの分すべて動かす
         const shareA = pinned[a] ? 0 : pinned[b] ? 1 : 0.5;
         const shareB = 1 - shareA;
         if (overlapX < overlapY) {

@@ -17,10 +17,13 @@ export const LoopIdSchema = v.pipe(IdSchema, v.brand("LoopId"));
  * 書いたつもりの値が黙って消えるため
  */
 
+// v.number() だけにしないのは、JSON の 1e400 が Infinity として通り、書き出すと null になって図が壊れるため
+const FiniteSchema = v.pipe(v.number(), v.finite());
+
 export const PointSchema = v.pipe(
   v.strictObject({
-    x: v.number(),
-    y: v.number(),
+    x: FiniteSchema,
+    y: FiniteSchema,
   }),
   v.title("Point"),
   v.description("キャンバス上の座標"),
@@ -54,7 +57,7 @@ export const LinkSchema = v.pipe(
     delay: v.optional(v.pipe(v.boolean(), v.description("影響が現れるまでに遅れがあるか"))),
     curvature: v.optional(
       v.pipe(
-        v.number(),
+        FiniteSchema,
         v.description("曲がり具合。端点間の距離に対する膨らみの比率で、正なら進行方向の左に膨らむ"),
       ),
     ),

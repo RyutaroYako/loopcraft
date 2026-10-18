@@ -39,6 +39,7 @@ describe("parseOperation", () => {
     expect(parseOperation({ op: "add-variable", label: "x", lable: "y" })).toEqual({
       ok: false,
       message: '知らないキー "lable" です',
+      hint: '"label" のことですか',
     });
     expect(parseOperation({ op: "add-link", from: "a" })).toMatchObject({
       ok: false,
@@ -163,11 +164,27 @@ describe("applyOperations", () => {
     expect(failed(sample, ops({ op: "remove-loop", id: "成長エンジソ" }))).toMatchObject({
       hint: '"成長エンジン" のことですか',
     });
+    expect(
+      failed(sample, ops({ op: "remove-link", id: "l_sales", from: "sales", to: "profit" })),
+    ).toMatchObject({
+      message: 'id の "l_sales" と from・to の "l_profit" が別の関連を指しています',
+    });
+    expect(
+      applied(sample, ops({ op: "remove-link", id: "l_sales", to: "sales" })).diagram.links,
+    ).toHaveLength(sample.links.length - 1);
     expect(failed(sample, ops({ op: "update-link", polarity: "-" }))).toMatchObject({
       message: "関連は id か、from と to の組で指してください",
     });
     expect(failed(sample, ops({ op: "remove-link", from: "sales", to: "staff" }))).toMatchObject({
       message: '"sales" から "staff" への関連はありません',
+    });
+    const sameName = applied(
+      sample,
+      ops({ op: "update-loop", id: "p_training", name: "成長エンジン" }),
+    ).diagram;
+    expect(failed(sameName, ops({ op: "remove-loop", id: "成長エンジン" }))).toMatchObject({
+      message: '"成長エンジン" という名前のループが 2 個あります',
+      hint: "ID で指してください: p_growth, p_training",
     });
     const twins = applied(sample, ops({ op: "add-variable", id: "twin", label: "売上" })).diagram;
     expect(failed(twins, ops({ op: "remove-variable", id: "売上" }))).toMatchObject({
@@ -219,13 +236,22 @@ describe("applyOperations", () => {
     });
   });
 
-  it("既にある同じループを足しても増やさず、同じ ID を返す", () => {
-    const result = applied(
-      createSampleDiagram(),
-      ops({ op: "add-loop", through: ["sales", "profit", "hiring", "staff"], name: "別名" }),
-    );
-    expect(result.ids).toEqual(["p_growth"]);
-    expect(result.diagram.loops).toHaveLength(3);
+  it("既にある同じ経路のループは足さず、名前の変え方を示す", () => {
+    expect(
+      failed(
+        createSampleDiagram(),
+        ops({
+          op: "add-loop",
+          id: "g2",
+          through: ["sales", "profit", "hiring", "staff"],
+          name: "別名",
+        }),
+      ),
+    ).toEqual({
+      index: 0,
+      message: '同じ経路のループが既に "p_growth" としてあります',
+      hint: '名前を変えるときは {"op":"update-loop","id":"p_growth","name":"…"} を使ってください',
+    });
   });
 
   it("ID を省いた関連の ID が既にあれば、番号を付ける", () => {

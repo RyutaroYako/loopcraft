@@ -1,4 +1,4 @@
-/** 打ち間違いとみなす近さ。短い語ほど許す違いを減らし、無関係な語を候補にしない */
+/** 許す違いを語の長さによらず一定にしないのは、短い語は 1 文字違うだけで別の語になるため */
 const tolerance = (word: string) =>
   word.length <= 2 ? 0 : word.length <= 5 ? 1 : word.length <= 10 ? 2 : 3;
 
@@ -13,7 +13,7 @@ export const closest = (word: string, candidates: Iterable<string>): string | un
   return best?.candidate;
 };
 
-/** 隣り合う 2 文字の入れ替えも 1 回と数える。lable のような打ち間違いがいちばん多いため */
+/** 隣り合う 2 文字の入れ替えを 2 回と数えないのは、lable のような打ち間違いがいちばん多いため */
 const editDistance = (a: string, b: string) => {
   const rows = Array.from({ length: a.length + 1 }, (_, i) =>
     Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),

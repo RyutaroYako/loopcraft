@@ -1,11 +1,8 @@
-/**
- * code と suggestions は --format json のときに error として返す。
- * suggestions には、そのまま実行できるコマンドか、次に直す場所を書く
- */
 export type Failure = {
   kind: "usage" | "failure";
   message: string;
   code?: string;
+  /** そのまま打てるコマンドか、次に直す場所 */
   suggestions?: string[];
   /** 失敗しても返したい結果（検証のエラーの一覧など） */
   data?: unknown;

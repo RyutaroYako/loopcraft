@@ -85,4 +85,24 @@ describe("diffDiagrams", () => {
       expect.objectContaining({ id: "l_hire", changes: ["delay: true -> false"] }),
     ]);
   });
+
+  it("説明・曲がり具合・ループ記号の変更も、違いとして場所を挙げる", () => {
+    const before = createSampleDiagram();
+    const after = edited(
+      before,
+      { op: "set-description", description: "新" },
+      { op: "update-variable", id: "sales", description: "d" },
+      { op: "update-link", id: "l_sales", curvature: 0.3 },
+      { op: "update-loop", id: "p_growth", description: "d" },
+    );
+    expect(diffDiagrams(before, after)).toMatchObject({
+      changed: true,
+      other: [
+        "description",
+        "variables.sales.description",
+        "links.l_sales.curvature",
+        "loops.p_growth.description",
+      ],
+    });
+  });
 });

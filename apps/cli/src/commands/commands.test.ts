@@ -183,10 +183,18 @@ describe("loops", () => {
     expect(stderr.at(-1)).toMatch(/^⚠ ループが多いため/);
   });
 
-  it("無いファイルや壊れたファイルは失敗にする", async () => {
+  it("無いファイルや壊れたファイルは失敗にし、名前の近いファイルを示す", async () => {
     const { context } = await createWorkspace();
     expect(await loops("none.json", { format: "text" }, context)).toMatchObject({
       kind: "failure",
+    });
+    await writeSample(context.cwd);
+    expect(await loops("diagrm.json", { format: "text" }, context)).toMatchObject({
+      code: "FILE_NOT_FOUND",
+      suggestions: [
+        "diagram.json のことですか",
+        "新しく作るときは loopcraft edit diagrm.json - に操作を渡してください",
+      ],
     });
     await writeFile(join(context.cwd, "broken.json"), "{");
     expect(await loops("broken.json", { format: "text" }, context)).toMatchObject({

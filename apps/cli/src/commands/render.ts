@@ -57,6 +57,7 @@ export async function render(
         code: "PNG_FAILED",
         suggestions: [
           `loopcraft render ${loaded.shown} -o ${target.shown.replace(/\.png$/i, ".svg")}`,
+          "フォントが無いときは、日本語のフォント（fonts-noto-cjk など）を入れてください",
         ],
       });
     }
@@ -80,9 +81,14 @@ export async function render(
  */
 async function svgToPng(svg: string, scale: number): Promise<Uint8Array> {
   const { Resvg } = await import("@resvg/resvg-js");
-  const resvg = new Resvg(svg, {
-    fitTo: { mode: "zoom", value: scale },
-    font: { loadSystemFonts: true, defaultFontFamily: "Noto Sans CJK JP" },
-  });
-  return resvg.render().asPng();
+  const font = { loadSystemFonts: true, defaultFontFamily: "Noto Sans CJK JP" };
+  // 確かめずに描かないのは、フォントが 1 つも無いと resvg は失敗せず、文字の無い画像を返すため
+  const probe = new Resvg(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="24"><text x="2" y="18" font-size="16">売A</text></svg>',
+    { font },
+  ).render();
+  if (!probe.pixels.some((value, at) => at % 4 === 3 && value > 0)) {
+    throw new Error("文字を描けるフォントが見つかりません");
+  }
+  return new Resvg(svg, { fitTo: { mode: "zoom", value: scale }, font }).render().asPng();
 }

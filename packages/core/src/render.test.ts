@@ -41,4 +41,22 @@ describe("renderSvg", () => {
     const diagram: Diagram = { version: 1, title: "", variables: [], links: [], loops: [] };
     expect(render(diagram)).toMatchObject({ width: 96, height: 96 });
   });
+
+  it("曲げた矢印と極性の印も、画像の範囲に入れる", () => {
+    const diagram: Diagram = {
+      version: 1,
+      title: "",
+      variables: [
+        { id: "a" as never, label: "a", position: { x: 0, y: 0 } },
+        { id: "b" as never, label: "b", position: { x: 300, y: 0 } },
+      ],
+      links: [
+        { id: "ab" as never, from: "a" as never, to: "b" as never, polarity: "+", curvature: 0.4 },
+      ],
+      loops: [],
+    };
+    const { svg } = render(diagram);
+    const [, minY] = /viewBox="(-?\d+) (-?\d+)/.exec(svg)!.slice(1).map(Number);
+    expect(minY).toBeLessThan(-240);
+  });
 });

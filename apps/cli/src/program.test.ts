@@ -95,6 +95,10 @@ describe("runCli", () => {
     await expectError(["chek", "a b.json"], "不明なコマンドです: chek", [
       "loopcraft check 'a b.json'",
     ]);
+    const typo = await run(["chek", "diagram.json", "--format", "json"]);
+    expect(JSON.parse(typo.stdout.join(""))).toMatchObject({
+      error: { suggestions: ["loopcraft check diagram.json --format json"] },
+    });
     await expectError(["zzz"], "不明なコマンドです: zzz", [
       "使えるコマンドは serve, validate, loops, check, edit, layout, render, diff, agent-init, schema です（loopcraft --help）",
     ]);

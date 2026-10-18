@@ -49,4 +49,12 @@ describe("agent-init", () => {
       expect(await readFile(join(context.cwd, "docs.md"), "utf8")).toContain(`\`${run} --help\``);
     }
   });
+
+  it("--file には絶対パスも書ける", async () => {
+    const { context, stdout } = await createWorkspace();
+    const other = await createWorkspace();
+    await agentInit({ format: "json", file: join(other.cwd, "AG.md") }, context);
+    expect(await readFile(join(other.cwd, "AG.md"), "utf8")).toContain(BLOCK_START);
+    expect(JSON.parse(stdout[0]!).data.action).toBe("created");
+  });
 });

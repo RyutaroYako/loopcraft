@@ -73,21 +73,30 @@ describe("parseDiagramJson のエラー", () => {
 
   it("形の合わない項目を外して調べても、元の位置で報告し、外した関連を参照切れにしない", () => {
     const input = createSampleInput();
-    const variables = input.variables as unknown[];
-    variables.unshift({ label: "ID の無い変数" });
     delete (input.links[0] as { to?: string }).to;
     input.links[5]!.from = "ghost";
     input.loops[1]!.links = ["l5", "staff"];
+    (input.loops as unknown[]).unshift({ name: "ID の無いループ" });
     const errors = errorsOf(input);
     expect(errors).toContainEqual(expect.objectContaining({ path: "links.5.from" }));
     expect(errors).toContainEqual({
-      path: "loops.1.links.1",
+      path: "loops.2.links.1",
       message: '関連 "staff" は存在しません',
       hint: "loops の links には、変数ではなく関連の ID を並べます",
     });
-    expect(errors.filter((error) => error.path?.startsWith("loops.0"))).toEqual([]);
+    expect(errors.filter((error) => error.path?.startsWith("loops.1"))).toEqual([]);
     expect(parse({ variables: "x" }).ok).toBe(false);
     expect(parse([]).ok).toBe(false);
+  });
+
+  it("ID の読めない変数があれば、変数の参照切れは報告しない", () => {
+    const input = createSampleInput();
+    const variables = input.variables as unknown[];
+    variables[0] = { idd: "staff", label: "社員数" };
+    input.links[1]!.to = "ghost";
+    const errors = errorsOf(input);
+    expect(errors.filter((error) => error.message.includes("は存在しません"))).toEqual([]);
+    expect(errors).toContainEqual({ path: "variables.0", message: '"id" がありません' });
   });
 
   it("ループの並びの誤りに直し方を添える", () => {
@@ -125,6 +134,16 @@ describe("parseDiagramJson のエラー", () => {
   it("エラーを場所と直し方つきの 1 行にする", () => {
     expect(formatDiagramError({ path: "a.b", message: "m", hint: "h" })).toBe("a.b: m（h）");
     expect(formatDiagramError({ path: undefined, message: "m" })).toBe("m");
+  });
+});
+
+describe("parseDiagramJson の数", () => {
+  it("桁あふれで無限大になる座標や曲がり具合は読み込まない", () => {
+    const text = JSON.stringify(createSampleInput()).replace('"x":0,"y":0', '"x":1e400,"y":0');
+    expect(parseDiagramJson(text)).toMatchObject({
+      ok: false,
+      errors: [expect.objectContaining({ path: "variables.0.position.x" })],
+    });
   });
 });
 

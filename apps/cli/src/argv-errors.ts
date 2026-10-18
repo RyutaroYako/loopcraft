@@ -4,8 +4,7 @@ import { usageError } from "./outcome.ts";
 import type { Failure } from "./outcome.ts";
 
 /**
- * よくある書き違いを、正しい書き方に対応づける。
- * 受け付けてしまわずに案内するのは、書き方が 2 通りあると、例や説明がどちらかに揃わなくなるため
+ * 書き違いを受け付けてしまわずに案内するのは、書き方が 2 通りあると、例や説明がどちらかに揃わなくなるため
  */
 const OPTION_FIXES: Record<string, string> = {
   "--json": "--format json",
@@ -54,7 +53,7 @@ export function explainUnknownCommand(program: Command, args: readonly string[])
   });
 }
 
-/** commander のエラーは英語で、直し方も示さないので、日本語にして次に打つコマンドを添える */
+/** commander の文をそのまま出さないのは、英語で、次に何を打てばよいかも示さないため */
 export function explainCommanderError(
   error: CommanderError,
   program: Command,
@@ -67,6 +66,14 @@ export function explainCommanderError(
 
   switch (error.code) {
     case "commander.unknownOption": {
+      const positional = args.find((arg) => !arg.startsWith("-"));
+      // オプションの誤りとして返さないのは、--format json を付けて打ち違えると、コマンド名の案内が出なくなるため
+      if (!command && positional !== undefined) {
+        return explainUnknownCommand(program, [
+          positional,
+          ...args.filter((arg) => arg !== positional),
+        ]);
+      }
       const option = quoted[0] ?? "";
       const flags = (command ?? program).options
         .flatMap((item) => [item.long, item.short])
@@ -103,14 +110,12 @@ export function explainCommanderError(
   }
 }
 
-/** 既に同じオプションがあれば、書き違えたほうを消すだけにする */
 function replaceOption(args: readonly string[], option: string, fix: string) {
   const [flag] = fix.split(" ");
   const replacement = args.includes(flag!) ? [] : fix.split(" ");
   return args.flatMap((arg) => (arg === option ? replacement : [arg]));
 }
 
-/** "-o, --output <file>" から "--output" を取り出す */
 function flagName(flags: string) {
   return /--[\w-]+/.exec(flags)?.[0] ?? flags;
 }

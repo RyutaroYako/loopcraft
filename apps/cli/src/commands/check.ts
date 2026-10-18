@@ -10,6 +10,7 @@ import { printData } from "../output.ts";
 import {
   countKinds,
   describeLoops,
+  findVariable,
   layoutReport,
   printLayoutIssues,
   printLoopRows,
@@ -61,7 +62,7 @@ export async function check(
   const { diagram, shown, unplaced } = loaded;
   const { rows, truncated } = describeLoops(diagram);
   const layout = layoutReport(diagram);
-  const failures = expectation ? compare(expectation, diagram, rows) : [];
+  const failures = expectation ? compare(expectation, diagram, rows, truncated) : [];
   const passed = layout.errors === 0 && failures.length === 0;
 
   const data = {
@@ -87,9 +88,10 @@ export async function check(
 
   if (options.format === "text") {
     const kinds = countKinds(rows);
-    log.success(
-      `${shown}: 変数 ${data.variables}・関連 ${data.links}・ループ R ${kinds.R} / B ${kinds.B}`,
-    );
+    const summary = `${shown}: 変数 ${data.variables}・関連 ${data.links}・ループ R ${kinds.R} / B ${kinds.B}`;
+    if (passed) log.success(summary);
+    else log.info(summary);
+    if (truncated) log.warn(`ループが多いため、先頭の ${rows.length} 件だけを数えています`);
     if (!options.compact && rows.length > 0) printLoopRows(log, rows);
     if (unplaced.length > 0) {
       log.note(
@@ -108,8 +110,14 @@ export async function check(
     return failure(`${reasons.join("、")}あります`, {
       code: "CHECK_FAILED",
       suggestions: [
-        ...(layout.errors > 0
-          ? [`loopcraft layout ${shown} --all で並べ直すと、重なりと突き抜けを直せます`]
+        ...(layout.issues.some((issue) => issue.kind === "overlap")
+          ? [`loopcraft layout ${shown} --all で並べ直すと、重なりを直せます`]
+          : []),
+        // 突き抜けに layout --all を勧めないのは、並べ直しても残ることがあり、同じ案内を繰り返すため
+        ...(layout.issues.some((issue) => issue.kind === "link-through")
+          ? [
+              "突き抜けは layout.issues の hint に沿って、edit の update-variable で position をずらすか、update-link で curvature を付けて直してください",
+            ]
           : []),
         ...(failures.length > 0
           ? ["expect.failures の項目を見て、変数や関連を直してください"]
@@ -136,8 +144,13 @@ function parseExpectation(text: string | undefined): Expectation | string | unde
   return `--expect の ${v.getDotPath(issue) ?? "値"} が読めません。書けるのは variables, links, loops.R, loops.B, has[].kind, has[].through です`;
 }
 
-/** 違いを 1 行ずつ返す。見比べるのを読み手に任せると、数が多いときに見落とすため */
-function compare(expectation: Expectation, diagram: Diagram, rows: readonly LoopRow[]): string[] {
+/** 合否だけを返さないのは、どこが違うかの見比べを読み手に任せると、数が多いときに見落とすため */
+function compare(
+  expectation: Expectation,
+  diagram: Diagram,
+  rows: readonly LoopRow[],
+  truncated: boolean,
+): string[] {
   const failures: string[] = [];
   const counts = countKinds(rows);
   const expectCount = (name: string, expected: number | undefined, actual: number) => {
@@ -147,26 +160,30 @@ function compare(expectation: Expectation, diagram: Diagram, rows: readonly Loop
   };
   expectCount("variables", expectation.variables, diagram.variables.length);
   expectCount("links", expectation.links, diagram.links.length);
-  expectCount("loops.R", expectation.loops?.R, counts.R);
-  expectCount("loops.B", expectation.loops?.B, counts.B);
+  // 数えた分だけで比べないのは、打ち切った数がたまたま期待と合うと、誤って通すため
+  if (truncated && expectation.loops) {
+    failures.push("loops: ループが多く、すべては数えられないので、数を判定できません");
+  } else {
+    expectCount("loops.R", expectation.loops?.R, counts.R);
+    expectCount("loops.B", expectation.loops?.B, counts.B);
+  }
 
   for (const [index, wanted] of (expectation.has ?? []).entries()) {
-    const ids = wanted.through.map((ref) => resolveVariable(diagram, ref));
-    const unknown = wanted.through.filter((_, at) => ids[at] === undefined);
-    if (unknown.length > 0) {
-      failures.push(
-        `has.${index}: 変数 ${unknown.map((ref) => `"${ref}"`).join(", ")} がありません`,
-      );
+    const resolved = wanted.through.map((ref) => findVariable(diagram, ref));
+    const problems = resolved.flatMap((item) => ("error" in item ? [item.error] : []));
+    if (problems.length > 0) {
+      failures.push(`has.${index}: ${problems.join("、")}`);
       continue;
     }
-    const members = new Set(ids);
-    const match = rows.find(
-      (row) =>
-        row.variables.length === members.size && row.variables.every((id) => members.has(id)),
-    );
+    const ids = resolved.flatMap((item) => ("id" in item ? [item.id] : []));
+    // 変数の集まりだけで比べないのは、同じ変数を逆向きに回るループが別にあり、種類も違いうるため
+    const wantedKey = routeKey(ids);
+    const match = rows.find((row) => routeKey(row.variables) === wantedKey);
     const route = wanted.through.join(" → ");
     if (!match) {
-      failures.push(`has.${index}: ${route} を通るループがありません`);
+      failures.push(
+        `has.${index}: ${route} を通るループがありません${truncated ? "（ループが多く、すべては数えていません）" : ""}`,
+      );
     } else if (wanted.kind && match.kind !== wanted.kind) {
       failures.push(
         `has.${index}: ${route} は ${wanted.kind} を期待しましたが ${match.kind} でした（極性の - の数を確かめてください）`,
@@ -176,9 +193,7 @@ function compare(expectation: Expectation, diagram: Diagram, rows: readonly Loop
   return failures;
 }
 
-function resolveVariable(diagram: Diagram, ref: string): VariableId | undefined {
-  return (
-    diagram.variables.find((variable) => variable.id === ref) ??
-    diagram.variables.find((variable) => variable.label === ref)
-  )?.id;
+function routeKey(variables: readonly VariableId[]) {
+  const start = variables.indexOf(variables.toSorted()[0]!);
+  return JSON.stringify([...variables.slice(start), ...variables.slice(0, start)]);
 }

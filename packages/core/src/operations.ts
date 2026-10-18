@@ -16,6 +16,7 @@ import { estimateNodeSizes } from "./geometry.ts";
 import { autoLayout } from "./layout.ts";
 import { DiagramSchema, PointSchema, PolaritySchema } from "./schema.ts";
 import type { Diagram, Link, LinkId, LoopId, VariableId } from "./schema.ts";
+import { cycleKey } from "./loop.ts";
 import { closest } from "./suggest.ts";
 
 /*
@@ -90,8 +91,8 @@ export type Operation = v.InferOutput<typeof OperationSchema>;
 export const OPERATION_NAMES = OperationSchema.options.map((option) => option.entries.op.literal);
 
 export interface OperationError {
-  /** 何番目（0 始まり）の操作で止まったか */
-  index: number;
+  /** 何番目（0 始まり）の操作で止まったか。操作の組み合わせで整合性が崩れたときは無い */
+  index?: number;
   message: string;
   hint?: string;
 }
@@ -122,9 +123,17 @@ export const parseOperation = (
   const issue = result.issues[0];
   const key = issue.path?.at(-1)?.key;
   if (issue.expected === "never" && typeof key === "string") {
-    return { ok: false, message: `知らないキー "${key}" です` };
+    const option = OperationSchema.options.find(
+      (item) => isRecord(input) && item.entries.op.literal === input["op"],
+    );
+    const near = option && closest(key, Object.keys(option.entries));
+    return {
+      ok: false,
+      message: `知らないキー "${key}" です`,
+      ...(near ? { hint: `"${near}" のことですか` } : {}),
+    };
   }
-  const op = typeof input === "object" && input !== null && "op" in input ? input.op : undefined;
+  const op = isRecord(input) ? input["op"] : undefined;
   if (typeof op === "string" && !OPERATION_NAMES.includes(op as Operation["op"])) {
     const near = closest(op, OPERATION_NAMES);
     return {
@@ -137,7 +146,6 @@ export const parseOperation = (
   return { ok: false, message: path ? `${path}: ${issue.message}` : issue.message };
 };
 
-/** すべて成功したときだけ結果を返し、途中で失敗したら図には何も反映しない */
 export const applyOperations = (start: Diagram, operations: readonly Operation[]): ApplyResult => {
   let diagram = start;
   const unplaced = new Set<VariableId>();
@@ -161,16 +169,13 @@ export const applyOperations = (start: Diagram, operations: readonly Operation[]
       fixed: new Set(placed.map((variable) => variable.id)),
     });
   }
-  // 操作どうしの組み合わせで整合性が崩れていないかを、保存の前に確かめる
+  // 操作ごとの確認で済ませないのは、組み合わせで整合性が崩れることがあるため
   const checked = v.safeParse(DiagramSchema, diagram, { lang: "ja" });
   if (!checked.success) {
     const issue = checked.issues[0];
     return {
       ok: false,
-      error: {
-        index: operations.length - 1,
-        message: `${v.getDotPath(issue) ?? ""}: ${issue.message}`,
-      },
+      error: { message: `操作の組み合わせで ${v.getDotPath(issue) ?? ""}: ${issue.message}` },
     };
   }
   return { ok: true, diagram, ids };
@@ -297,6 +302,15 @@ const apply = (
       if (new Set(through).size !== through.length) {
         throw new Failure("同じ変数を 2 回通っています", "2 つのループに分けて足してください");
       }
+      // 既にあるループを返して済ませないのは、渡した id や name が黙って捨てられ、後の操作がその id を見失うため
+      const key = cycleKey(links);
+      const existing = diagram.loops.find((loop) => cycleKey(loop.links) === key);
+      if (existing) {
+        throw new Failure(
+          `同じ経路のループが既に "${existing.id}" としてあります`,
+          `名前を変えるときは {"op":"update-loop","id":"${existing.id}","name":"…"} を使ってください`,
+        );
+      }
       const featured = featureLoop(diagram, links, { id, name: operation.name ?? "" });
       const described = operation.description
         ? updateLoop(featured.diagram, featured.id, { description: operation.description })
@@ -345,6 +359,15 @@ const variableRef = (diagram: Diagram, ref: string): VariableId => {
 const linkRef = (diagram: Diagram, ref: { id?: string; from?: string; to?: string }): Link => {
   if (ref.id !== undefined) {
     const link = diagram.links.find((item) => item.id === ref.id);
+    if (link && (ref.from !== undefined || ref.to !== undefined)) {
+      const paired = linkRef(diagram, { from: ref.from ?? link.from, to: ref.to ?? link.to });
+      if (paired.id !== link.id) {
+        throw new Failure(
+          `id の "${link.id}" と from・to の "${paired.id}" が別の関連を指しています`,
+          "id か、from と to の組の、どちらか一方で指してください",
+        );
+      }
+    }
     if (link) return link;
     const near = closest(
       ref.id,
@@ -363,13 +386,22 @@ const linkRef = (diagram: Diagram, ref: { id?: string; from?: string; to?: strin
 };
 
 const loopRef = (diagram: Diagram, ref: string): LoopId => {
-  const loop =
-    diagram.loops.find((item) => item.id === ref) ??
-    diagram.loops.find((item) => item.name !== "" && item.name === ref);
-  if (loop) return loop.id;
+  const byId = diagram.loops.find((item) => item.id === ref);
+  if (byId) return byId.id;
+  const byName = diagram.loops.filter((item) => item.name !== "" && item.name === ref);
+  if (byName.length === 1) return byName[0]!.id;
+  if (byName.length > 1) {
+    throw new Failure(
+      `"${ref}" という名前のループが ${byName.length} 個あります`,
+      `ID で指してください: ${byName.map((loop) => loop.id).join(", ")}`,
+    );
+  }
   const near = closest(ref, [
     ...diagram.loops.map((item) => item.id),
     ...diagram.loops.map((item) => item.name),
   ]);
   throw new Failure(`ループ "${ref}" はありません`, near ? `"${near}" のことですか` : undefined);
 };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;

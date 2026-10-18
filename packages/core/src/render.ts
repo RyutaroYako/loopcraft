@@ -14,13 +14,12 @@ import { listLoopEntries } from "./loops.ts";
 import type { Diagram, VariableId } from "./schema.ts";
 
 /**
- * エディタの画面と同じ見た目の SVG を、DOM を使わずに作る。
  * エディタの部品をそのまま描かないのは、Vue と DOM が要り、CLI から使えないため
  */
 
 export type Theme = "light" | "dark";
 
-/** apps/web/src/styles/tokens.css の値と揃える */
+/** tokens.css を読まないのは、公開した CLI には web のソースが無いため。値はそちらと揃える */
 const PALETTE: Record<Theme, Record<string, string>> = {
   light: {
     canvas: "#f8f9fa",
@@ -75,10 +74,16 @@ export const renderSvg = (
   const boxes = diagram.variables.map((variable) => ({ variable, ...boxOf(variable.id) }));
   const pairs = new Set(diagram.links.map((link) => linkPairKey(link.from, link.to)));
 
+  // 変数の枠だけで範囲を決めないのは、曲げた矢印や極性の印が枠の外へ出て、画像から切れるため
+  const extents: { center: { x: number; y: number }; size: Size }[] = [];
   const links = diagram.links.map((link) => {
     const curvature =
       link.curvature ?? defaultCurvature(pairs.has(linkPairKey(link.to, link.from)));
     const geometry = linkGeometry(boxOf(link.from), boxOf(link.to), curvature);
+    for (const point of [geometry.start, geometry.control, geometry.end]) {
+      extents.push({ center: point, size: { width: 0, height: 0 } });
+    }
+    extents.push({ center: geometry.label, size: { width: 24, height: 24 } });
     const negative = link.polarity === "-";
     const delay = link.delay
       ? `<path d="${delayMarkPath(geometry.middle, geometry.tangent)}" fill="none" stroke="${color.ink2}" stroke-width="1.5" stroke-linecap="round"/>`
@@ -135,6 +140,7 @@ export const renderSvg = (
 
   const bounds = boundsOf([
     ...boxes,
+    ...extents,
     ...markerPoints.map(({ at, loop }) => ({
       center: { x: at.x, y: at.y + (loop.name ? 16 : 0) },
       size: { width: Math.max(52, loop.name.length * 12), height: loop.name ? 84 : 52 },

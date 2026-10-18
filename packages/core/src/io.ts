@@ -57,7 +57,7 @@ export const parseDiagramJson = (text: string): ParseDiagramResult => {
   }
   const shape = v.safeParse(DiagramShapeSchema, input, { lang: "ja" });
   if (!shape.success) {
-    // 形の誤りを直してから参照切れを知る、という往復を減らすため、読める部分の整合性も一緒に調べる
+    // 形の誤りだけを返さないのは、それを直した後でやっと参照切れが分かり、往復が増えるため
     const salvaged = salvage(input);
     return {
       ok: false,
@@ -156,8 +156,8 @@ const integrityErrors = (
   });
 
 /**
- * 形の合わない項目は、参照を調べるのに要る部分だけを取り出す。
- * ID の無い項目は参照の調べようが無いので外し、元の位置を indexes に残す
+ * 形の合わない項目も外さずに調べるのは、参照に要る部分（ID・from・to・links）さえあれば参照切れは判定できるため。
+ * 判定できない参照は報告しない。たとえば ID の読めない変数があるときに、その変数を指す関連を参照切れとすると、誤った直しをさせる
  */
 const salvage = (
   input: unknown,
@@ -177,12 +177,19 @@ const salvage = (
       indexes[collection].push(at);
       return [made];
     });
+  const salvagedVariables = pick("variables", variables, (item) => ({
+    id: item["id"] as string,
+    label: typeof item["label"] === "string" ? item["label"] : "",
+  }));
+  const known = new Set(salvagedVariables.map((variable) => variable.id));
+  const everyVariableKnown = salvagedVariables.length === variables.length;
   const salvagedLinks = pick("links", links, (item) =>
-    isId(item["from"]) && isId(item["to"])
+    isId(item["from"]) &&
+    isId(item["to"]) &&
+    (everyVariableKnown || (known.has(item["from"]) && known.has(item["to"])))
       ? { id: item["id"], from: item["from"], to: item["to"], polarity: "+" }
       : undefined,
   );
-  // 取り出せなかった関連を通るループまで調べると、その関連が無いと誤って報告してしまう
   const usable = new Set(salvagedLinks.map((link) => link.id));
   const unusable = new Set(
     links.flatMap((item) =>
@@ -192,10 +199,7 @@ const salvage = (
   const shape = {
     version: DIAGRAM_FORMAT_VERSION,
     title: "",
-    variables: pick("variables", variables, (item) => ({
-      id: item["id"],
-      label: typeof item["label"] === "string" ? item["label"] : "",
-    })),
+    variables: salvagedVariables,
     links: salvagedLinks,
     loops: pick("loops", loops, (item) =>
       Array.isArray(item["links"]) &&

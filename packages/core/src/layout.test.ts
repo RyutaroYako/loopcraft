@@ -187,4 +187,16 @@ describe("placeMissingVariables", () => {
     const diagram = createSampleDiagram();
     expect(placeMissingVariables(diagram)).toEqual(diagram);
   });
+
+  it("並べ直しても動かなかった変数どうしの矢印は、曲がり具合とループ記号を保つ", () => {
+    const once = autoLayout(createSampleDiagram(), sizesOf(createSampleDiagram()));
+    const curved: Diagram = {
+      ...once,
+      links: once.links.map((link) => ({ ...link, curvature: 0.25 })),
+      loops: once.loops.map((loop) => ({ ...loop, marker: { x: 5, y: 5 } })),
+    };
+    const result = autoLayout(curved, sizesOf(curved));
+    expect(result.links.every((link) => link.curvature === 0.25)).toBe(true);
+    expect(result.loops.every((loop) => loop.marker?.x === 5)).toBe(true);
+  });
 });

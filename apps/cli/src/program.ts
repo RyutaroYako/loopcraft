@@ -225,7 +225,6 @@ export function createProgram(
     .configureOutput({
       writeOut: (text) => log.output(text.trimEnd()),
       writeErr: (text) => log.plain(text.trimEnd()),
-      // 英語のエラーを出さず、runCli で日本語にして、直し方と一緒に出す
       outputError: () => {},
     })
     .hook("preAction", showHeader);
@@ -337,7 +336,7 @@ export function createProgram(
           [
             `loopcraft edit diagram.json - <<'EOF'\n{"op":"add-variable","id":"sales","label":"売上"}\n{"op":"add-variable","id":"staff","label":"社員数"}\n{"op":"add-link","from":"sales","to":"staff","polarity":"+"}\n{"op":"add-link","from":"staff","to":"sales","polarity":"+"}\n{"op":"add-loop","through":["sales","staff"],"name":"成長"}\nEOF`,
           ],
-          `{"ok":true,"data":{"file":"diagram.json","written":true,"created":true,"applied":5,"ids":["sales","staff","l_x1","l_x2","p_x3"],"variables":2,"links":2,"loops":{"R":1,"B":0},"layout":{"errors":0,"warnings":0,"issues":[]}}}`,
+          `{"ok":true,"data":{"file":"diagram.json","written":true,"created":true,"applied":5,"ids":["sales","staff","sales_staff","staff_sales","loop1"],"variables":2,"links":2,"loops":{"R":1,"B":0},"layout":{"errors":0,"warnings":0,"issues":[]}}}`,
           ["heredoc の EOF は引用符で囲む（'EOF'）。囲まないと、シェルが $ や ` を展開する"],
         ),
       ].join("\n"),
@@ -476,8 +475,8 @@ interface ServeFlags {
 }
 
 /**
- * 先頭に置くのは、エージェントはまず --help を読み、各コマンドの --help まで読まずに例を写すため。
- * 使い方の説明でなく写せる例にするのは、例があると書き方を探す往復が減るため
+ * 各コマンドの --help に分けて書かないのは、エージェントはまず --help を読み、そこにある例を写して進めるため。
+ * 説明でなく写せる例にするのは、書き方を探す往復が減るため
  */
 const AGENT_HELP = [
   "エージェント向けの早見表（各コマンドの --help を先に読まなくてよい）:",

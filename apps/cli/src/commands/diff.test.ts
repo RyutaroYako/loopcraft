@@ -38,6 +38,11 @@ describe("diff", () => {
       ]),
     );
     expect(stderr.at(-1)).toBe("位置だけが変わった変数: 1 個");
+    const described = createSampleDiagram();
+    described.description = "別の説明";
+    await writeFile(join(context.cwd, "described.json"), stringifyDiagram(described));
+    await diff(["before.json", "described.json"], { format: "text", base: "HEAD" }, context);
+    expect(stdout.at(-1)).toBe("~ description");
   });
 
   it("ファイル 1 つなら git の版と比べ、その版に無ければすべて足したものとする", async () => {
@@ -89,6 +94,7 @@ describe("diff", () => {
     ).toMatchObject({
       code: "GIT_ERROR",
       message: "git から HEAD の版を読めません（fatal: not a git repository）",
+      suggestions: ["git の管理下に無いときは、比べる 2 つのファイルを指定してください"],
     });
     expect(
       await diff(["diagram.json"], { format: "text", base: "HEAD" }, context, {
@@ -123,6 +129,7 @@ describe("diff", () => {
     expect(JSON.parse(stdout.at(-1)!)).toMatchObject({ data: { base: "HEAD（ファイルが無い）" } });
     expect(await diff(["diagram.json"], { format: "json", base: "nope" }, context)).toMatchObject({
       code: "GIT_ERROR",
+      suggestions: ["--base の版を git log --oneline で確かめてください"],
     });
   });
 });

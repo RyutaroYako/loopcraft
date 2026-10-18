@@ -4,7 +4,6 @@ import { linkPairKey } from "./integrity.ts";
 import type { Diagram, LinkId, LoopId, Point, VariableId } from "./schema.ts";
 
 /**
- * error は読めなくなる崩れ（重なり・突き抜け）、warning は読めるが直したほうがよい崩れ。
  * 交差を error にしないのは、ループが多い図では避けられないことがあるため
  */
 export interface LayoutIssue {
@@ -18,7 +17,7 @@ export interface LayoutIssue {
 }
 
 const CURVE_STEPS = 16;
-/** 枠をかすめるだけの線まで数えないよう、枠をこの分だけ縮めて調べる */
+/** 枠そのままで調べないのは、かすめるだけの線まで突き抜けと数えるため */
 const GRAZE = 2;
 const POLARITY_RADIUS = 11;
 const MARKER_RADIUS = 26;
@@ -87,7 +86,7 @@ export const findLayoutIssues = (
   for (const [index, a] of curves.entries()) {
     for (const b of curves.slice(index + 1)) {
       const ends = new Set([a.link.from, a.link.to]);
-      // 端を共有する矢印は、端の近くで必ず接するので数えない
+      // 端を共有する矢印を数えないのは、端の近くで必ず接するため
       if (ends.has(b.link.from) || ends.has(b.link.to)) continue;
       if (!polylinesCross(a.points, b.points)) continue;
       issues.push({
@@ -162,7 +161,6 @@ const polylineHitsBox = (points: readonly Point[], box: Box) => {
   return false;
 };
 
-/** Liang–Barsky の切り取り。線分のどこかが矩形の中に入れば true */
 const segmentHitsRect = (a: Point, b: Point, min: Point, max: Point) => {
   const dx = b.x - a.x;
   const dy = b.y - a.y;

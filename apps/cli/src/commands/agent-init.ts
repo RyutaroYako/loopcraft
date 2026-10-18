@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative, resolve } from "node:path";
 import type { Context } from "../context.ts";
 import { exists, isNotFound } from "../files.ts";
 import { done } from "../outcome.ts";
@@ -34,7 +34,8 @@ export async function agentInit(
       : (await exists(join(cwd, "CLAUDE.md")))
         ? "CLAUDE.md"
         : "AGENTS.md");
-  const path = join(cwd, name);
+  const path = resolve(cwd, name);
+  const shown = relative(cwd, path) || name;
   const block = agentBlock(await detectRunner(cwd));
   let current: string | undefined;
   try {
@@ -62,20 +63,20 @@ export async function agentInit(
   if (action !== "unchanged") await writeFile(path, next, "utf8");
 
   if (options.format === "json") {
-    printData(log, { file: name, action });
+    printData(log, { file: shown, action });
   } else {
     const message = {
-      created: `${name} を作り、loopcraft の使い方を書きました`,
-      appended: `${name} に loopcraft の使い方を追記しました`,
-      updated: `${name} の loopcraft の使い方を更新しました`,
-      unchanged: `${name} の loopcraft の使い方は最新です`,
+      created: `${shown} を作り、loopcraft の使い方を書きました`,
+      appended: `${shown} に loopcraft の使い方を追記しました`,
+      updated: `${shown} の loopcraft の使い方を更新しました`,
+      unchanged: `${shown} の loopcraft の使い方は最新です`,
     }[action];
     log.success(message);
   }
   return done;
 }
 
-/** 手元に入れたものを使わせるのは、npx だと毎回取りに行き、版も揃わないため */
+/** いつも npx にしないのは、手元に入れた版と違う版を取りに行くことがあるため */
 async function detectRunner(cwd: string) {
   if (await exists(join(cwd, "pnpm-lock.yaml"))) return "pnpm exec loopcraft";
   if (await exists(join(cwd, "yarn.lock"))) return "yarn loopcraft";

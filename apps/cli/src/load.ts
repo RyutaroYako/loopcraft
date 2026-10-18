@@ -1,8 +1,9 @@
-import { relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { closest } from "@loopcraft/core/suggest";
 import { formatDiagramError } from "@loopcraft/core/io";
 import type { Diagram, VariableId } from "@loopcraft/core/schema";
 import type { Context } from "./context.ts";
-import { readDiagramFile } from "./files.ts";
+import { listJsonFiles, readDiagramFile } from "./files.ts";
 import type { Revision } from "@loopcraft/core/session";
 import { failure } from "./outcome.ts";
 import type { Failure } from "./outcome.ts";
@@ -28,9 +29,15 @@ export async function loadDiagram(
   const { path, shown } = locate(file, context);
   const loaded = await readDiagramFile(path);
   if (loaded.status === "missing") {
+    // 新しく作る案内だけにしないのは、パスの打ち間違いでも別のファイルを作らせてしまうため
+    const siblings = await listJsonFiles(dirname(path)).catch(() => []);
+    const near = closest(basename(path), siblings);
     return failure(`${shown} が見つかりません`, {
       code: "FILE_NOT_FOUND",
-      suggestions: [`loopcraft edit ${shown} - で操作を並べると、新しく作れます`],
+      suggestions: [
+        ...(near ? [`${join(dirname(shown), near)} のことですか`] : []),
+        `新しく作るときは loopcraft edit ${shown} - に操作を渡してください`,
+      ],
     });
   }
   if (loaded.status === "invalid") {
@@ -38,7 +45,9 @@ export async function loadDiagram(
       `${shown} を開けません\n  ${loaded.errors.map(formatDiagramError).join("\n  ")}`,
       {
         code: "INVALID_DIAGRAM",
-        suggestions: [`loopcraft check ${shown} --format json で、直す場所と直し方を一覧できます`],
+        suggestions: [
+          `errors の path の場所を hint に沿って直し、loopcraft validate ${shown} で確かめてください`,
+        ],
         data: { file: shown, errors: loaded.errors },
       },
     );

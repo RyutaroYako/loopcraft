@@ -42,6 +42,15 @@ describe("edit", () => {
       },
     });
     const saved = JSON.parse(await readFile(join(context.cwd, "new.json"), "utf8"));
+    const text = await createWorkspace();
+    await edit(
+      "typo.json",
+      "-",
+      { format: "text" },
+      text.context,
+      stdin(lines({ op: "set-title", title: "t" })),
+    );
+    expect(text.stderr[0]).toBe("✓ typo.json を新しく作り、1 件の操作を反映しました");
     expect(saved.loops[0].name).toBe("ab");
   });
 

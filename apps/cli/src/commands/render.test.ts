@@ -46,7 +46,7 @@ describe("render", () => {
       await render("diagram.json", { ...options, output: "d.png" }, context, { svgToPng }),
     ).toMatchObject({
       code: "PNG_FAILED",
-      suggestions: ["loopcraft render diagram.json -o d.svg"],
+      suggestions: expect.arrayContaining(["loopcraft render diagram.json -o d.svg"]),
     });
   });
 

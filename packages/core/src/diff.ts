@@ -44,10 +44,12 @@ export interface DiagramDiff {
     flipped: (LoopSummary & { before: "R" | "B" })[];
   };
   featured: { added: string[]; removed: string[] };
+  /** 構造に関わらない変更（説明・曲がり具合・ループ記号の位置）の場所 */
+  other: string[];
 }
 
 /**
- * 関連は ID でなく向きで突き合わせる。書き手が ID を付け替えても、同じ因果関係なら同じものとして扱うため
+ * 関連を ID で突き合わせないのは、書き手が ID を付け替えただけで、同じ因果関係を消して足したことになるため
  */
 export const diffDiagrams = (before: Diagram, after: Diagram): DiagramDiff => {
   const beforeVariables = new Map(before.variables.map((variable) => [variable.id, variable]));
@@ -132,6 +134,12 @@ export const diffDiagrams = (before: Diagram, after: Diagram): DiagramDiff => {
     removed: [...beforeFeatured].filter((name) => !afterFeatured.has(name)),
   };
 
+  const other = [
+    ...(before.description === after.description ? [] : ["description"]),
+    ...otherChanges("variables", before.variables, after.variables, ["description"]),
+    ...otherChanges("links", before.links, after.links, ["description", "curvature"]),
+    ...otherChanges("loops", before.loops, after.loops, ["description", "marker"]),
+  ];
   const title =
     before.title === after.title ? undefined : { before: before.title, after: after.title };
   const changed =
@@ -141,8 +149,25 @@ export const diffDiagrams = (before: Diagram, after: Diagram): DiagramDiff => {
     [links.added, links.removed, links.changed].some((list) => list.length > 0) ||
     [loops.added, loops.removed, loops.flipped].some((list) => list.length > 0) ||
     featured.added.length > 0 ||
-    featured.removed.length > 0;
-  return { changed, ...(title ? { title } : {}), variables, links, loops, featured };
+    featured.removed.length > 0 ||
+    other.length > 0;
+  return { changed, ...(title ? { title } : {}), variables, links, loops, featured, other };
+};
+
+const otherChanges = <T extends { id: string }>(
+  collection: string,
+  before: readonly T[],
+  after: readonly T[],
+  keys: readonly (keyof T & string)[],
+) => {
+  const old = new Map(before.map((item) => [item.id, item]));
+  return after.flatMap((item) => {
+    const previous = old.get(item.id);
+    if (!previous) return [];
+    return keys
+      .filter((key) => JSON.stringify(previous[key]) !== JSON.stringify(item[key]))
+      .map((key) => `${collection}.${item.id}.${key}`);
+  });
 };
 
 const badge = (kind: LoopKind): "R" | "B" => (kind === "reinforcing" ? "R" : "B");
