@@ -106,6 +106,27 @@ describe("runCli", () => {
         suggestions: ["loopcraft check diagram.json --format json"],
       },
     });
+    const suggestionOf = async (args: string[]) =>
+      (await run(args)).stderr.find((line) => line.startsWith("  → "));
+    expect(await suggestionOf(["--json", "check", "diagram.json"])).toBe(
+      "  → loopcraft check diagram.json --format json",
+    );
+    const inline = await run(["--format=json", "check", "diagram.json"]);
+    expect(JSON.parse(inline.stdout.join(""))).toMatchObject({
+      error: {
+        message: "--format は check の後に書きます",
+        suggestions: ["loopcraft check diagram.json --format=json"],
+      },
+    });
+    expect(await suggestionOf(["--formt", "json", "check", "diagram.json"])).toBe(
+      "  → loopcraft check diagram.json --format json",
+    );
+    expect(await suggestionOf(["--compact", "check", "diagram.json", "--compact"])).toBe(
+      "  → loopcraft check diagram.json --compact",
+    );
+    expect(await suggestionOf(["--zzz", "check", "diagram.json"])).toBe(
+      "  → 使えるオプションは loopcraft check --help で確かめられます",
+    );
     const typoAfterOption = await run(["--format", "json", "chek", "diagram.json"]);
     expect(JSON.parse(typoAfterOption.stdout.join(""))).toMatchObject({
       error: { message: "不明なコマンドです: chek" },

@@ -79,17 +79,38 @@ export function explainCommanderError(
       const flags = (command ?? program).options
         .flatMap((item) => [item.long, item.short])
         .filter((flag) => flag !== undefined);
+      const [flag = option, inline] = option.split(/=(.*)/s);
+      const fix = OPTION_FIXES[flag];
+      const near = flags.includes(flag)
+        ? flag
+        : fix && flags.includes(fix.split(" ")[0]!)
+          ? fix
+          : closest(flag, flags);
       const position = args.indexOf(option);
-      if (command && at !== undefined && position < at && flags.includes(option)) {
-        const width = takesValue(program, option) ? 2 : 1;
-        const moved = args.slice(position, position + width);
+      if (command && at !== undefined && position < at) {
+        if (!near) {
+          return usageError(`知らないオプション ${option} です`, {
+            suggestions: [`使えるオプションは ${help} で確かめられます`],
+          });
+        }
+        const [fixed, ...fixedValue] = near.split(" ");
+        const separateValue =
+          inline === undefined && fixedValue.length === 0 && takesValue(program, fixed!);
+        const width = separateValue ? 2 : 1;
+        const moved =
+          inline !== undefined
+            ? [`${fixed}=${inline}`]
+            : separateValue
+              ? [fixed!, args[position + 1]!]
+              : [fixed!, ...fixedValue];
         const rest = args.filter((_, index) => index < position || index >= position + width);
-        return usageError(`${option} は ${command.name()} の後に書きます`, {
-          suggestions: [commandLine([...rest, ...moved])],
-        });
+        return usageError(
+          flag === near
+            ? `${flag} は ${command.name()} の後に書きます`
+            : `知らないオプション ${option} です。オプションは ${command.name()} の後に書きます`,
+          { suggestions: [commandLine(rest.includes(fixed!) ? rest : [...rest, ...moved])] },
+        );
       }
-      const fix = OPTION_FIXES[option];
-      const near = fix && flags.includes(fix.split(" ")[0]!) ? fix : closest(option, flags);
       return usageError(`知らないオプション ${option} です`, {
         suggestions: near
           ? [commandLine(replaceOption(args, option, near))]
@@ -122,12 +143,29 @@ export function explainCommanderError(
 
 /** 値を取るオプションの次の引数を飛ばすのは、--format json の json をコマンド名と取り違えないため */
 function commandIndex(program: Command, args: readonly string[]) {
+  const isCommand = (arg: string | undefined) =>
+    program.commands.some((command) => command.name() === arg);
   for (let index = 0; index < args.length; index++) {
     const arg = args[index]!;
     if (!arg.startsWith("-")) return index;
-    if (!arg.includes("=") && takesValue(program, arg)) index++;
+    if (arg.includes("=")) continue;
+    // 知らないオプションの後ろも、その次がコマンド名なら値とみなす。--formt json の json をコマンド名と取り違えないため
+    const next = args[index + 1];
+    const valueOfUnknown =
+      !isKnownFlag(program, arg) &&
+      next !== undefined &&
+      !next.startsWith("-") &&
+      !isCommand(next) &&
+      isCommand(args[index + 2]);
+    if (takesValue(program, arg) || valueOfUnknown) index++;
   }
   return undefined;
+}
+
+function isKnownFlag(program: Command, flag: string) {
+  return [program, ...program.commands].some((command) =>
+    command.options.some((option) => option.long === flag || option.short === flag),
+  );
 }
 
 function takesValue(program: Command, flag: string) {

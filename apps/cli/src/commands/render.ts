@@ -57,7 +57,7 @@ export async function render(
         code: "PNG_FAILED",
         suggestions: [
           `loopcraft render ${loaded.shown} -o ${target.shown.replace(/\.png$/i, ".svg")}`,
-          "フォントが無いときは、日本語のフォント（fonts-noto-cjk など）を入れてください",
+          "フォントが足りないときは、図の文字を含むフォント（日本語なら fonts-noto-cjk など）を入れてください",
         ],
       });
     }
@@ -82,18 +82,36 @@ export async function render(
 async function svgToPng(svg: string, scale: number): Promise<Uint8Array> {
   const { Resvg } = await import("@resvg/resvg-js");
   const font = { loadSystemFonts: true, defaultFontFamily: "Noto Sans CJK JP" };
-  // 確かめずに描かないのは、日本語のフォントが無くても resvg は失敗せず、文字が空白か豆腐（□）の画像を返すため。
-  // どのフォントにも無い私用領域の文字と同じ形に描かれたら、日本語の字形が無いとみなす
-  const glyph = (text: string) =>
+  // 確かめずに描かないのは、字形が無くても resvg は失敗せず、文字が空白か豆腐（□）の画像を返すため。
+  // 決まった文字で確かめないのは、図に無い文字のフォントが無いだけで、描ける図まで断ってしまうため
+  const glyph = (char: string) =>
     new Resvg(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><text x="2" y="18" font-size="16">${text}</text></svg>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><text x="2" y="18" font-size="16">${escapeXml(char)}</text></svg>`,
       { font },
     ).render().pixels;
-  const japanese = glyph("売");
   const missing = glyph("\uE000");
-  const blank = !japanese.some((value, at) => at % 4 === 3 && value > 0);
-  if (blank || japanese.every((value, at) => value === missing[at])) {
-    throw new Error("日本語を描けるフォントが見つかりません");
+  const unreadable = charactersIn(svg).filter((char) => {
+    const pixels = glyph(char);
+    const blank = !pixels.some((value, at) => at % 4 === 3 && value > 0);
+    return blank || pixels.every((value, at) => value === missing[at]);
+  });
+  if (unreadable.length > 0) {
+    throw new Error(`「${unreadable.slice(0, 5).join("")}」を描けるフォントが見つかりません`);
   }
   return new Resvg(svg, { fitTo: { mode: "zoom", value: scale }, font }).render().asPng();
+}
+
+function charactersIn(svg: string) {
+  const texts = [...svg.matchAll(/>([^<]*)<\/text>/g)].map((match) =>
+    match[1]!
+      .replaceAll("&lt;", "<")
+      .replaceAll("&gt;", ">")
+      .replaceAll("&quot;", '"')
+      .replaceAll("&amp;", "&"),
+  );
+  return [...new Set(texts.join(""))].filter((char) => char.trim() !== "");
+}
+
+function escapeXml(text: string) {
+  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
