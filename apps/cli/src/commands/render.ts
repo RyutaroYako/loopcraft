@@ -82,26 +82,50 @@ export async function render(
 async function svgToPng(svg: string, scale: number): Promise<Uint8Array> {
   const { Resvg } = await import("@resvg/resvg-js");
   const font = { loadSystemFonts: true, defaultFontFamily: "Noto Sans CJK JP" };
-  // 確かめずに描かないのは、字形が無くても resvg は失敗せず、文字が空白か豆腐（□）の画像を返すため。
-  // 決まった文字で確かめないのは、図に無い文字のフォントが無いだけで、描ける図まで断ってしまうため
-  const glyph = (char: string) =>
-    new Resvg(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><text x="2" y="18" font-size="16">${escapeXml(char)}</text></svg>`,
-      { font },
-    ).render().pixels;
-  const missing = glyph("\uE000");
-  const unreadable = charactersIn(svg).filter((char) => {
-    const pixels = glyph(char);
-    const blank = !pixels.some((value, at) => at % 4 === 3 && value > 0);
-    return blank || pixels.every((value, at) => value === missing[at]);
-  });
+  const unreadable = findUnreadable(
+    charactersIn(svg),
+    (probe) => new Resvg(probe, { font }).render().pixels,
+  );
   if (unreadable.length > 0) {
     throw new Error(`「${unreadable.slice(0, 5).join("")}」を描けるフォントが見つかりません`);
   }
   return new Resvg(svg, { fitTo: { mode: "zoom", value: scale }, font }).render().asPng();
 }
 
-function charactersIn(svg: string) {
+const CELL = 24;
+
+/**
+ * 確かめずに描かないのは、字形が無くても resvg は失敗せず、文字が空白か豆腐（□）の画像を返すため。
+ * 決まった文字で確かめないのは、図に無い文字のフォントが無いだけで、描ける図まで断ってしまうため。
+ * 1 文字ずつ描かないのは、描くたびにシステムのフォントを読み直し、文字の多い図で数秒かかるため
+ */
+export function findUnreadable(chars: readonly string[], draw: (svg: string) => Uint8Array) {
+  if (chars.length === 0) return [];
+  // 最後の升目は、どのフォントにも無い私用領域の文字。これと同じ形に描かれたら字形が無いとみなす
+  const cells = [...chars, "\uE000"];
+  const width = cells.length * CELL;
+  const texts = cells
+    .map((char, at) => `<text x="${at * CELL + 2}" y="18" font-size="16">${escapeXml(char)}</text>`)
+    .join("");
+  const pixels = draw(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${CELL}">${texts}</svg>`,
+  );
+  const cell = (at: number) =>
+    Array.from({ length: CELL }, (_, row) => {
+      const start = (row * width + at * CELL) * 4;
+      return pixels.subarray(start, start + CELL * 4);
+    });
+  const missing = cell(chars.length);
+  return chars.filter((_, at) => {
+    const rows = cell(at);
+    const blank = rows.every((row) => row.every((value, index) => index % 4 !== 3 || value === 0));
+    const same = rows.every((row, y) => row.every((value, x) => value === missing[y]![x]));
+    return blank || same;
+  });
+}
+
+/** 既定で無視される文字や結合文字を除くのは、単独では何も描かれず、フォントがあっても無いと見誤るため */
+export function charactersIn(svg: string) {
   const texts = [...svg.matchAll(/>([^<]*)<\/text>/g)].map((match) =>
     match[1]!
       .replaceAll("&lt;", "<")
@@ -109,7 +133,9 @@ function charactersIn(svg: string) {
       .replaceAll("&quot;", '"')
       .replaceAll("&amp;", "&"),
   );
-  return [...new Set(texts.join(""))].filter((char) => char.trim() !== "");
+  return [...new Set(texts.join(""))].filter(
+    (char) => char.trim() !== "" && !/\p{Default_Ignorable_Code_Point}|\p{M}/u.test(char),
+  );
 }
 
 function escapeXml(text: string) {

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import { createWorkspace, writeSample } from "../testing/fixtures.ts";
-import { render } from "./render.ts";
+import { charactersIn, findUnreadable, render } from "./render.ts";
 
 const options = { format: "text" as const, theme: "light" as const, scale: 2 };
 
@@ -65,5 +65,28 @@ describe("render", () => {
       suggestions: ["loopcraft render d.json -o d.png"],
     });
     expect(await render("none.json", options, context)).toMatchObject({ code: "FILE_NOT_FOUND" });
+  });
+});
+
+describe("PNG の前の字形の確かめ", () => {
+  it("図の文字だけを、目に見えない文字や結合文字を除いて確かめる", () => {
+    const svg = "<svg><text>A&amp;B</text><text>\u2600\uFE0F e\u0301</text><text>売</text></svg>";
+    expect(charactersIn(svg)).toEqual(["A", "&", "B", "\u2600", "e", "売"]);
+  });
+
+  it("空白か、無い文字と同じ形に描かれた文字を挙げる", () => {
+    const draw = (svg: string) => {
+      const cells = [...svg.matchAll(/<text [^>]*>([^<]*)<\/text>/g)].map((match) => match[1]!);
+      const width = cells.length * 24;
+      const pixels = new Uint8Array(width * 24 * 4);
+      for (const [at, char] of cells.entries()) {
+        // A は描け、売は豆腐（無い文字と同じ形）、空は何も描かれない
+        const alpha = char === "A" ? 255 : char === "空" ? 0 : 128;
+        for (let y = 0; y < 24; y++) pixels[(y * width + at * 24) * 4 + 3] = alpha;
+      }
+      return pixels;
+    };
+    expect(findUnreadable(["A", "売", "空"], draw)).toEqual(["売", "空"]);
+    expect(findUnreadable([], draw)).toEqual([]);
   });
 });
