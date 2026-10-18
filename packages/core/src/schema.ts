@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { findIntegrityIssues } from "./integrity.ts";
+import { placeMissingVariables } from "./layout.ts";
 import type { IntegrityPath } from "./integrity.ts";
 
 /** 破壊的変更のたびに上げ、読み込み時にマイグレーションする */
@@ -11,21 +12,31 @@ export const VariableIdSchema = v.pipe(IdSchema, v.brand("VariableId"));
 export const LinkIdSchema = v.pipe(IdSchema, v.brand("LinkId"));
 export const LoopIdSchema = v.pipe(IdSchema, v.brand("LoopId"));
 
+/*
+ * 知らないキーを捨てずにエラーにするのは、polarity を polarty と打ち違えても通ってしまい、
+ * 書いたつもりの値が黙って消えるため
+ */
+
+// v.number() だけにしないのは、JSON の 1e400 が Infinity として通り、書き出すと null になって図が壊れるため
+const FiniteSchema = v.pipe(v.number(), v.finite());
+
 export const PointSchema = v.pipe(
-  v.object({
-    x: v.number(),
-    y: v.number(),
+  v.strictObject({
+    x: FiniteSchema,
+    y: FiniteSchema,
   }),
   v.title("Point"),
   v.description("キャンバス上の座標"),
 );
 
 export const VariableSchema = v.pipe(
-  v.object({
+  v.strictObject({
     id: VariableIdSchema,
     label: v.pipe(v.string(), v.description("表示名（例: 社員数）")),
     description: v.optional(v.string()),
-    position: PointSchema,
+    position: v.optional(
+      v.pipe(PointSchema, v.description("中心の座標。省くと、読み込むときに自動で配置する")),
+    ),
   }),
   v.title("Variable"),
   v.description("変数（売上や社員数のように増えたり減ったりする、システムを構成する要素）"),
@@ -38,7 +49,7 @@ export const PolaritySchema = v.pipe(
 );
 
 export const LinkSchema = v.pipe(
-  v.object({
+  v.strictObject({
     id: LinkIdSchema,
     from: v.pipe(VariableIdSchema, v.description("原因側の変数の ID")),
     to: v.pipe(VariableIdSchema, v.description("結果側の変数の ID")),
@@ -46,7 +57,7 @@ export const LinkSchema = v.pipe(
     delay: v.optional(v.pipe(v.boolean(), v.description("影響が現れるまでに遅れがあるか"))),
     curvature: v.optional(
       v.pipe(
-        v.number(),
+        FiniteSchema,
         v.description("曲がり具合。端点間の距離に対する膨らみの比率で、正なら進行方向の左に膨らむ"),
       ),
     ),
@@ -57,7 +68,7 @@ export const LinkSchema = v.pipe(
 );
 
 export const LoopSchema = v.pipe(
-  v.object({
+  v.strictObject({
     id: LoopIdSchema,
     name: v.pipe(v.string(), v.description("ループの名前（例: 成長の好循環）")),
     links: v.pipe(
@@ -78,7 +89,7 @@ export const LoopSchema = v.pipe(
 
 /** 参照整合性をここに含めないのは、JSON Schema の生成元として形だけを残すため */
 export const DiagramShapeSchema = v.pipe(
-  v.object({
+  v.strictObject({
     $schema: v.optional(v.string()),
     version: v.literal(DIAGRAM_FORMAT_VERSION),
     title: v.string(),
@@ -102,18 +113,21 @@ export const DiagramSchema = v.pipe(
       });
     }
   }),
+  v.transform(placeMissingVariables),
 );
 
 export type Point = v.InferOutput<typeof PointSchema>;
 export type VariableId = v.InferOutput<typeof VariableIdSchema>;
 export type LinkId = v.InferOutput<typeof LinkIdSchema>;
 export type LoopId = v.InferOutput<typeof LoopIdSchema>;
-export type Variable = v.InferOutput<typeof VariableSchema>;
+export type VariableShape = v.InferOutput<typeof VariableSchema>;
+export type Variable = Omit<VariableShape, "position"> & { position: Point };
 export type Polarity = v.InferOutput<typeof PolaritySchema>;
 export type Link = v.InferOutput<typeof LinkSchema>;
 export type Loop = v.InferOutput<typeof LoopSchema>;
 export type DiagramShape = v.InferOutput<typeof DiagramShapeSchema>;
-export type Diagram = v.InferOutput<typeof DiagramSchema>;
+/** 読み込んだ後の図。座標の無い変数は、読み込むときに配置してある */
+export type Diagram = Omit<DiagramShape, "variables"> & { variables: Variable[] };
 
 const toIssuePath = (
   root: unknown,

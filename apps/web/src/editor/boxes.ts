@@ -1,4 +1,4 @@
-import { nodeSize } from "@loopcraft/core/geometry";
+import { nodeSize, UNNAMED_LABEL } from "@loopcraft/core/geometry";
 import type { Size } from "@loopcraft/core/geometry";
 import type { Point, Variable, VariableId } from "@loopcraft/core/schema";
 import { measureLabel } from "./measure.ts";
@@ -8,7 +8,7 @@ export interface NodeBox {
   size: Size;
 }
 
-export const UNNAMED = "名称未設定";
+export const UNNAMED = UNNAMED_LABEL;
 
 export const computeBoxes = (variables: readonly Variable[]): Map<VariableId, NodeBox> =>
   new Map(

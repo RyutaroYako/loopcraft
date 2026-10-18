@@ -2,6 +2,7 @@ import { moveVariables, updateLink, updateLoop } from "./edit.ts";
 import {
   centroid,
   defaultCurvature,
+  estimateNodeSizes,
   linkGeometry,
   NODE_HEIGHT,
   NODE_MIN_WIDTH,
@@ -9,7 +10,7 @@ import {
 } from "./geometry.ts";
 import type { Size } from "./geometry.ts";
 import { linkPairKey } from "./integrity.ts";
-import type { Diagram, LoopId, Point, VariableId } from "./schema.ts";
+import type { Diagram, DiagramShape, LinkId, LoopId, Point, VariableId } from "./schema.ts";
 
 /*
  * 初期配置に乱数を使わないのは、毎回同じ結果にするため。
@@ -24,44 +25,106 @@ const GAP_Y = 56;
 const GRAVITY = 0.04;
 const FALLBACK_SIZE: Size = { width: NODE_MIN_WIDTH, height: NODE_HEIGHT };
 
-export const autoLayout = (diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>): Diagram => {
+export interface LayoutOptions {
+  /** 動かさない変数。1 つでもあれば、それを基準に置くので、図全体の重心は合わせ直さない */
+  fixed?: ReadonlySet<VariableId>;
+  /** 変数が動いても曲がり具合を残す関連 */
+  keepCurvature?: ReadonlySet<LinkId>;
+}
+
+export const autoLayout = (
+  diagram: Diagram,
+  sizes: ReadonlyMap<VariableId, Size>,
+  options: LayoutOptions = {},
+): Diagram => {
   const variables = diagram.variables;
-  if (variables.length === 0) return diagram;
+  const fixed = options.fixed ?? new Set<VariableId>();
+  if (variables.every((variable) => fixed.has(variable.id))) return diagram;
   const ids = variables.map((variable) => variable.id);
   const index = new Map(ids.map((id, at) => [id, at]));
   const sizeOf = (at: number) => sizes.get(ids[at]!) ?? FALLBACK_SIZE;
+  const pinned = ids.map((id) => fixed.has(id));
+  const anchored = pinned.some(Boolean);
 
   const edges = undirectedEdges(diagram, index);
-  const order = traversalOrder(ids.length, edges);
-  const positions = initialCircle(order, (at) => sizeOf(at).width);
+  const positions = anchored
+    ? initialAroundNeighbors(
+        variables.map((variable) => variable.position),
+        edges,
+        pinned,
+      )
+    : initialCircle(traversalOrder(ids.length, edges), (at) => sizeOf(at).width);
 
-  simulate(positions, edges, sizeOf);
-  removeOverlaps(positions, sizeOf);
+  simulate(positions, edges, sizeOf, pinned);
+  removeOverlaps(positions, sizeOf, pinned);
 
   // 元の図の重心に合わせ直さないと、整列のたびに表示位置が大きく飛ぶ
-  const before = centroid(variables.map((variable) => variable.position));
-  const after = centroid(positions);
+  const before = anchored
+    ? { x: 0, y: 0 }
+    : centroid(variables.map((variable) => variable.position));
+  const after = anchored ? { x: 0, y: 0 } : centroid(positions);
   const moved = new Map<VariableId, Point>(
-    ids.map((id, at) => [
-      id,
-      {
-        x: Math.round(positions[at]!.x - after.x + before.x),
-        y: Math.round(positions[at]!.y - after.y + before.y),
-      },
-    ]),
+    ids.flatMap((id, at) =>
+      pinned[at]
+        ? []
+        : [
+            [
+              id,
+              {
+                x: Math.round(positions[at]!.x - after.x + before.x),
+                y: Math.round(positions[at]!.y - after.y + before.y),
+              },
+            ] as const,
+          ],
+    ),
   );
 
-  // 手で付けた曲がり具合を残さないのは、位置が変わると意味を失うため
+  const changed = new Set(
+    variables.flatMap((variable) => {
+      const to = moved.get(variable.id);
+      return to && (to.x !== variable.position.x || to.y !== variable.position.y)
+        ? [variable.id]
+        : [];
+    }),
+  );
+  // 動いた変数につながる曲がり具合を残さないのは、位置が変わると意味を失うため。
+  // 動かなかった矢印まで消さないのは、突き抜けを避けるために付けた曲がりが、並べ直すたびに消えるため
   let next = moveVariables(diagram, moved);
-  for (const link of diagram.links) next = updateLink(next, link.id, { curvature: undefined });
+  for (const link of diagram.links) {
+    if (!changed.has(link.from) && !changed.has(link.to)) continue;
+    if (options.keepCurvature?.has(link.id)) continue;
+    next = updateLink(next, link.id, { curvature: undefined });
+  }
   const markers = placeMarkers(next, sizes);
+  const fromByLink = new Map(diagram.links.map((link) => [link.id, link.from]));
   for (const loop of next.loops) {
+    if (!loop.links.some((link) => changed.has(fromByLink.get(link)!))) continue;
     const marker = markers.get(loop.id);
     // 同じ位置でも差し替えると、整列を繰り返したときに変化の無い編集が生まれる
     if (marker?.x === loop.marker?.x && marker?.y === loop.marker?.y) continue;
     next = updateLoop(next, loop.id, { marker });
   }
   return next;
+};
+
+export const placeMissingVariables = (diagram: DiagramShape): Diagram => {
+  const placed = new Set<VariableId>();
+  const variables = diagram.variables.map((variable) => {
+    if (variable.position) {
+      placed.add(variable.id);
+      return { ...variable, position: variable.position };
+    }
+    return { ...variable, position: { x: 0, y: 0 } };
+  });
+  const filled: Diagram = { ...diagram, variables };
+  if (placed.size === variables.length) return filled;
+  // 書き手が付けた曲がり具合を残すのは、座標を省いた変数につながる関連でも、曲げたい向きは変わらないため
+  return autoLayout(filled, estimateNodeSizes(variables), {
+    fixed: placed,
+    keepCurvature: new Set(
+      diagram.links.flatMap((link) => (link.curvature === undefined ? [] : [link.id])),
+    ),
+  });
 };
 
 const undirectedEdges = (diagram: Diagram, index: ReadonlyMap<VariableId, number>) => {
@@ -119,11 +182,44 @@ const initialCircle = (order: readonly number[], widthOf: (at: number) => number
   return positions;
 };
 
+/** 同じ角度に置かないのは、同じ変数のまわりに置く変数どうしが重なるため */
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+const initialAroundNeighbors = (
+  current: readonly Point[],
+  edges: readonly [number, number][],
+  pinned: readonly boolean[],
+): Point[] => {
+  const neighbors: number[][] = current.map(() => []);
+  for (const [a, b] of edges) {
+    neighbors[a]!.push(b);
+    neighbors[b]!.push(a);
+  }
+  const positions = current.map((point) => ({ ...point }));
+  const placed = new Set(pinned.flatMap((isPinned, at) => (isPinned ? [at] : [])));
+  const everyPlaced = centroid([...placed].map((at) => positions[at]!));
+  let step = 0;
+  for (const at of positions.keys()) {
+    if (placed.has(at)) continue;
+    const near = neighbors[at]!.filter((other) => placed.has(other));
+    const anchor = near.length > 0 ? centroid(near.map((other) => positions[other]!)) : everyPlaced;
+    const angle = step * GOLDEN_ANGLE;
+    positions[at] = {
+      x: anchor.x + Math.cos(angle) * IDEAL_LENGTH,
+      y: anchor.y + Math.sin(angle) * IDEAL_LENGTH,
+    };
+    placed.add(at);
+    step++;
+  }
+  return positions;
+};
+
 /** Fruchterman–Reingold。素のままでは変数を点として扱い長い名前同士が詰まるので、横幅の分だけ反発を強める */
 const simulate = (
   positions: Point[],
   edges: readonly [number, number][],
   sizeOf: (at: number) => Size,
+  pinned: readonly boolean[],
 ) => {
   const count = positions.length;
   if (count < 2) return;
@@ -146,6 +242,7 @@ const simulate = (
     }
     const center = centroid(positions);
     for (let at = 0; at < count; at++) {
+      if (pinned[at]) continue;
       const force = forces[at]!;
       force.x += (center.x - positions[at]!.x) * GRAVITY * IDEAL_LENGTH * 0.1;
       force.y += (center.y - positions[at]!.y) * GRAVITY * IDEAL_LENGTH * 0.1;
@@ -161,7 +258,11 @@ const simulate = (
   }
 };
 
-const removeOverlaps = (positions: Point[], sizeOf: (at: number) => Size) => {
+const removeOverlaps = (
+  positions: Point[],
+  sizeOf: (at: number) => Size,
+  pinned: readonly boolean[],
+) => {
   const count = positions.length;
   for (let round = 0; round < 100; round++) {
     let moved = false;
@@ -172,15 +273,18 @@ const removeOverlaps = (positions: Point[], sizeOf: (at: number) => Size) => {
         const overlapX = (sizeOf(a).width + sizeOf(b).width) / 2 + GAP_X - Math.abs(pb.x - pa.x);
         const overlapY = (sizeOf(a).height + sizeOf(b).height) / 2 + GAP_Y - Math.abs(pb.y - pa.y);
         if (overlapX <= 0 || overlapY <= 0) continue;
+        if (pinned[a] && pinned[b]) continue;
         moved = true;
+        const shareA = pinned[a] ? 0 : pinned[b] ? 1 : 0.5;
+        const shareB = 1 - shareA;
         if (overlapX < overlapY) {
-          const shift = (overlapX / 2) * (pb.x >= pa.x ? 1 : -1);
-          positions[a] = { x: pa.x - shift, y: pa.y };
-          positions[b] = { x: pb.x + shift, y: pb.y };
+          const shift = overlapX * (pb.x >= pa.x ? 1 : -1);
+          positions[a] = { x: pa.x - shift * shareA, y: pa.y };
+          positions[b] = { x: pb.x + shift * shareB, y: pb.y };
         } else {
-          const shift = (overlapY / 2) * (pb.y >= pa.y ? 1 : -1);
-          positions[a] = { x: pa.x, y: pa.y - shift };
-          positions[b] = { x: pb.x, y: pb.y + shift };
+          const shift = overlapY * (pb.y >= pa.y ? 1 : -1);
+          positions[a] = { x: pa.x, y: pa.y - shift * shareA };
+          positions[b] = { x: pb.x, y: pb.y + shift * shareB };
         }
       }
     }

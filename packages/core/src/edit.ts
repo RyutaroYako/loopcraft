@@ -58,9 +58,10 @@ export const setDescription = (diagram: Diagram, description: string): Diagram =
 
 export const addVariable = (
   diagram: Diagram,
-  init: { label: string; position: Point },
+  init: { label: string; position: Point; id?: VariableId },
 ): { diagram: Diagram; id: VariableId } => {
-  const id = createId<VariableId>("v", new Set(diagram.variables.map((variable) => variable.id)));
+  const id =
+    init.id ?? createId<VariableId>("v", new Set(diagram.variables.map((variable) => variable.id)));
   const variable: Variable = { id, label: init.label, position: init.position };
   return { diagram: { ...diagram, variables: [...diagram.variables, variable] }, id };
 };
@@ -130,7 +131,7 @@ export type AddLinkResult =
 
 export const addLink = (
   diagram: Diagram,
-  init: { from: VariableId; to: VariableId; polarity?: Polarity },
+  init: { from: VariableId; to: VariableId; polarity?: Polarity; id?: LinkId },
 ): AddLinkResult => {
   if (init.from === init.to) return { ok: false, reason: "self" };
   const variableIds = new Set<string>(diagram.variables.map((variable) => variable.id));
@@ -139,7 +140,7 @@ export const addLink = (
   }
   const existing = diagram.links.find((link) => link.from === init.from && link.to === init.to);
   if (existing) return { ok: false, reason: "duplicate", existing: existing.id };
-  const id = createId<LinkId>("l", new Set(diagram.links.map((link) => link.id)));
+  const id = init.id ?? createId<LinkId>("l", new Set(diagram.links.map((link) => link.id)));
   const link: Link = { id, from: init.from, to: init.to, polarity: init.polarity ?? "+" };
   return { ok: true, diagram: { ...diagram, links: [...diagram.links, link] }, id };
 };
@@ -172,12 +173,12 @@ export const removeLinks = (diagram: Diagram, ids: ReadonlySet<LinkId>): Diagram
 export const featureLoop = (
   diagram: Diagram,
   links: LinkId[],
-  init: { name?: string } = {},
+  init: { name?: string; id?: LoopId } = {},
 ): { diagram: Diagram; id: LoopId } => {
   const key = cycleKey(links);
   const existing = diagram.loops.find((loop) => cycleKey(loop.links) === key);
   if (existing) return { diagram, id: existing.id };
-  const id = createId<LoopId>("p", new Set(diagram.loops.map((loop) => loop.id)));
+  const id = init.id ?? createId<LoopId>("p", new Set(diagram.loops.map((loop) => loop.id)));
   const loop: Loop = { id, name: init.name ?? "", links };
   return { diagram: { ...diagram, loops: [...diagram.loops, loop] }, id };
 };

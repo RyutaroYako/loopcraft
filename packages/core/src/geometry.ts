@@ -1,4 +1,4 @@
-import type { Point } from "./schema.ts";
+import type { Point, VariableId } from "./schema.ts";
 
 export interface Size {
   width: number;
@@ -13,12 +13,33 @@ export const DEFAULT_CURVATURE = 0;
 export const PAIRED_CURVATURE = 0.18;
 const LINK_GAP = 6;
 
+/**
+ * 文字の種類ごとの幅を表に持たないのは、全角と半角の違いさえ合えば、重なりの判定や整列には足りるため
+ */
+export const estimateLabelWidth = (text: string): number => {
+  let width = 0;
+  for (const char of text) width += char.codePointAt(0)! > 0xff ? 14 : 8;
+  return width;
+};
+
+export const UNNAMED_LABEL = "名称未設定";
+
 export const nodeSize = (labelWidth: number): Size => {
   return {
     width: Math.max(NODE_MIN_WIDTH, Math.ceil(labelWidth) + NODE_PADDING_X * 2),
     height: NODE_HEIGHT,
   };
 };
+
+export const estimateNodeSizes = (
+  variables: readonly { id: VariableId; label: string }[],
+): Map<VariableId, Size> =>
+  new Map(
+    variables.map((variable) => [
+      variable.id,
+      nodeSize(estimateLabelWidth(variable.label || UNNAMED_LABEL)),
+    ]),
+  );
 
 /** center は矩形の左上ではなく中心 */
 export const boxBoundaryPoint = (center: Point, size: Size, toward: Point): Point => {

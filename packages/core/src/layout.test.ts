@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
-import { nodeSize } from "./geometry.ts";
+import { estimateNodeSizes, nodeSize } from "./geometry.ts";
 import type { Size } from "./geometry.ts";
-import { autoLayout } from "./layout.ts";
+import { autoLayout, placeMissingVariables } from "./layout.ts";
+import { findLayoutIssues } from "./layout-check.ts";
 import { createSampleDiagram } from "./sample.ts";
-import type { Diagram, LinkId, VariableId } from "./schema.ts";
+import type { Diagram, DiagramShape, LinkId, VariableId } from "./schema.ts";
 
 const sizesOf = (diagram: Diagram): Map<VariableId, Size> => {
   return new Map(
@@ -121,5 +122,91 @@ describe("autoLayout", () => {
   it("空の図はそのまま返す", () => {
     const diagram = { ...createSampleDiagram(), variables: [], links: [], loops: [] };
     expect(autoLayout(diagram, new Map())).toBe(diagram);
+  });
+
+  it("動かさない変数を指定すると、その変数の位置と、その変数どうしの曲がり具合を保つ", () => {
+    const sample = createSampleDiagram();
+    const diagram: Diagram = {
+      ...sample,
+      links: sample.links.map((link) => ({ ...link, curvature: 0.3 })),
+    };
+    const fixed = new Set(["staff", "sales", "profit"] as VariableId[]);
+    const result = autoLayout(diagram, sizesOf(diagram), { fixed });
+    for (const variable of diagram.variables.filter((item) => fixed.has(item.id))) {
+      expect(result.variables.find((item) => item.id === variable.id)!.position).toEqual(
+        variable.position,
+      );
+    }
+    const between = result.links.find((link) => link.from === "staff" && link.to === "sales")!;
+    expect(between.curvature).toBe(0.3);
+    const touching = result.links.find((link) => link.from === "profit" && link.to === "hiring")!;
+    expect(touching.curvature).toBeUndefined();
+  });
+
+  it("すべて動かさないなら、何も変えない", () => {
+    const diagram = createSampleDiagram();
+    const fixed = new Set(diagram.variables.map((variable) => variable.id));
+    expect(autoLayout(diagram, sizesOf(diagram), { fixed })).toBe(diagram);
+  });
+});
+
+describe("placeMissingVariables", () => {
+  const withoutPositions = (ids: string[]): DiagramShape => {
+    const sample = createSampleDiagram();
+    return {
+      ...sample,
+      variables: sample.variables.map(({ position, ...variable }) =>
+        ids.includes(variable.id) ? variable : { ...variable, position },
+      ),
+    };
+  };
+
+  it("座標の無い変数だけを、ほかの変数と重ならないように置く", () => {
+    const shape = withoutPositions(["hiring", "attrition"]);
+    const result = placeMissingVariables(shape);
+    const sizes = estimateNodeSizes(result.variables);
+    for (const variable of shape.variables.filter((item) => item.position)) {
+      expect(result.variables.find((item) => item.id === variable.id)!.position).toEqual(
+        variable.position,
+      );
+    }
+    expect(findLayoutIssues(result, sizes).filter((issue) => issue.kind === "overlap")).toEqual([]);
+  });
+
+  it("どの変数にも座標が無ければ、図全体を並べる", () => {
+    const shape = withoutPositions(createSampleDiagram().variables.map((variable) => variable.id));
+    const result = placeMissingVariables(shape);
+    const sizes = estimateNodeSizes(result.variables);
+    expect(findLayoutIssues(result, sizes).filter((issue) => issue.severity === "error")).toEqual(
+      [],
+    );
+    expect(placeMissingVariables(shape)).toEqual(result);
+  });
+
+  it("座標の無い変数につながる関連でも、書いてある曲がり具合を残す", () => {
+    const shape = withoutPositions(["hiring"]);
+    const curved: DiagramShape = {
+      ...shape,
+      links: shape.links.map((link) => (link.to === "hiring" ? { ...link, curvature: 0.3 } : link)),
+    };
+    const result = placeMissingVariables(curved);
+    expect(result.links.find((link) => link.to === "hiring")!.curvature).toBe(0.3);
+  });
+
+  it("座標がそろっていれば、そのまま返す", () => {
+    const diagram = createSampleDiagram();
+    expect(placeMissingVariables(diagram)).toEqual(diagram);
+  });
+
+  it("並べ直しても動かなかった変数どうしの矢印は、曲がり具合とループ記号を保つ", () => {
+    const once = autoLayout(createSampleDiagram(), sizesOf(createSampleDiagram()));
+    const curved: Diagram = {
+      ...once,
+      links: once.links.map((link) => ({ ...link, curvature: 0.25 })),
+      loops: once.loops.map((loop) => ({ ...loop, marker: { x: 5, y: 5 } })),
+    };
+    const result = autoLayout(curved, sizesOf(curved));
+    expect(result.links.every((link) => link.curvature === 0.25)).toBe(true);
+    expect(result.loops.every((loop) => loop.marker?.x === 5)).toBe(true);
   });
 });

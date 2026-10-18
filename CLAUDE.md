@@ -32,6 +32,11 @@ release. Add a tool name to select part of the graph. For example, run
 - **コミットメッセージ**には why を書く。なぜこの変更が必要だったか（何が困っていたか）
 - **コメント**には why not を書く。素直な書き方や他の選択肢を、なぜ採らなかったか。コードを読めば分かる what や、コミットに書くべき why はコメントにしない
 
+# CLI（apps/cli）
+
+- コーディングエージェントも使う前提で作る。`--help` の先頭の早見表、`--format json` の `{"ok":true,"data"}` / `{"ok":false,"error":{"code","message","suggestions"}}` の形、失敗したときに次に打つコマンドを `suggestions` で返すことを崩さない
+- 使い方を変えたら `node scripts/agent-dx/run.ts` でエージェントにタスクを解かせて変える前と比べ、`docs/agent-dx-log.md` に記録する
+
 # Vue（apps/web）
 
 - SFC（`<script setup lang="ts">`）で書き、[ubugeeei/style-guide.vue](https://github.com/ubugeeei/style-guide.vue) に沿う。コメントの書き方はこのファイルの「コード規約」を優先する

@@ -39,6 +39,7 @@
     "links",
     "loops"
   ],
+  "additionalProperties": false,
   "title": "SystemDiagram",
   "description": "システム思考のシステム図（因果ループ図）",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -57,6 +58,7 @@
         "x",
         "y"
       ],
+      "additionalProperties": false,
       "title": "Point",
       "description": "キャンバス上の座標"
     },
@@ -75,14 +77,29 @@
           "type": "string"
         },
         "position": {
-          "$ref": "#/$defs/Point"
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y"
+          ],
+          "additionalProperties": false,
+          "title": "Point",
+          "description": "中心の座標。省くと、読み込むときに自動で配置する"
         }
       },
       "required": [
         "id",
-        "label",
-        "position"
+        "label"
       ],
+      "additionalProperties": false,
       "title": "Variable",
       "description": "変数（売上や社員数のように増えたり減ったりする、システムを構成する要素）"
     },
@@ -130,6 +147,7 @@
         "to",
         "polarity"
       ],
+      "additionalProperties": false,
       "title": "Link",
       "description": "変数同士の因果関係（有向辺）"
     },
@@ -165,6 +183,7 @@
         "name",
         "links"
       ],
+      "additionalProperties": false,
       "title": "Loop",
       "description": "注目するループ。自己強化/バランスの別は構成する関連の極性から導出するため保持しない"
     }

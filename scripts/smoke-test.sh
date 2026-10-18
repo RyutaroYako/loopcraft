@@ -10,6 +10,10 @@ npm install --no-audit --no-fund "$tarball"
 npx loopcraft init --sample
 npx loopcraft validate diagram.json
 npx loopcraft loops diagram.json --format md
+npx loopcraft check diagram.json --format json > /dev/null
+# PNG は resvg のネイティブモジュールを使うので、パッケージから入れた状態で確かめる
+npx loopcraft render diagram.json -o diagram.png
+head -c 8 diagram.png | od -An -c | grep -q 'P   N   G'
 
 # npx を挟むと $! が npx になり、止めてもサーバーが残るので、直接起動する
 ./node_modules/.bin/loopcraft serve diagram.json --no-open --port 4799 > serve.log 2>&1 &

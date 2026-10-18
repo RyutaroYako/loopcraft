@@ -29,8 +29,9 @@ describe("validate", () => {
       { format: "text" },
       context,
     );
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       kind: "failure",
+      code: "INVALID_DIAGRAM",
       message: "4 件中 3 件のファイルにエラーがあります",
     });
     expect(stderr).toContain("✗ missing.json");
@@ -42,9 +43,10 @@ describe("validate", () => {
     const { context, stdout } = await createWorkspace();
     await writeSample(context.cwd);
     await validate(["diagram.json"], { format: "json" }, context);
-    expect(JSON.parse(stdout.join("\n"))).toEqual([
-      { file: "diagram.json", valid: true, errors: [] },
-    ]);
+    expect(JSON.parse(stdout.join("\n"))).toEqual({
+      ok: true,
+      data: { files: [{ file: "diagram.json", valid: true, errors: [], unplaced: [] }] },
+    });
   });
 
   it("ファイルが無ければ使い方の誤り", async () => {
@@ -130,8 +132,10 @@ describe("loops", () => {
     const json = await createWorkspace();
     await writeSample(json.cwd);
     await loops("diagram.json", { format: "json", kind: "b" }, json.context);
-    const rows = JSON.parse(json.stdout.join("\n")) as { badge: string; featured: boolean }[];
-    expect(rows.map((row) => [row.badge, row.featured])).toEqual([
+    const { data } = JSON.parse(json.stdout.join("\n")) as {
+      data: { loops: { badge: string; featured: boolean }[] };
+    };
+    expect(data.loops.map((row) => [row.badge, row.featured])).toEqual([
       ["B1", true],
       ["B", false],
     ]);
@@ -179,10 +183,18 @@ describe("loops", () => {
     expect(stderr.at(-1)).toMatch(/^⚠ ループが多いため/);
   });
 
-  it("無いファイルや壊れたファイルは失敗にする", async () => {
+  it("無いファイルや壊れたファイルは失敗にし、名前の近いファイルを示す", async () => {
     const { context } = await createWorkspace();
     expect(await loops("none.json", { format: "text" }, context)).toMatchObject({
       kind: "failure",
+    });
+    await writeSample(context.cwd);
+    expect(await loops("diagrm.json", { format: "text" }, context)).toMatchObject({
+      code: "FILE_NOT_FOUND",
+      suggestions: [
+        "diagram.json のことですか",
+        "新しく作るときは loopcraft edit diagrm.json - に操作を渡してください",
+      ],
     });
     await writeFile(join(context.cwd, "broken.json"), "{");
     expect(await loops("broken.json", { format: "text" }, context)).toMatchObject({

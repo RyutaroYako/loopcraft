@@ -19,7 +19,10 @@ function fakePrompts(overrides: Partial<Prompts> = {}): Prompts {
   };
 }
 
-async function run(args: string[], options: { interactive?: boolean; prompts?: Prompts } = {}) {
+async function run(
+  args: string[],
+  options: { interactive?: boolean; prompts?: Prompts; stdin?: string | Error } = {},
+) {
   const workspace = await createWorkspace();
   await writeSample(workspace.cwd);
   const prompts = options.prompts ?? fakePrompts();
@@ -31,6 +34,11 @@ async function run(args: string[], options: { interactive?: boolean; prompts?: P
     prompts,
     openBrowser,
     waitForExit: async () => undefined,
+    readStdin: () => {
+      const { stdin } = options;
+      if (stdin === undefined) return undefined;
+      return stdin instanceof Error ? Promise.reject(stdin) : Promise.resolve(stdin);
+    },
   });
   return { exitCode, prompts, openBrowser, ...workspace };
 }
@@ -51,6 +59,136 @@ describe("runCli", () => {
     expect(version.stdout).toEqual(["9.9.9"]);
   });
 
+  it("書き違いには、日本語の説明と、そのまま打てる正しいコマンドを返す", async () => {
+    const expectError = async (args: string[], message: string, suggestions?: string[]) => {
+      const result = await run(args);
+      expect(result.exitCode).toBe(2);
+      expect(result.stderr).toContain(`✗ ${message}`);
+      for (const suggestion of suggestions ?? [])
+        expect(result.stderr).toContain(`  → ${suggestion}`);
+    };
+    await expectError(["loops", "diagram.json", "--json"], "知らないオプション --json です", [
+      "loopcraft loops diagram.json --format json",
+    ]);
+    await expectError(["check", "diagram.json", "--compat"], "知らないオプション --compat です", [
+      "loopcraft check diagram.json --compact",
+    ]);
+    await expectError(["serve", "diagram.json", "--zzz"], "知らないオプション --zzz です", [
+      "使えるオプションは loopcraft serve --help で確かめられます",
+    ]);
+    await expectError(
+      ["loops", "diagram.json", "--format", "csv"],
+      '--format に "csv" は使えません。使えるのは text, json, md です',
+    );
+    await expectError(
+      ["serve", "diagram.json", "--port", "abc"],
+      '--port の値 "abc" は使えません。0〜65535 の整数を指定してください',
+    );
+    await expectError(["render", "diagram.json", "-o"], "--output に値を付けてください", [
+      "loopcraft render --help",
+    ]);
+    await expectError(["check"], "引数 file がありません", ["loopcraft check --help"]);
+    await expectError(["schema", "extra"], "引数が多すぎます", ["loopcraft schema --help"]);
+    await expectError(["lint", "diagram.json"], "不明なコマンドです: lint", [
+      "loopcraft check diagram.json",
+    ]);
+    await expectError(["chek", "a b.json"], "不明なコマンドです: chek", [
+      "loopcraft check 'a b.json'",
+    ]);
+    const typo = await run(["chek", "diagram.json", "--format", "json"]);
+    expect(JSON.parse(typo.stdout.join(""))).toMatchObject({
+      error: { suggestions: ["loopcraft check diagram.json --format json"] },
+    });
+    const before = await run(["--format", "json", "check", "diagram.json"]);
+    expect(JSON.parse(before.stdout.join(""))).toMatchObject({
+      error: {
+        message: "--format は check の後に書きます",
+        suggestions: ["loopcraft check diagram.json --format json"],
+      },
+    });
+    const suggestionOf = async (args: string[]) =>
+      (await run(args)).stderr.find((line) => line.startsWith("  → "));
+    expect(await suggestionOf(["--json", "check", "diagram.json"])).toBe(
+      "  → loopcraft check diagram.json --format json",
+    );
+    const inline = await run(["--format=json", "check", "diagram.json"]);
+    expect(JSON.parse(inline.stdout.join(""))).toMatchObject({
+      error: {
+        message: "--format は check の後に書きます",
+        suggestions: ["loopcraft check diagram.json --format=json"],
+      },
+    });
+    expect(await suggestionOf(["--formt", "json", "check", "diagram.json"])).toBe(
+      "  → loopcraft check diagram.json --format json",
+    );
+    expect(await suggestionOf(["--compact", "check", "diagram.json", "--compact"])).toBe(
+      "  → loopcraft check diagram.json --compact",
+    );
+    expect(await suggestionOf(["--zzz", "check", "diagram.json"])).toBe(
+      "  → 使えるオプションは loopcraft check --help で確かめられます",
+    );
+    const typoAfterOption = await run(["--format", "json", "chek", "diagram.json"]);
+    expect(JSON.parse(typoAfterOption.stdout.join(""))).toMatchObject({
+      error: { message: "不明なコマンドです: chek" },
+    });
+    await expectError(["zzz"], "不明なコマンドです: zzz", [
+      "使えるコマンドは serve, validate, loops, check, edit, layout, render, diff, agent-init, schema です（loopcraft --help）",
+    ]);
+  });
+
+  it("--format json なら、失敗も同じ形の JSON で stdout に出す", async () => {
+    const usage = await run(["loops", "diagram.json", "--format", "json", "--json"]);
+    expect(JSON.parse(usage.stdout.join(""))).toEqual({
+      ok: false,
+      error: {
+        code: "INVALID_ARGUMENTS",
+        message: "知らないオプション --json です",
+        suggestions: ["loopcraft loops diagram.json --format json"],
+      },
+    });
+    const missing = await run(["check", "none.json", "--format=json"]);
+    expect(missing.exitCode).toBe(1);
+    expect(JSON.parse(missing.stdout.join(""))).toMatchObject({
+      ok: false,
+      error: { code: "FILE_NOT_FOUND" },
+    });
+  });
+
+  it("標準入力の操作で図を作り、調べ、画像にする", async () => {
+    const stdin = [
+      '{"op":"add-variable","id":"a","label":"A"}',
+      '{"op":"add-variable","id":"b","label":"B"}',
+      '{"op":"add-link","from":"a","to":"b"}',
+    ].join("\n");
+    const created = await run(["edit", "new.json", "--format", "json"], { stdin });
+    expect(created.exitCode).toBe(0);
+    expect(JSON.parse(created.stdout.join(""))).toMatchObject({
+      ok: true,
+      data: { created: true },
+    });
+    for (const args of [
+      ["check", "diagram.json", "--compact"],
+      ["layout", "diagram.json", "--all", "--pin", "staff, sales"],
+      ["render", "diagram.json", "--theme", "dark", "--scale", "1.5"],
+      ["diff", "diagram.json", "diagram.json"],
+      ["agent-init"],
+    ]) {
+      expect((await run(args)).exitCode).toBe(0);
+    }
+    expect((await run(["render", "diagram.json", "--scale", "0"])).exitCode).toBe(2);
+  });
+
+  it("想定していない例外は終了コード 1 で、メッセージだけを出す", async () => {
+    const result = await run(["edit", "d.json", "--format", "json"], {
+      stdin: new Error("壊れた"),
+    });
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout.join(""))).toMatchObject({
+      ok: false,
+      error: { code: "UNEXPECTED_ERROR", message: "壊れた" },
+    });
+  });
+
   it("知らないコマンドや誤ったオプションは終了コード 2", async () => {
     const unknown = await run(["draw"]);
     expect(unknown.exitCode).toBe(2);
@@ -63,10 +201,12 @@ describe("runCli", () => {
     expect((await run(["schema", "extra"])).exitCode).toBe(2);
   });
 
-  it("コマンドを実行し、最初にヘッダーを出す", async () => {
+  it("コマンドを実行し、端末で使うときだけ最初にヘッダーを出す", async () => {
     const result = await run(["validate", "diagram.json"]);
     expect(result.exitCode).toBe(0);
-    expect(result.stderr[0]).toBe("Loopcraft — 因果ループ図エディタ v9.9.9");
+    expect(result.stderr[0]).toBe("✓ diagram.json");
+    const interactive = await run(["validate", "diagram.json"], { interactive: true });
+    expect(interactive.stderr[0]).toBe("Loopcraft — 因果ループ図エディタ v9.9.9");
     expect((await run(["loops", "diagram.json", "--kind", "r"])).stdout[0]).toBe(
       "R1  成長エンジン",
     );

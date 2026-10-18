@@ -1,12 +1,9 @@
-import { relative, resolve } from "node:path";
-import { findLoops } from "@loopcraft/core/cycles";
-import { listLoopEntries } from "@loopcraft/core/loops";
-import type { LoopEntry } from "@loopcraft/core/loops";
-import type { Diagram } from "@loopcraft/core/schema";
 import type { Context } from "../context.ts";
-import { done, failure } from "../outcome.ts";
+import { isFailure, loadDiagram } from "../load.ts";
+import { done } from "../outcome.ts";
 import type { Outcome } from "../outcome.ts";
-import { readDiagramFile } from "../files.ts";
+import { printData } from "../output.ts";
+import { describeLoops, printLoopRows } from "../summary.ts";
 
 export type LoopsFormat = "text" | "json" | "md";
 export type LoopKindFilter = "r" | "b";
@@ -14,24 +11,16 @@ export type LoopKindFilter = "r" | "b";
 export async function loops(
   file: string,
   options: { format: LoopsFormat; kind?: LoopKindFilter },
-  { log, cwd }: Context,
+  context: Context,
 ): Promise<Outcome> {
-  const path = resolve(cwd, file);
-  const shown = relative(cwd, path) || file;
-  const loaded = await readDiagramFile(path);
-  if (loaded.status === "missing") return failure(`${shown} が見つかりません`);
-  if (loaded.status === "invalid") {
-    return failure(`${shown} を開けません\n  ${loaded.errors.join("\n  ")}`);
-  }
-  const { diagram } = loaded;
-  const detection = findLoops(diagram.links);
-  const entries = listLoopEntries(diagram.loops, diagram.links, detection.loops).filter(
-    (entry) => !options.kind || entry.kind === (options.kind === "r" ? "reinforcing" : "balancing"),
-  );
-  const rows = entries.map((entry) => describe(entry, diagram));
+  const { log } = context;
+  const loaded = await loadDiagram(file, context);
+  if (isFailure(loaded)) return loaded;
+  const { rows: all, truncated } = describeLoops(loaded.diagram);
+  const rows = all.filter((row) => !options.kind || row.kind === options.kind.toUpperCase());
 
   if (options.format === "json") {
-    log.output(JSON.stringify(rows, null, 2));
+    printData(log, { file: loaded.shown, loops: rows, truncated });
   } else if (options.format === "md") {
     log.output("| ループ | 名前 | 経路 |\n| --- | --- | --- |");
     for (const row of rows) {
@@ -42,29 +31,12 @@ export async function loops(
   } else if (rows.length === 0) {
     log.info("ループはありません");
   } else {
-    const width = Math.max(...rows.map((row) => row.badge.length));
-    for (const row of rows) {
-      const name = row.featured ? row.name : `${row.name}（注目していない）`;
-      log.output(`${row.badge.padEnd(width)}  ${name}`);
-      log.output(`${" ".repeat(width)}  ${row.route.join(" → ")}`);
-    }
+    printLoopRows(log, rows);
   }
-  if (detection.truncated) {
-    log.warn(`ループが多いため、先頭の ${detection.loops.length} 件だけを数えています`);
+  if (truncated) {
+    log.warn(`ループが多いため、先頭の ${all.length} 件だけを数えています`);
   }
   return done;
-}
-
-function describe(entry: LoopEntry, diagram: Diagram) {
-  const labels = new Map(diagram.variables.map((variable) => [variable.id, variable.label]));
-  const kind = entry.kind === "reinforcing" ? "自己強化ループ" : "バランスループ";
-  return {
-    badge: entry.featured?.badge ?? (entry.kind === "reinforcing" ? "R" : "B"),
-    kind: entry.kind,
-    featured: entry.featured !== undefined,
-    name: entry.featured?.loop.name || kind,
-    route: entry.variables.map((id) => labels.get(id) || "名称未設定"),
-  };
 }
 
 function escapeCell(text: string) {

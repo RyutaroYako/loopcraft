@@ -5,7 +5,7 @@ import type { LinkGeometry } from "@loopcraft/core/geometry";
 import type { Link } from "@loopcraft/core/schema";
 import { labelOf } from "../editor/labels.ts";
 import { injectEditor } from "../editor/useEditor.ts";
-import { delayMarkPath } from "./glyphs.ts";
+import { delayMarkPath } from "@loopcraft/core/glyphs";
 
 const { link, geometry } = defineProps<{ link: Link; geometry: LinkGeometry }>();
 

@@ -74,7 +74,11 @@ describe("DiagramSchema", () => {
 describe("parseDiagramJson", () => {
   it("書き出した JSON をそのまま読み戻せる", () => {
     const diagram = v.parse(DiagramSchema, createSample());
-    expect(parseDiagramJson(stringifyDiagram(diagram))).toEqual({ ok: true, diagram });
+    expect(parseDiagramJson(stringifyDiagram(diagram))).toEqual({
+      ok: true,
+      diagram,
+      unplaced: [],
+    });
   });
 
   it("壊れた JSON はエラーとして返す", () => {

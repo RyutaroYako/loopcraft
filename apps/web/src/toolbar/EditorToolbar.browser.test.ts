@@ -115,7 +115,7 @@ describe("JSON の読み込み", () => {
     await userEvent.fill(textarea(), '{"version": 1}');
     await button("読み込む").click();
     await expect.element(dialog().getByRole("alert")).toBeVisible();
-    expect(dialog().getByRole("alert").element().textContent).toContain("title: 無効な型");
+    expect(dialog().getByRole("alert").element().textContent).toContain('"title" がありません');
     await userEvent.fill(textarea(), JSON.stringify(createSampleDiagram()));
     await expect.element(dialog().getByRole("alert")).not.toBeInTheDocument();
     await button("読み込む").click();

@@ -1,3 +1,5 @@
+import { estimateLabelWidth } from "@loopcraft/core/geometry";
+
 /** CanvasNode.vue の .node-label と揃える */
 export const LABEL_FONT = `500 14px "Geist Variable", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif`;
 
@@ -11,7 +13,7 @@ export const measureLabel = (text: string): number => {
     context = document.createElement("canvas").getContext("2d");
     if (context) context.font = LABEL_FONT;
   }
-  const width = context ? context.measureText(text).width : estimate(text);
+  const width = context ? context.measureText(text).width : estimateLabelWidth(text);
   cache.set(text, width);
   return width;
 };
@@ -20,10 +22,4 @@ export const measureLabel = (text: string): number => {
 export const clearMeasureCache = () => {
   cache.clear();
   if (context) context.font = LABEL_FONT;
-};
-
-const estimate = (text: string) => {
-  let width = 0;
-  for (const char of text) width += char.charCodeAt(0) > 0xff ? 14 : 8;
-  return width;
 };
