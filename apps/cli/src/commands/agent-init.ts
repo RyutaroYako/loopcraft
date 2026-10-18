@@ -50,9 +50,10 @@ export async function agentInit(
     next = `${block}\n`;
     action = "created";
   } else {
-    const start = current.indexOf(BLOCK_START);
-    const end = current.indexOf(BLOCK_END, start);
-    if (start >= 0 && end >= 0) {
+    // 最初の開始の印から探さないのは、終わりの印の無い開始の印が残っていると、後ろのブロックまでの書き手の文章を消すため
+    const end = current.indexOf(BLOCK_END);
+    const start = end >= 0 ? current.lastIndexOf(BLOCK_START, end) : -1;
+    if (start >= 0) {
       next = current.slice(0, start) + block + current.slice(end + BLOCK_END.length);
       action = next === current ? "unchanged" : "updated";
     } else {

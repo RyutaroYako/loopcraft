@@ -130,4 +130,24 @@ describe("layout", () => {
         '--pin: "社員数" というラベルの変数が 2 個あります。ID で指してください（staff, sales）',
     });
   });
+
+  it("--all で図が変わらなくても、読み込みで置いた座標は書き込む", async () => {
+    const { context, stdout } = await createWorkspace();
+    const diagram = createSampleDiagram();
+    const { position: _, ...unplaced } = diagram.variables[2]!;
+    const path = join(context.cwd, "d.json");
+    await writeFile(
+      path,
+      JSON.stringify({ ...diagram, variables: diagram.variables.with(2, unplaced as never) }),
+    );
+    const everything = diagram.variables.map((variable) => variable.id);
+    await layout("d.json", { format: "json", all: true, pin: everything }, context);
+    expect(JSON.parse(stdout.join(""))).toMatchObject({
+      data: { written: true, moved: ["profit"] },
+    });
+    expect((await read(path)).variables[2]!.position).toEqual({
+      x: expect.any(Number),
+      y: expect.any(Number),
+    });
+  });
 });

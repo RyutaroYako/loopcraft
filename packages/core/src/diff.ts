@@ -42,6 +42,8 @@ export interface DiagramDiff {
     removed: LoopSummary[];
     /** 同じ変数を通るが、極性が変わって種類が変わったもの */
     flipped: (LoopSummary & { before: "R" | "B" })[];
+    /** ループが多く数えきれず、増減が不完全かもしれない */
+    truncated: boolean;
   };
   featured: { added: string[]; removed: string[] };
   /** ほかの項目に出ない変更（説明・曲がり具合・注目するループの名前や経路・記号の位置）の場所 */
@@ -107,16 +109,20 @@ export const diffDiagrams = (before: Diagram, after: Diagram): DiagramDiff => {
     if (!afterLinks.has(key)) links.removed.push(summary(link, beforeLabel));
   }
 
-  const loopsOf = (diagram: Diagram, label: (id: VariableId) => string) =>
-    new Map<string, LoopSummary>(
-      findLoops(diagram.links).loops.map((loop) => [
+  let truncated = false;
+  const loopsOf = (diagram: Diagram, label: (id: VariableId) => string) => {
+    const detection = findLoops(diagram.links);
+    truncated ||= detection.truncated;
+    return new Map<string, LoopSummary>(
+      detection.loops.map((loop) => [
         routeKey(loop.variables),
         { kind: badge(loop.kind), route: loop.variables.map(label) },
       ]),
     );
+  };
   const beforeLoops = loopsOf(before, beforeLabel);
   const afterLoops = loopsOf(after, afterLabel);
-  const loops: DiagramDiff["loops"] = { added: [], removed: [], flipped: [] };
+  const loops: DiagramDiff["loops"] = { added: [], removed: [], flipped: [], truncated };
   for (const [key, loop] of afterLoops) {
     const old = beforeLoops.get(key);
     if (!old) loops.added.push(loop);

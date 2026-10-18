@@ -57,4 +57,14 @@ describe("agent-init", () => {
     expect(await readFile(join(other.cwd, "AG.md"), "utf8")).toContain(BLOCK_START);
     expect(JSON.parse(stdout[0]!).data.action).toBe("created");
   });
+
+  it("終わりの印の無い開始の印が残っていても、その後ろの文章は消さない", async () => {
+    const { context } = await createWorkspace();
+    const path = join(context.cwd, "AGENTS.md");
+    await writeFile(path, `${BLOCK_START}\n残す文章\n${BLOCK_START}\n古い\n${BLOCK_END}\n`);
+    await agentInit({ format: "text" }, context);
+    const text = await readFile(path, "utf8");
+    expect(text).toContain("残す文章");
+    expect(text).not.toContain("古い");
+  });
 });

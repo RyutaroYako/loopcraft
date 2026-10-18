@@ -43,14 +43,15 @@ export async function layout(
     }
     next = autoLayout(current, estimateNodeSizes(current.variables), { fixed: pinned });
     const before = new Map(current.variables.map((variable) => [variable.id, variable.position]));
-    moved = next.variables.flatMap((variable) => {
+    const repositioned = next.variables.flatMap((variable) => {
       const old = before.get(variable.id)!;
       return old.x === variable.position.x && old.y === variable.position.y ? [] : [variable.id];
     });
+    moved = [...new Set([...unplaced, ...repositioned])];
   }
 
-  // 図が変わったかで決めないのは、--all でなければ、読み込みで置いた座標はまだファイルに無いのに、図は変わらないため
-  const written = options.all ? next !== current : unplaced.length > 0;
+  // 図が変わったかだけで決めないのは、読み込みで置いた座標はまだファイルに無いのに、図は変わらないことがあるため
+  const written = unplaced.length > 0 || next !== current;
   if (written) await writeDiagramFile(loaded.path, next);
   const report = layoutReport(next);
   const data = { file: shown, written, moved, layout: report };

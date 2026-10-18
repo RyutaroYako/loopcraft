@@ -118,7 +118,13 @@ export const placeMissingVariables = (diagram: DiagramShape): Diagram => {
   });
   const filled: Diagram = { ...diagram, variables };
   if (placed.size === variables.length) return filled;
-  return autoLayout(filled, estimateNodeSizes(variables), { fixed: placed });
+  // 書き手が付けた曲がり具合を残すのは、座標を省いた変数につながる関連でも、曲げたい向きは変わらないため
+  return autoLayout(filled, estimateNodeSizes(variables), {
+    fixed: placed,
+    keepCurvature: new Set(
+      diagram.links.flatMap((link) => (link.curvature === undefined ? [] : [link.id])),
+    ),
+  });
 };
 
 const undirectedEdges = (diagram: Diagram, index: ReadonlyMap<VariableId, number>) => {

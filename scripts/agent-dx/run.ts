@@ -12,6 +12,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
@@ -65,6 +66,8 @@ summarize();
 
 async function execute({ task, index }: Run) {
   const work = join(root, `${task.name}-${index + 1}`);
+  // 上書きでコピーしないのは、前の回の diagram.json が残り、何もしなくても合格になるため
+  rmSync(work, { recursive: true, force: true });
   cpSync(template, work, { recursive: true });
   const before = task.fixture ? readFileSync(new URL(task.fixture, fixtures), "utf8") : undefined;
   if (before) writeFileSync(join(work, "diagram.json"), before);

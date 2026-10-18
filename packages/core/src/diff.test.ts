@@ -1,7 +1,9 @@
+import * as v from "valibot";
 import { describe, expect, it } from "vite-plus/test";
 import { diffDiagrams } from "./diff.ts";
 import { applyOperations, parseOperation } from "./operations.ts";
 import { createSampleDiagram } from "./sample.ts";
+import { DiagramSchema } from "./schema.ts";
 import type { Diagram } from "./schema.ts";
 
 const edited = (diagram: Diagram, ...items: unknown[]) => {
@@ -119,5 +121,23 @@ describe("diffDiagrams", () => {
     });
     const renamed = edited(before, { op: "update-loop", id: "p_growth", name: "伸び" });
     expect(diffDiagrams(before, renamed).other).toEqual(["loops.p_growth.name"]);
+  });
+
+  it("ループを数えきれなかったら、増減が不完全かもしれないと知らせる", () => {
+    const names = ["a", "b", "c", "d", "e", "f", "g"];
+    const dense = v.parse(DiagramSchema, {
+      version: 1,
+      title: "",
+      variables: names.map((id, at) => ({ id, label: id, position: { x: at * 100, y: 0 } })),
+      links: names.flatMap((from) =>
+        names
+          .filter((to) => to !== from)
+          .map((to) => ({ id: `${from}${to}`, from, to, polarity: "+" })),
+      ),
+      loops: [],
+    });
+    expect(diffDiagrams(dense, dense).loops.truncated).toBe(true);
+    const sample = createSampleDiagram();
+    expect(diffDiagrams(sample, sample).loops.truncated).toBe(false);
   });
 });

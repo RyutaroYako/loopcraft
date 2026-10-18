@@ -75,6 +75,28 @@ describe("diff", () => {
     expect(fresh.stdout).toContain("+ 注目するループ 成長エンジン");
   });
 
+  it("ループを数えきれなかったら、ループの増減が一部だけだと知らせる", async () => {
+    const { context, stderr } = await createWorkspace();
+    const names = ["a", "b", "c", "d", "e", "f", "g"];
+    const dense = {
+      version: 1,
+      title: "",
+      variables: names.map((id, at) => ({ id, label: id, position: { x: at * 100, y: 0 } })),
+      links: names.flatMap((from) =>
+        names
+          .filter((to) => to !== from)
+          .map((to) => ({ id: `${from}${to}`, from, to, polarity: "+" })),
+      ),
+      loops: [],
+    };
+    await writeFile(join(context.cwd, "a.json"), JSON.stringify(dense));
+    await writeFile(join(context.cwd, "b.json"), JSON.stringify({ ...dense, title: "b" }));
+    await diff(["a.json", "b.json"], { format: "text", base: "HEAD" }, context);
+    expect(stderr.at(-1)).toBe(
+      "⚠ ループが多いため数えきれず、ループの増減は一部だけを挙げています",
+    );
+  });
+
   it("違いが無ければそう伝える", async () => {
     const { context, stderr } = await createWorkspace();
     await writeSample(context.cwd, "a.json");
@@ -120,7 +142,19 @@ describe("diff", () => {
     git("init", "-q");
     await writeSample(context.cwd);
     git("add", ".");
-    git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "init");
+    git(
+      "-c",
+      "user.name=t",
+      "-c",
+      "user.email=t@example.com",
+      "-c",
+      "commit.gpgsign=false",
+      "-c",
+      "core.hooksPath=/dev/null",
+      "commit",
+      "-qm",
+      "init",
+    );
     await writeFile(join(context.cwd, "diagram.json"), stringifyDiagram(changed()));
     await writeSample(context.cwd, "untracked.json");
     await diff(["diagram.json"], { format: "json", base: "HEAD" }, context);

@@ -53,7 +53,9 @@ describe("render", () => {
   it("実際の PNG を作れる", async () => {
     const { context } = await createWorkspace();
     await writeSample(context.cwd);
-    await render("diagram.json", { ...options, output: "real.png", scale: 1 }, context);
+    expect(
+      await render("diagram.json", { ...options, output: "real.png", scale: 1 }, context),
+    ).toEqual({ kind: "done" });
     const png = await readFile(join(context.cwd, "real.png"));
     expect([...png.subarray(1, 4)]).toEqual([0x50, 0x4e, 0x47]);
   });

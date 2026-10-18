@@ -183,6 +183,16 @@ describe("placeMissingVariables", () => {
     expect(placeMissingVariables(shape)).toEqual(result);
   });
 
+  it("座標の無い変数につながる関連でも、書いてある曲がり具合を残す", () => {
+    const shape = withoutPositions(["hiring"]);
+    const curved: DiagramShape = {
+      ...shape,
+      links: shape.links.map((link) => (link.to === "hiring" ? { ...link, curvature: 0.3 } : link)),
+    };
+    const result = placeMissingVariables(curved);
+    expect(result.links.find((link) => link.to === "hiring")!.curvature).toBe(0.3);
+  });
+
   it("座標がそろっていれば、そのまま返す", () => {
     const diagram = createSampleDiagram();
     expect(placeMissingVariables(diagram)).toEqual(diagram);

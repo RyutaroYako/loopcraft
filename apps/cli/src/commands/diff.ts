@@ -110,6 +110,9 @@ function printDiff({ log }: Context, base: string, file: string, result: Diagram
   for (const name of featured.removed) log.output(`- 注目するループ ${name}`);
   for (const path of result.other) log.output(`~ ${path}`);
   if (variables.moved > 0) log.note(`位置だけが変わった変数: ${variables.moved} 個`);
+  if (loops.truncated) {
+    log.warn("ループが多いため数えきれず、ループの増減は一部だけを挙げています");
+  }
 }
 
 /** パスをリポジトリの根からでなく ./ から書くのは、どの階層で実行しても同じファイルを指すため */
