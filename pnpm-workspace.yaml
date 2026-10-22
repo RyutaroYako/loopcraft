@@ -9,20 +9,21 @@ savePrefix: ""
 
 catalog:
   "@resvg/resvg-js": 2.6.2
-  # vitest と @vitest/* を最新にせず vite-plus が同梱する版に揃えるのは、ずれるとカバレッジの実行が止まるため
+  # @types/node を最新（26 系）にしないのは、動かす Node が 24 LTS で、まだない API を型が許してしまうため
   "@types/node": 24.19.2
-  "@vitest/browser-playwright": 5.0.4
-  "@vitest/coverage-v8": 5.0.4
-  "@vizejs/vite-plugin": 0.457.0
+  # vitest と @vitest/* を最新にせず vite-plus が同梱する版に揃えるのは、ずれるとカバレッジの実行が止まるため
+  "@vitest/browser-playwright": 5.0.5
+  "@vitest/coverage-v8": 5.0.5
+  "@vizejs/vite-plugin": 0.518.0
   lightningcss: 1.33.0
   modern-screenshot: 4.7.0
   reka-ui: 2.11.0
   typescript: 7.0.2
   valibot: 1.5.0
-  vite: npm:@voidzero-dev/vite-plus-core@1.2.0
-  vite-plus: 1.2.0
-  vitest: 5.0.4
-  vize: 0.457.0
+  vite: npm:@voidzero-dev/vite-plus-core@1.3.0
+  vite-plus: 1.3.0
+  vitest: 5.0.5
+  vize: 0.518.0
   vue: 3.5.44
 
 overrides:

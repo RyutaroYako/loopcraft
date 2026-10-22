@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-const MAX_ITEMS = 8;
-
 const { items } = defineProps<{ items: readonly string[] }>();
+
+const MAX_ITEMS = 8;
 
 const shown = computed(() => items.slice(0, MAX_ITEMS));
 const hidden = computed(() => items.length - shown.value.length);

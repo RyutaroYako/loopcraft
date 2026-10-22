@@ -10,9 +10,9 @@ import TextField from "../primitives/TextField.vue";
 import { pickJsonFile } from "./file.ts";
 import { formatParseErrors } from "./readDiagramFile.ts";
 
-const PLACEHOLDER = '{ "version": 1, "title": "…", … }';
-
 const emit = defineEmits<{ "dialog:close": [] }>();
+
+const PLACEHOLDER = '{ "version": 1, "title": "…", … }';
 
 const editor = injectEditor();
 const text = ref("");

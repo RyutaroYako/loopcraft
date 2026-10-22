@@ -6,13 +6,6 @@ import { UNNAMED } from "../editor/boxes.ts";
 import type { NodeBox } from "../editor/boxes.ts";
 import { injectEditor } from "../editor/useEditor.ts";
 
-const ARROW_OFFSETS: Partial<Record<string, Point>> = {
-  ArrowUp: { x: 0, y: -1 },
-  ArrowDown: { x: 0, y: 1 },
-  ArrowLeft: { x: -1, y: 0 },
-  ArrowRight: { x: 1, y: 0 },
-};
-
 const { variable, box, connectTarget } = defineProps<{
   variable: Variable;
   box: NodeBox;
@@ -23,6 +16,13 @@ const emit = defineEmits<{
   "pointerdown:body": [event: PointerEvent, id: VariableId];
   "pointerdown:handle": [event: PointerEvent, id: VariableId];
 }>();
+
+const ARROW_OFFSETS: Partial<Record<string, Point>> = {
+  ArrowUp: { x: 0, y: -1 },
+  ArrowDown: { x: 0, y: 1 },
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+};
 
 const editor = injectEditor();
 const id = computed(() => variable.id);
