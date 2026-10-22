@@ -5,9 +5,9 @@ import type { NodeBox } from "../editor/boxes.ts";
 import { injectEditor } from "../editor/useEditor.ts";
 import type { LinkDraft } from "./linkDraft.ts";
 
-const NO_SIZE = { width: 0, height: 0 };
-
 const { draft } = defineProps<{ draft: LinkDraft }>();
+
+const NO_SIZE = { width: 0, height: 0 };
 
 const editor = injectEditor();
 const path = computed(() => {

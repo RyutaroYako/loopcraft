@@ -3,8 +3,6 @@ import { onUnmounted, ref } from "vue";
 import BaseButton from "./BaseButton.vue";
 import SvgIcon from "./SvgIcon.vue";
 
-const COPIED_MS = 2000;
-
 const {
   copy,
   disabled = false,
@@ -14,6 +12,8 @@ const {
   disabled?: boolean;
   label?: string;
 }>();
+
+const COPIED_MS = 2000;
 
 const state = ref<"idle" | "copied" | "failed">("idle");
 let timer: ReturnType<typeof setTimeout> | undefined;

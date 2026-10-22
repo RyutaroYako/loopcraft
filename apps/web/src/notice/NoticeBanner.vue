@@ -6,11 +6,11 @@ import IconButton from "../primitives/IconButton.vue";
 import SvgIcon from "../primitives/SvgIcon.vue";
 import type { Notice } from "./useNotices.ts";
 
-const INFO_MS = 3200;
-
 const { notice } = defineProps<{ notice: Notice }>();
 
 const emit = defineEmits<{ "notice:close": [notice: Notice] }>();
+
+const INFO_MS = 3200;
 
 function onOpenChange(open: boolean) {
   if (!open) emit("notice:close", notice);

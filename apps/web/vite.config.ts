@@ -5,6 +5,7 @@ export default defineConfig({
   // ルートからの絶対パスにしないのは、GitHub Pages では /loopcraft/ の下で配信され、CLI の serve ではルートで配信されるため
   base: "./",
   plugins: lazyPlugins(() => [vize()]),
+  vue: { linter: { preset: "opinionated" } },
   css: { transformer: "lightningcss" },
   test: {
     name: "web",

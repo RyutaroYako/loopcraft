@@ -15,14 +15,14 @@ import { labelOf } from "../editor/labels.ts";
 import PolarityGlyph from "./PolarityGlyph.vue";
 import SectionHeading from "./SectionHeading.vue";
 
+const { id } = defineProps<{ id: LinkId }>();
+
+const emit = defineEmits<{ "focus:lost": [] }>();
+
 const POLARITY_OPTIONS = [
   { value: "+", label: "同じ向きに動く" },
   { value: "-", label: "逆向きに動く" },
 ] as const satisfies readonly { value: Polarity; label: string }[];
-
-const { id } = defineProps<{ id: LinkId }>();
-
-const emit = defineEmits<{ "focus:lost": [] }>();
 
 const editor = injectEditor();
 const polarityLabelId = useId();
