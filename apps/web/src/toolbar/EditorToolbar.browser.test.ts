@@ -19,6 +19,13 @@ afterEach(cleanup);
 
 const title = () => page.getByRole("textbox", { name: "図のタイトル" });
 const button = (name: string) => page.getByRole("button", { name, exact: true });
+const fileMenu = () => page.getByRole("menu", { name: "ファイル" });
+const fileMenuItem = (name: string) => fileMenu().getByRole("menuitem", { name, exact: true });
+
+async function chooseFromFileMenu(name: string) {
+  await button("ファイル").click();
+  await fileMenuItem(name).click();
+}
 
 // userEvent で打たないのは、IME の変換中の入力を送れないため
 function compose(input: HTMLInputElement | HTMLTextAreaElement, value: string) {
@@ -62,7 +69,7 @@ describe("ツールバー", () => {
   it("新規で空の図にし、元に戻せる", async () => {
     mount(browserStartup(createSampleDiagram()));
     await expect.element(node("社員数")).toBeVisible();
-    await button("新規").click();
+    await chooseFromFileMenu("新規");
     await expect.element(node("社員数")).not.toBeInTheDocument();
     await button("元に戻す").click();
     await expect.element(node("社員数")).toBeVisible();
@@ -95,11 +102,14 @@ describe("ツールバー", () => {
         { readonly: true },
       ),
     );
-    await expect.element(button("画像")).toBeEnabled();
-    await expect.element(button("JSON を書き出す")).toBeEnabled();
-    await expect.element(button("読み込み")).not.toBeInTheDocument();
+    await button("ファイル").click();
+    await expect.element(fileMenuItem("画像を書き出す")).not.toHaveAttribute("aria-disabled");
+    await expect.element(fileMenuItem("JSON を書き出す")).toBeVisible();
+    await expect.element(fileMenuItem("JSON を読み込む")).not.toBeInTheDocument();
+    await expect.element(fileMenuItem("新規")).not.toBeInTheDocument();
     mount(browserStartup(createEmptyDiagram()));
-    await expect.element(button("画像")).toBeDisabled();
+    await button("ファイル").click();
+    await expect.element(fileMenuItem("画像を書き出す")).toHaveAttribute("aria-disabled", "true");
   });
 });
 
@@ -109,7 +119,7 @@ describe("JSON の読み込み", () => {
 
   it("貼り付けた JSON を読み込み、誤りがあればダイアログに出す", async () => {
     mount(browserStartup(createEmptyDiagram()));
-    await button("読み込み").click();
+    await chooseFromFileMenu("JSON を読み込む");
     await expect.element(textarea()).toHaveFocus();
     await expect.element(button("読み込む")).toBeDisabled();
     await userEvent.fill(textarea(), '{"version": 1}');
@@ -126,7 +136,7 @@ describe("JSON の読み込み", () => {
 
   it("ファイルからも選べ、選ばなければダイアログに戻る", async () => {
     mount(browserStartup(createEmptyDiagram()));
-    await button("読み込み").click();
+    await chooseFromFileMenu("JSON を読み込む");
     chooseFile(undefined);
     await button("ファイルから選ぶ").click();
     await expect.element(dialog()).toBeVisible();
@@ -139,11 +149,11 @@ describe("JSON の読み込み", () => {
   it("キャンセルや背景のクリックで閉じ、開いている間は図のショートカットが効かない", async () => {
     mount(browserStartup(createSampleDiagram()));
     (node("社員数").element() as SVGGElement).focus();
-    await button("読み込み").click();
+    await chooseFromFileMenu("JSON を読み込む");
     await button("キャンセル").click();
     await expect.element(dialog()).not.toBeInTheDocument();
 
-    await button("読み込み").click();
+    await chooseFromFileMenu("JSON を読み込む");
     await userEvent.keyboard("{Control>}z{/Control}");
     dialog()
       .element()
@@ -167,7 +177,7 @@ describe("JSON の書き出し", () => {
     try {
       const diagram = { ...createSampleDiagram(), title: "a/b" };
       mount(browserStartup(diagram));
-      await button("JSON を書き出す").click();
+      await chooseFromFileMenu("JSON を書き出す");
       const text = dialog().getByRole("textbox");
       await expect.element(text).toHaveValue(stringifyDiagram(diagram));
       await button("コピー").click();
@@ -183,36 +193,45 @@ describe("JSON の書き出し", () => {
   it("コピーできなければボタンで伝える", async () => {
     vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("denied"));
     mount(browserStartup(createSampleDiagram()));
-    await button("JSON を書き出す").click();
+    await chooseFromFileMenu("JSON を書き出す");
     await button("コピー").click();
     await expect.element(button("コピーできませんでした")).toBeVisible();
   });
 });
 
 describe("画像の書き出し", () => {
-  const dialog = () => page.getByRole("dialog", { name: "画像として書き出す" });
+  const dialog = () => page.getByRole("dialog", { name: "画像を書き出す" });
 
-  it("選択を外して図全体を写し、コピーや PNG の保存ができる", async () => {
+  it("選択を外して図全体を写し、ループの説明を凡例に入れて、コピーや保存ができる", async () => {
     const write = vi.spyOn(navigator.clipboard, "write").mockResolvedValue();
     const downloads = captureDownloads();
     try {
       mount(browserStartup({ ...createSampleDiagram(), title: "成長" }));
       (node("社員数").element() as SVGGElement).focus();
-      await button("画像").click();
+      await chooseFromFileMenu("画像を書き出す");
       const image = dialog().getByRole("img", { name: "成長 の画像" });
       await expect.element(image).toBeVisible();
       expect(document.querySelector(".canvas-node.selected")).toBeNull();
-      const { naturalWidth, naturalHeight } = image.element() as HTMLImageElement;
+      const size = () => {
+        const { naturalWidth, naturalHeight } = image.element() as HTMLImageElement;
+        return { width: naturalWidth, height: naturalHeight };
+      };
       const box = document.querySelector<SVGGElement>('[data-layer="content"]')!.getBBox();
       // + 64 は四辺 32px ずつの余白、* 2 は高解像度の画面でもぼやけないよう 2 倍で写す分
-      expect(naturalWidth).toBe(Math.ceil(box.width + 64) * 2);
-      expect(naturalHeight).toBe(Math.ceil(box.height + 64) * 2);
+      const diagramSize = {
+        width: Math.ceil(box.width + 64) * 2,
+        height: Math.ceil(box.height + 64) * 2,
+      };
+      await expect.poll(() => size().height).toBeGreaterThan(diagramSize.height);
+      expect(size().width).toBe(diagramSize.width);
+      await page.getByRole("switch", { name: "ループの説明を入れる" }).click();
+      await expect.poll(size).toEqual(diagramSize);
 
       await button("コピー").click();
       await expect.element(button("コピーしました")).toBeVisible();
       const item = write.mock.calls[0]![0][0]!;
       expect(item.types).toEqual(["image/png"]);
-      await button("PNG を保存").click();
+      await button("ファイルに保存").click();
       expect(downloads.files).toEqual(["成長.png"]);
     } finally {
       downloads.restore();
@@ -224,12 +243,12 @@ describe("画像の書き出し", () => {
       throw new Error("測れません");
     });
     mount(browserStartup(createSampleDiagram()));
-    await button("画像").click();
+    await chooseFromFileMenu("画像を書き出す");
     await expect.element(dialog().getByRole("alert")).toBeVisible();
     expect(dialog().getByRole("alert").element().textContent).toBe(
       "画像を作れませんでした測れません",
     );
-    await expect.element(button("PNG を保存")).toBeDisabled();
+    await expect.element(button("ファイルに保存")).toBeDisabled();
   });
 });
 
@@ -255,7 +274,7 @@ describe("最初の画面", () => {
         { readonly: true },
       ),
     );
-    await expect.element(page.getByRole("heading", { name: "まだ変数がありません" })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "変数がありません" })).toBeVisible();
     await expect.element(button("全体を表示")).toBeDisabled();
   });
 });
@@ -264,10 +283,6 @@ describe("入力欄", () => {
   it("検査パネルと変数の名前も、変換中は確定するまで反映しない", async () => {
     mount(browserStartup(createSampleDiagram()));
     await expect.element(node("売上")).toBeVisible();
-    const description = page.getByRole("textbox", { name: /^この図で伝えたいこと/ });
-    compose(description.element() as HTMLTextAreaElement, "成長");
-    await expect.element(description).toHaveValue("成長");
-
     (node("売上").element() as SVGGElement).focus();
     const label = page.getByRole("textbox", { name: "名前", exact: true });
     await expect.element(label).toBeVisible();
@@ -291,8 +306,8 @@ describe("入力欄", () => {
 });
 
 describe("テーマ", () => {
-  const themeButton = () => page.getByRole("button", { name: /^テーマ/ });
-  const themeMenu = () => page.getByRole("menu", { name: /^テーマ/ });
+  const themeButton = () => button("Loopcraft");
+  const themeMenu = () => page.getByRole("menu", { name: "Loopcraft" });
   const option = (name: string) => themeMenu().getByRole("menuitemradio", { name });
   const canvasColor = () =>
     getComputedStyle(document.documentElement).getPropertyValue("--color-canvas").trim();
@@ -304,7 +319,7 @@ describe("テーマ", () => {
     await expect.element(option("システムに合わせる")).toHaveAttribute("aria-checked", "true");
     await option("ダーク").click();
     await expect.element(themeMenu()).not.toBeInTheDocument();
-    await expect.element(page.getByRole("button", { name: "テーマ: ダーク" })).toHaveFocus();
+    await expect.element(themeButton()).toHaveFocus();
     expect(canvasColor()).not.toBe(light);
 
     mount(browserStartup(createSampleDiagram()));

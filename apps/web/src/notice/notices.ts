@@ -34,6 +34,8 @@ export const createNotices = (context: {
     };
 
   const exportAction: Action = { label: "JSON を書き出す", run: () => editor.exportFile() };
+  // 空白を挟まずに続けないのは、英数字の名前と助詞が詰まって読みにくいため
+  const place = store.kind === "browser" ? "ブラウザ" : `${store.label} `;
 
   const unreadable = opened.status === "unreadable" ? opened : undefined;
   const raw = unreadable?.raw;
@@ -43,7 +45,7 @@ export const createNotices = (context: {
       ? []
       : [
           {
-            label: "開けなかったデータを書き出す",
+            label: "元のデータをファイルに保存",
             run: () => downloadText(raw, "system-diagram-unreadable.json"),
           },
         ];
@@ -57,12 +59,8 @@ export const createNotices = (context: {
     if (status.kind === "failing") {
       return {
         tone: "error",
-        title: "自動保存できません",
-        details: [
-          `保存先: ${store.label}`,
-          String(status.error),
-          "未保存の変更は「JSON を書き出す」で残せます",
-        ],
+        title: `${place}に保存できません`,
+        details: [String(status.error)],
         actions: [{ label: "再試行", run: run((autosave) => autosave.retry()) }, exportAction],
       };
     }
@@ -71,11 +69,6 @@ export const createNotices = (context: {
       return {
         tone: "error",
         title: "loopcraft serve との接続が切れました",
-        details: [
-          "loopcraft serve が停止または再起動された可能性があります。この画面からは保存できません",
-          "未保存の変更は「JSON を書き出す」で残せます",
-          "起動し直したら、ターミナルに表示された新しい URL を開いてください",
-        ],
         actions: [exportAction],
       };
     }
@@ -84,26 +77,25 @@ export const createNotices = (context: {
         tone: "error",
         title: "図が外部で変更されました",
         details: [
-          "上書きを防ぐため、自動保存を止めています",
+          "自動保存を止めています",
           ...(status.problems?.length
-            ? ["保存されている内容を読み込めませんでした:", ...status.problems]
+            ? ["変更後の内容を読み込めませんでした:", ...status.problems]
             : []),
         ],
         actions: [
-          { label: "保存されている内容を読み込む", run: reloadSaved },
-          ...overwrite("この画面の内容で上書き"),
+          { label: "変更後の内容を読み込む", run: reloadSaved },
+          ...overwrite("今の図で上書き保存"),
         ],
       };
     }
     return {
       tone: "error",
-      title: "保存されていた図を開けませんでした",
-      details: [
-        `保存先: ${store.label}`,
-        "元のデータを残すため、自動保存を止めています。保存先の内容が直れば自動で読み込みます",
-        ...(unreadable?.problems ?? []),
-      ],
-      actions: [...downloadUnreadable, ...overwrite("この画面の内容で上書き")],
+      title:
+        store.kind === "browser"
+          ? "ブラウザに保存した図を開けませんでした"
+          : `${store.label} を開けませんでした`,
+      details: ["自動保存を止めています", ...(unreadable?.problems ?? [])],
+      actions: [...downloadUnreadable, ...overwrite("今の図で上書き保存")],
     };
   };
 
@@ -124,12 +116,9 @@ export const createNotices = (context: {
       if (startup.sessionInvalid) {
         editor.notify({
           tone: "error",
-          title: "loopcraft serve の情報を読めませんでした",
-          details: [
-            "この画面の変更はファイルではなく、ブラウザに保存されます",
-            "ページを再読み込みするか、loopcraft serve を起動し直してください",
-          ],
-          actions: [{ label: "ページを再読み込み", run: reloadPage }],
+          title: "loopcraft serve とつなげませんでした",
+          details: ["変更はブラウザに保存されます"],
+          actions: [{ label: "再読み込み", run: reloadPage }],
         });
       } else if (initialStatus) {
         explain(initialStatus);
@@ -149,10 +138,7 @@ export const createNotices = (context: {
       editor.notify({
         tone: "error",
         title: "外部の変更を検知できなくなりました",
-        details: [
-          ...(detail ? [detail] : []),
-          "loopcraft serve を起動し直すまで、外部の変更はこの画面に反映されません",
-        ],
+        ...(detail ? { details: [detail] } : {}),
       });
     },
   };

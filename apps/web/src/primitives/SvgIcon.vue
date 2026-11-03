@@ -92,10 +92,8 @@ const { name } = defineProps<{ name: IconName }>();
     <template v-else-if="name === 'arrow-right'">
       <path d="M4 10h12M11.5 5.5 16 10l-4.5 4.5" />
     </template>
-    <template v-else-if="name === 'more'">
-      <circle cx="4.5" cy="10" r="0.9" fill="currentColor" />
-      <circle cx="10" cy="10" r="0.9" fill="currentColor" />
-      <circle cx="15.5" cy="10" r="0.9" fill="currentColor" />
+    <template v-else-if="name === 'chevron-down'">
+      <path d="m6 8 4 4 4-4" />
     </template>
     <template v-else-if="name === 'sun'">
       <circle cx="10" cy="10" r="3.25" />

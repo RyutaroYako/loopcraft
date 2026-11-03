@@ -92,19 +92,12 @@ describe("diffDiagrams", () => {
     const before = createSampleDiagram();
     const after = edited(
       before,
-      { op: "set-description", description: "新" },
-      { op: "update-variable", id: "sales", description: "d" },
       { op: "update-link", id: "l_sales", curvature: 0.3 },
       { op: "update-loop", id: "p_growth", description: "d" },
     );
     expect(diffDiagrams(before, after)).toMatchObject({
       changed: true,
-      other: [
-        "description",
-        "variables.sales.description",
-        "links.l_sales.curvature",
-        "loops.p_growth.description",
-      ],
+      other: ["links.l_sales.curvature", "loops.p_growth.description"],
     });
   });
 

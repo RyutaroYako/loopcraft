@@ -11,14 +11,9 @@ import {
 import IconButton from "./IconButton.vue";
 import SvgIcon from "./SvgIcon.vue";
 
-const {
-  title,
-  size = "medium",
-  layout = "default",
-} = defineProps<{
+const { title, size = "medium" } = defineProps<{
   title: string;
-  size?: "small" | "medium" | "large";
-  layout?: "default" | "menu";
+  size?: "medium" | "large";
 }>();
 
 const emit = defineEmits<{ "dialog:close": [] }>();
@@ -67,13 +62,7 @@ defineExpose({ close });
       </DialogOverlay>
       <!-- 説明の要素を結び付けないのは、本文がフォームや一覧で、まとめて読み上げる一文が無いため -->
       <DialogContent :id as-child :aria-describedby="undefined" @open-auto-focus="onOpenAutoFocus">
-        <div
-          v-bind="$attrs"
-          ref="content"
-          class="modal-dialog"
-          :data-size="size"
-          :data-layout="layout"
-        >
+        <div v-bind="$attrs" ref="content" class="modal-dialog" :data-size="size">
           <!-- header と footer にしないのは、ダイアログは区分コンテンツでなく、ページ全体のバナーや末尾と同じ役割に数えられるため -->
           <div class="dialog-head">
             <DialogTitle as-child>
@@ -129,10 +118,6 @@ defineExpose({ close });
     box-shadow: var(--shadow-float);
     animation: var(--animate-dialog-in);
 
-    &[data-size="small"] {
-      inline-size: min(420px, calc(100vw - 32px));
-    }
-
     &[data-size="large"] {
       inline-size: min(960px, calc(100vw - 32px));
     }
@@ -169,22 +154,6 @@ defineExpose({ close });
 
       > .footer-spacer {
         flex: 1;
-      }
-    }
-
-    &[data-layout="menu"] {
-      > .dialog-body {
-        gap: 0;
-        padding: 4px 8px 8px;
-      }
-
-      /* 画面の中央に出さないのは、狭い画面では上の方の項目に親指が届かないため */
-      @media (width < 48rem) {
-        margin: auto 0 0;
-        inline-size: 100%;
-        max-inline-size: none;
-        border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
-        padding-block-end: env(safe-area-inset-bottom);
       }
     }
   }

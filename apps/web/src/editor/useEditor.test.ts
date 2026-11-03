@@ -12,10 +12,15 @@ const lid = (id: string) => id as LinkId;
 const pid = (id: string) => id as LoopId;
 
 let cleanup: (() => void) | undefined;
+// jsdom の canvas に任せないのは、未実装の getContext を呼ぶたびにログを出すため。幅は文字種からの概算になる
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+});
 afterEach(() => {
   cleanup?.();
   cleanup = undefined;
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 function setup(...args: Parameters<typeof setupEditor>) {
@@ -308,10 +313,18 @@ describe("表示範囲", () => {
     expect(editor.screenToWorld({ x: 100, y: 50 })).toEqual({ x: 0, y: 0 });
     editor.zoomAt({ x: 100, y: 50 }, 2);
     expect(editor.viewport.value).toEqual({ x: 100, y: 50, zoom: 2 });
-    editor.zoomBy(100);
+    editor.zoomTo(100);
     expect(editor.viewport.value.zoom).toBe(MAX_ZOOM);
-    editor.zoomBy(0.0001);
+    editor.zoomTo(0.0001);
     expect(editor.viewport.value.zoom).toBe(MIN_ZOOM);
+    editor.zoomTo(0.95);
+    editor.zoomStep(1);
+    expect(editor.viewport.value.zoom).toBe(1);
+    editor.zoomStep(1);
+    expect(editor.viewport.value.zoom).toBeCloseTo(1.2);
+    editor.zoomStep(-1);
+    editor.zoomStep(-1);
+    expect(editor.viewport.value.zoom).toBeCloseTo(1 / 1.2);
     expect(editor.viewCenter()).toEqual(editor.screenToWorld({ x: 500, y: 400 }));
   });
 

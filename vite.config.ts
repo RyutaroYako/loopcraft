@@ -1,6 +1,17 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  run: {
+    tasks: {
+      // pack した dist/cli.mjs を動かさないのは、直すたびに pack し直すことになるため。
+      // エディタは apps/web/dist を使うので、先に組み立てる
+      cli: {
+        command: "node apps/cli/src/cli.ts",
+        cache: false,
+        dependsOn: ["@loopcraft/web#build"],
+      },
+    },
+  },
   fmt: {
     // packages/core/scripts/generate-json-schema.ts の生成物
     ignorePatterns: ["packages/core/loopcraft.schema.json"],

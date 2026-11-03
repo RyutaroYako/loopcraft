@@ -170,7 +170,7 @@ describe("createFileClient", () => {
     const { store } = createFileClient(session);
     const big = createSampleDiagram();
     // 日本語にするのは、文字数では上限より少なくても、UTF-8 のバイト数では超えるため
-    big.description = "あ".repeat(25_000);
+    big.title = "あ".repeat(25_000);
     await store.save(big, { keepalive: true });
     expect(fetch.mock.calls[0]![1].keepalive).toBe(false);
   });

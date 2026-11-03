@@ -2,7 +2,7 @@ import * as edit from "@loopcraft/core/edit";
 import { createEmptyDiagram, stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { LinkId } from "@loopcraft/core/schema";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { startInBrowser } from "./persistence/startup.ts";
 import {
   browserStartup,
@@ -35,7 +35,7 @@ describe("エディタ", () => {
   it("サンプルを開くと、変数とループが並ぶ", async () => {
     mount(browserStartup());
     await expect
-      .element(page.getByRole("heading", { name: /変数を置いて、矢印でつなぐ/ }))
+      .element(page.getByRole("heading", { name: "出来事の裏にあるループを描く" }))
       .toBeVisible();
     await page.getByRole("button", { name: "サンプルを開く" }).click();
     await expect.element(node("社員数")).toBeVisible();
@@ -51,6 +51,34 @@ describe("エディタ", () => {
     await userEvent.fill(input, "顧客満足度");
     await userEvent.keyboard("{Enter}");
     await expect.element(node("顧客満足度")).toBeVisible();
+    await page.getByRole("button", { name: "元に戻す" }).click();
+    await expect.element(node("顧客満足度")).not.toBeInTheDocument();
+    await expect.element(page.getByRole("button", { name: "元に戻す" })).toBeDisabled();
+  });
+
+  it("名前を付けずに終えたら、足した変数は残さず、取り消しの履歴にも残さない", async () => {
+    mount(browserStartup(createSampleDiagram()));
+    const count = () => document.querySelectorAll("[data-variable-id]").length;
+    const before = count();
+    const input = page.getByRole("textbox", { name: "変数の名前" });
+    for (const end of ["{Enter}", "{Escape}"]) {
+      await userEvent.dblClick(canvas(), { position: { x: 40, y: 40 } });
+      await expect.element(input).toHaveFocus();
+      await expect.poll(count).toBe(before + 1);
+      await userEvent.keyboard(end);
+      await expect.poll(count).toBe(before);
+    }
+    await userEvent.dblClick(canvas(), { position: { x: 40, y: 40 } });
+    await expect.element(input).toHaveFocus();
+    await userEvent.fill(input, "  ");
+    await userEvent.click(canvas(), { position: { x: 60, y: 200 } });
+    await expect.poll(count).toBe(before);
+
+    await userEvent.dblClick(canvas(), { position: { x: 40, y: 40 } });
+    await expect.element(input).toHaveFocus();
+    await node("社員数").click();
+    await expect.poll(count).toBe(before);
+    await expect.element(page.getByRole("button", { name: "元に戻す" })).toBeDisabled();
   });
 
   it("変数の幅が変わるほど長い名前でも、入力中の文字を消さずに付けられる", async () => {
@@ -74,7 +102,7 @@ describe("エディタ", () => {
     const target = document.querySelector('[data-variable-id="staff"] .body-rect')!;
     await userEvent.dragAndDrop(page.elementLocator(handle), page.elementLocator(target));
     await expect.poll(() => loopItems().length).toBeGreaterThan(before);
-    await expect.element(page.getByRole("heading", { name: "関連" })).toBeVisible();
+    await expect.element(page.getByRole("group", { name: "関連", exact: true })).toBeVisible();
   });
 
   it("フォーカスした変数を Delete で消す", async () => {
@@ -115,13 +143,15 @@ describe("キーボード", () => {
     mount(browserStartup(createSampleDiagram()));
     await expect.element(node("売上")).toBeVisible();
     nodeElement("sales").focus();
-    await expect.element(page.getByRole("heading", { name: "変数" })).toBeVisible();
+    await expect.element(page.getByRole("group", { name: "変数", exact: true })).toBeVisible();
     (document.activeElement as HTMLElement).blur();
     await userEvent.keyboard("{Enter}");
     await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
     await userEvent.keyboard("{Escape}");
-    await expect.element(page.getByRole("heading", { name: "図の概要" })).toBeVisible();
+    await expect
+      .element(page.getByRole("region", { name: "選択中の項目" }))
+      .not.toBeInTheDocument();
   });
 
   it("Ctrl+S で JSON を書き出す", async () => {
@@ -167,7 +197,13 @@ describe("ファイルのドロップ", () => {
 });
 
 describe("案内", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  // 差し替えるのは、アプリのロガーに加えて Vitest も、アプリが受けた window の例外を console.error に出すため
+  const captureConsoleError = () => vi.spyOn(console, "error").mockImplementation(() => {});
+
   it("取りこぼした例外を画面に出し、閉じられる", async () => {
+    const consoleError = captureConsoleError();
     mount(browserStartup(createSampleDiagram()));
     await expect.element(node("売上")).toBeVisible();
     window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
@@ -184,9 +220,14 @@ describe("案内", () => {
     await expect.element(notice()).toMatchTextContent(/rejected/);
     await page.getByRole("button", { name: "閉じる" }).click();
     await expect.element(notice()).not.toBeInTheDocument();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[loopcraft] 予期しないエラー（unhandledrejection）",
+      "rejected",
+    );
   });
 
   it("案内は時間で消え、エラーは閉じるまで残る", async () => {
+    captureConsoleError();
     const { store, control } = fakeFileStore();
     mount(fileStartup(ok(), { store }));
     control.reloadResult = { ok: true, diagram: { ...createSampleDiagram(), title: "外で直した" } };
@@ -205,9 +246,9 @@ describe("案内", () => {
     const downloads = captureDownloads();
     try {
       mount(startInBrowser({ status: "unreadable", problems: ["壊れています"], raw: "{" }));
-      await expect.element(notice()).toMatchTextContent(/保存されていた図を開けませんでした/);
+      await expect.element(notice()).toMatchTextContent(/ブラウザに保存した図を開けませんでした/);
       await expect.element(page.getByRole("button", { name: /自動保存を停止中/ })).toBeVisible();
-      await page.getByRole("button", { name: "開けなかったデータを書き出す" }).click();
+      await page.getByRole("button", { name: "元のデータをファイルに保存" }).click();
       expect(downloads.files).toEqual(["system-diagram-unreadable.json"]);
     } finally {
       downloads.restore();
@@ -232,8 +273,8 @@ describe("案内", () => {
 
   it("serve の情報が読めなければ、ブラウザに保存することを知らせる", async () => {
     mount(startInBrowser({ status: "missing" }, true));
-    await expect.element(notice()).toMatchTextContent(/loopcraft serve の情報を読めませんでした/);
-    await expect.element(page.getByRole("button", { name: "ページを再読み込み" })).toBeVisible();
+    await expect.element(notice()).toMatchTextContent(/loopcraft serve とつなげませんでした/);
+    await expect.element(page.getByRole("button", { name: "再読み込み" })).toBeVisible();
   });
 });
 
@@ -277,9 +318,9 @@ describe("serve で開いたとき", () => {
   it("開けなかったファイルは理由を知らせ、多すぎる理由は件数でまとめる", async () => {
     const errors = Array.from({ length: 10 }, (_, index) => `title: 問題${index}`);
     mount(fileStartup({ status: "invalid", revision: "r", errors }));
-    await expect.element(notice()).toMatchTextContent(/保存先: growth\.json/);
+    await expect.element(notice()).toMatchTextContent(/growth\.json を開けませんでした/);
     await expect.element(notice()).toMatchTextContent(/title: 問題5/);
-    await expect.element(notice()).toMatchTextContent(/ほか 4 件/);
+    await expect.element(notice()).toMatchTextContent(/ほか 3 件/);
     await expect.element(page.getByRole("button", { name: /自動保存を停止中/ })).toBeVisible();
   });
 

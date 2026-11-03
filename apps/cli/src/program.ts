@@ -331,7 +331,6 @@ export function createProgram(
         '  {"op":"update-loop","id":"成長","name":"成長エンジン"}',
         '  {"op":"remove-loop","id":"成長"}',
         '  {"op":"set-title","title":"組織の成長"}',
-        '  {"op":"set-description","description":"…"}',
         outputHelp(
           [
             `loopcraft edit diagram.json - <<'EOF'\n{"op":"add-variable","id":"sales","label":"売上"}\n{"op":"add-variable","id":"staff","label":"社員数"}\n{"op":"add-link","from":"sales","to":"staff","polarity":"+"}\n{"op":"add-link","from":"staff","to":"sales","polarity":"+"}\n{"op":"add-loop","through":["sales","staff"],"name":"成長"}\nEOF`,

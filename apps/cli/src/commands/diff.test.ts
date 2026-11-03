@@ -39,10 +39,10 @@ describe("diff", () => {
     );
     expect(stderr.at(-1)).toBe("位置だけが変わった変数: 1 個");
     const described = createSampleDiagram();
-    described.description = "別の説明";
+    described.loops[0]!.description = "別の説明";
     await writeFile(join(context.cwd, "described.json"), stringifyDiagram(described));
     await diff(["before.json", "described.json"], { format: "text", base: "HEAD" }, context);
-    expect(stdout.at(-1)).toBe("~ description");
+    expect(stdout.at(-1)).toBe("~ loops.p_growth.description");
   });
 
   it("ファイル 1 つなら git の版と比べ、その版に無ければすべて足したものとする", async () => {

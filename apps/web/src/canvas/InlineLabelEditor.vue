@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, useTemplateRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, useTemplateRef } from "vue";
 import * as edit from "@loopcraft/core/edit";
 import type { VariableId } from "@loopcraft/core/schema";
 import { injectEditor } from "../editor/useEditor.ts";
@@ -15,10 +15,12 @@ const box = computed(() => editor.boxes.value.get(id));
 const width = computed(() => Math.max(180, (box.value?.size.width ?? 0) + 24));
 const center = computed(() => box.value?.center ?? { x: 0, y: 0 });
 const original = editor.variableById.value.get(id)?.label ?? "";
+const added = editor.takeUnnamedVariable(id);
 // 入力のたびに commit しないのは、元に戻すが 1 文字ずつになり、Escape で取り消せないため。
-// unmount で後始末しないのは、別の操作が割り込むとジェスチャーは自動で確定されるため
-let gesture: Gesture | undefined;
+// 開いた時点で始めるのは、入力の途中で割り込んだ操作が、空の変数の追加を確定させないため
+const gesture: Gesture = added ?? editor.beginGesture();
 let done = false;
+editor.setNamingSettler(() => finish("blur"));
 
 // :value で渡さないのは、Vue が描き直すたびに入力欄の値を書き戻し、図の更新で入力中の文字が消えるため
 onMounted(() => {
@@ -28,20 +30,31 @@ onMounted(() => {
 });
 
 function preview(label: string) {
-  gesture ??= editor.beginGesture();
   gesture.preview(edit.updateVariable(editor.diagram.value, id, { label }));
 }
+
+// blur に任せないのは、ほかの変数を押すと入力欄が先に取り除かれ、blur が届かないことがあるため
+onBeforeUnmount(() => finish("blur"));
 
 function finish(how: "confirm" | "cancel" | "blur") {
   if (done) return;
   done = true;
-  if (how === "cancel") {
-    gesture?.cancel();
+  editor.setNamingSettler(undefined);
+  const label = input.value?.value.trim() ?? "";
+  if (how === "cancel" || (added && label === "")) {
+    gesture.cancel();
   } else {
-    preview(input.value?.value.trim() ?? "");
-    gesture?.end();
+    preview(label);
+    gesture.end();
   }
   editor.setEditingVariable(null);
+  if (added && label === "") {
+    // ジェスチャーの取り消しだけで済ませないのは、名前の入力中に別の編集が入ると、足した操作が確定済みになるため
+    if (editor.variableById.value.has(id)) {
+      editor.commit(edit.removeVariable(editor.diagram.value, id));
+    }
+    editor.select(null);
+  }
   // blur で戻さないのは、移った先から奪うため
   emit("edit:finish", id, how !== "blur");
 }

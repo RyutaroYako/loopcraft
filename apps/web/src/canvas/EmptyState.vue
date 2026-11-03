@@ -3,7 +3,6 @@ import { useId } from "vue";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import { injectEditor } from "../editor/useEditor.ts";
 import BaseButton from "../primitives/BaseButton.vue";
-import EyebrowLabel from "../primitives/EyebrowLabel.vue";
 import SvgIcon from "../primitives/SvgIcon.vue";
 import { pickJsonFile } from "../transfer/file.ts";
 
@@ -30,30 +29,15 @@ function openSample() {
 -->
 <template>
   <section v-if="editor.editable" class="empty-state" :aria-labelledby="titleId">
-    <EyebrowLabel>Causal Loop Diagram</EyebrowLabel>
-    <h2 :id="titleId" class="title-heading">変数を置いて、矢印でつなぐ</h2>
-    <p class="lead-text">変数は、売上や社員数のように増えたり減ったりするものです</p>
-    <ol class="step-list">
-      <li class="step-item">
-        <span class="step-number">01</span>
-        <span class="step-text"
-          >下の<strong class="step-keyword">「変数を追加」</strong>で変数を置く</span
-        >
-      </li>
-      <li class="step-item">
-        <span class="step-number">02</span>
-        <span class="step-text"
-          >変数の<strong class="step-keyword">端の点をドラッグ</strong>して、因果の矢印を引く</span
-        >
-      </li>
-      <li class="step-item">
-        <span class="step-number">03</span>
-        <span class="step-text"
-          >矢印が輪になると<strong class="step-keyword">ループが自動で現れる</strong
-          >ので、伝えたいものに注目する</span
-        >
-      </li>
-    </ol>
+    <h2 :id="titleId" class="title-heading">出来事の裏にあるループを描く</h2>
+    <div class="lead-area">
+      <p class="lead-text">
+        システム思考では、「売上が落ちた」「人が辞めた」といった出来事を単独で見ず、その裏で増えたり減ったりしているもの同士のつながりとして捉えます。
+      </p>
+      <p class="lead-text">
+        売上や離職数のような変数を置いて矢印でつなぐと、出来事につながる因果関係のループが見えてきます。
+      </p>
+    </div>
     <div class="start-buttons">
       <BaseButton class="add-variable-button" variant="primary" @click="addVariable">
         <SvgIcon name="plus" />
@@ -70,12 +54,8 @@ function openSample() {
     </div>
   </section>
   <section v-else class="empty-state" :aria-labelledby="titleId">
-    <EyebrowLabel>Causal Loop Diagram</EyebrowLabel>
-    <h2 :id="titleId" class="title-heading">まだ変数がありません</h2>
-    <p class="lead-text">
-      読み取り専用で開いています。編集するには<code class="option-code">--readonly</code
-      >を付けずに開き直してください。
-    </p>
+    <h2 :id="titleId" class="title-heading">変数がありません</h2>
+    <p class="lead-text">読み取り専用で開いています</p>
   </section>
 </template>
 
@@ -109,60 +89,25 @@ function openSample() {
     word-break: auto-phrase;
   }
 
+  > .lead-area {
+    display: grid;
+    max-inline-size: 40ch;
+    gap: 8px;
+    color: var(--color-ink-2);
+
+    @media (width < 48rem) and (height <= 760px) {
+      display: none;
+    }
+
+    > .lead-text {
+      word-break: auto-phrase;
+    }
+  }
+
   > .lead-text {
     max-inline-size: 40ch;
     color: var(--color-ink-2);
     word-break: auto-phrase;
-
-    @media (width < 48rem) and (height <= 760px) {
-      display: none;
-    }
-
-    > .option-code {
-      margin-inline: 0.25em;
-      font-family: var(--font-mono);
-      white-space: nowrap;
-    }
-  }
-
-  > .step-list {
-    display: grid;
-    gap: 10px;
-    border-block: 1px solid var(--color-line);
-    padding-block: 14px;
-    color: var(--color-ink-2);
-
-    @media (width < 48rem) and (height <= 760px) {
-      display: none;
-    }
-
-    > .step-item {
-      display: grid;
-      grid-template-columns: 32px 1fr;
-      align-items: baseline;
-      animation: var(--animate-rise);
-
-      &:nth-child(2) {
-        animation-delay: 80ms;
-      }
-
-      &:nth-child(3) {
-        animation-delay: 160ms;
-      }
-
-      > .step-number {
-        font-family: var(--font-mono);
-        font-size: var(--text-xs);
-        color: var(--color-accent);
-      }
-
-      > .step-text {
-        > .step-keyword {
-          font-weight: 600;
-          color: var(--color-ink);
-        }
-      }
-    }
   }
 
   > .start-buttons {

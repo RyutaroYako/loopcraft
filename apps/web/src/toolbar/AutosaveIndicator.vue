@@ -6,7 +6,7 @@ import HintTooltip from "../primitives/HintTooltip.vue";
 
 const { status, unwatched, store } = defineProps<{
   status: AutosaveStatus;
-  unwatched: string | undefined;
+  unwatched?: string;
   store: DocumentStore;
 }>();
 

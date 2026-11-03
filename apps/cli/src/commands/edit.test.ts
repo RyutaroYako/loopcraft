@@ -113,7 +113,7 @@ describe("edit", () => {
       suggestions: ["操作は 1 行に 1 つの JSON で書きます。途中で改行しないでください"],
     });
     expect(await run('{"op":"add-varible","label":"x"}')).toMatchObject({
-      message: '1 行目: 知らない操作 "add-varible" です',
+      message: '1 行目: "add-varible" という操作はありません',
       suggestions: ['"add-variable" のことですか'],
     });
     expect(await run('{"op":"add-variable","lable":"x"}')).toMatchObject({

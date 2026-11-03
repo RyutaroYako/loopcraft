@@ -36,6 +36,7 @@ async function settle() {
 }
 
 const heading = (name: string) => page.getByRole("heading", { name, exact: true });
+const inspectorGroup = (name: string) => page.getByRole("group", { name, exact: true });
 const zoomValue = () =>
   document.querySelector('[role=toolbar][aria-label="表示倍率"]')!.textContent;
 const offset = (point: { x: number; y: number }, dx: number, dy: number) => ({
@@ -69,7 +70,7 @@ describe("ポインタでの操作", () => {
     const sales = centerOf(nodeElement("sales"));
     press(nodeElement("sales"), sales);
     release(sales);
-    await expect.element(heading("変数")).toBeVisible();
+    await expect.element(inspectorGroup("変数")).toBeVisible();
     await settle();
     const before = centerOf(nodeElement("sales"));
     const background = document.querySelector('[data-layer="grid"]')!;
@@ -78,11 +79,13 @@ describe("ポインタでの操作", () => {
     const after = centerOf(nodeElement("sales"));
     expect(Math.round(after.x - before.x)).toBe(100);
     expect(Math.round(after.y - before.y)).toBe(70);
-    await expect.element(heading("変数")).toBeVisible();
+    await expect.element(inspectorGroup("変数")).toBeVisible();
 
     press(background, canvasPoint(40, 40));
     release(canvasPoint(41, 40));
-    await expect.element(heading("図の概要")).toBeVisible();
+    await expect
+      .element(page.getByRole("region", { name: "選択中の項目" }))
+      .not.toBeInTheDocument();
   });
 
   it("変数をドラッグで動かし、中断したら元に戻す", async () => {
@@ -182,7 +185,7 @@ describe("ポインタでの操作", () => {
     press(hit, { x: point.left, y: point.top }, { button: 2 });
     press(hit, { x: point.left, y: point.top });
     release({ x: point.left, y: point.top });
-    await expect.element(heading("関連")).toBeVisible();
+    await expect.element(inspectorGroup("関連")).toBeVisible();
     expect(document.querySelector(".canvas-link.selected")).not.toBeNull();
     expect(document.querySelector(".curve-handle")).toBeNull();
   });
@@ -229,7 +232,7 @@ describe("取り消しと例外的な操作", () => {
     release(offset(start, 1, 0));
     await rendered();
     expect(Math.round(centerOf(nodeElement("profit")).x - start.x)).toBe(0);
-    await expect.element(heading("変数")).toBeVisible();
+    await expect.element(inspectorGroup("変数")).toBeVisible();
 
     const links = document.querySelectorAll(".canvas-link").length;
     const handle = nodeElement("profit").querySelector(".connect-handle")!;
@@ -267,15 +270,15 @@ describe("取り消しと例外的な操作", () => {
     await open();
     const polarity = document.querySelector<SVGGElement>(".polarity-button")!;
     polarity.focus();
-    await expect.element(heading("関連")).toBeVisible();
+    await expect.element(inspectorGroup("関連")).toBeVisible();
     nodeElement("sales").blur();
     polarity.blur();
     polarity.focus();
-    await expect.element(heading("関連")).toBeVisible();
+    await expect.element(inspectorGroup("関連")).toBeVisible();
     polarity.blur();
     await userEvent.keyboard("{Enter}");
     expect(inlineLabel()).toBeNull();
-    await expect.element(heading("関連")).toBeVisible();
+    await expect.element(inspectorGroup("関連")).toBeVisible();
   });
 
   it("注目するループのピンを押すと注目から外す", async () => {
@@ -319,6 +322,44 @@ describe("表示倍率", () => {
   });
 });
 
+describe("ホイールと倍率の表示", () => {
+  const percent = () => Number(/(\d+)%/.exec(zoomValue() ?? "")![1]);
+  const zoomWheel = (init: WheelEventInit) =>
+    canvasSvg().dispatchEvent(
+      new WheelEvent("wheel", {
+        ctrlKey: true,
+        clientX: 400,
+        clientY: 300,
+        cancelable: true,
+        ...init,
+      }),
+    );
+
+  it("マウスのホイール 1 回では 1 段だけ拡大縮小し、行の単位で届いても同じにする", async () => {
+    await open();
+    const start = percent();
+    zoomWheel({ deltaY: -120 });
+    await rendered();
+    expect(percent()).toBeGreaterThan(start);
+    expect(percent()).toBeLessThanOrEqual(Math.round(start * 1.2) + 1);
+    zoomWheel({ deltaY: 3, deltaMode: WheelEvent.DOM_DELTA_LINE });
+    await rendered();
+    expect(Math.abs(percent() - start)).toBeLessThanOrEqual(1);
+  });
+
+  it("ボタンでは 100% をまたがずに止め、倍率を押すと 100% に戻す", async () => {
+    await open();
+    zoomWheel({ deltaY: 30 });
+    await rendered();
+    expect(percent()).toBeLessThan(100);
+    while (percent() < 100) await page.getByRole("button", { name: "拡大" }).click();
+    expect(percent()).toBe(100);
+    await page.getByRole("button", { name: "拡大" }).click();
+    await page.getByRole("button", { name: /^100% で表示/ }).click();
+    await expect.poll(percent).toBe(100);
+  });
+});
+
 describe("キーボードでの操作", () => {
   it("矢印キーで動かし、F2 や Enter で名前を編集し、Escape で取り消す", async () => {
     await open();
@@ -350,14 +391,14 @@ describe("キーボードでの操作", () => {
     await open();
     nodeElement("attrition").focus();
     await userEvent.keyboard(" ");
-    await expect.element(heading("変数")).toBeVisible();
+    await expect.element(inspectorGroup("変数")).toBeVisible();
     await userEvent.keyboard("{Enter}");
     await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
 
     const polarity = page.getByRole("button", { name: "社員数から売上への関連（プラス）" });
     (polarity.element() as SVGGElement).focus();
-    await expect.element(heading("関連")).toBeVisible();
+    await expect.element(inspectorGroup("関連")).toBeVisible();
     await userEvent.keyboard("{Enter}");
     await expect
       .element(page.getByRole("button", { name: "社員数から売上への関連（マイナス）" }))
@@ -452,5 +493,38 @@ describe("右クリック", () => {
     );
     await rendered();
     expect(nodeElement("sales").getAttribute("transform")).toBe(before);
+  });
+});
+
+describe("関連とループの説明", () => {
+  const linkButton = (name: RegExp) => page.getByRole("button", { name });
+  // getByRole で探さないのは、SVG の要素から開いた吹き出しを、隠れた要素として数えないため
+  const tooltipText = () => document.querySelector('[role="tooltip"]')?.textContent ?? "";
+  const hasNoteMark = (name: RegExp) =>
+    linkButton(name).element().querySelector("[data-screen-only]") !== null;
+
+  it("説明のある関連は極性の印に点を付け、重ねると説明を出す", async () => {
+    await open();
+    expect(hasNoteMark(/^社員数から売上への関連/)).toBe(true);
+    expect(hasNoteMark(/^売上から利益への関連/)).toBe(false);
+    (linkButton(/^社員数から売上への関連/).element() as SVGGElement).focus();
+    await expect.poll(tooltipText).toMatch(/社員数 → 売上/);
+    expect(tooltipText()).toMatch(/営業の人数が増えるほど、回れる顧客が増える/);
+  });
+
+  it("ループの記号に重ねると説明を出し、ほかのループを薄くする", async () => {
+    await open();
+    const marker = page.getByRole("button", {
+      name: "R1 成長エンジン（自己強化ループ）",
+      exact: true,
+    });
+    await userEvent.hover(marker);
+    const others = () => [...document.querySelectorAll(".canvas-loop-marker.dimmed")];
+    await expect.poll(() => others().length).toBe(2);
+    await userEvent.unhover(marker);
+    await expect.poll(() => others().length).toBe(0);
+    (marker.element() as SVGGElement).focus();
+    await expect.poll(tooltipText).toMatch(/成長エンジン（自己強化ループ）/);
+    expect(tooltipText()).toMatch(/その利益でさらに人を採れる/);
   });
 });

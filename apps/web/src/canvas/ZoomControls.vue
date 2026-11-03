@@ -11,7 +11,7 @@ const viewport = editor.viewport;
 </script>
 
 <!--
-  狭い画面で拡大縮小のボタンを出さないのは、ピンチで足りるため。全体表示は下端の操作と重ならない右上に寄せる。
+  狭い画面で拡大縮小のボタンを出さないのは、ピンチで足りるため。
   空のときに出さないのは、全体表示は押せず、右上で案内の見出しと重なるため
 -->
 <template>
@@ -22,13 +22,22 @@ const viewport = editor.viewport;
     aria-label="表示倍率"
   >
     <HintTooltip text="縮小">
-      <IconButton class="zoom-out-button" aria-label="縮小" @click="() => editor.zoomBy(1 / 1.2)">
+      <IconButton class="zoom-out-button" aria-label="縮小" @click="() => editor.zoomStep(-1)">
         <SvgIcon name="minus" />
       </IconButton>
     </HintTooltip>
-    <span class="level-text">{{ Math.round(viewport.zoom * 100) }}%</span>
+    <HintTooltip text="100% で表示">
+      <button
+        type="button"
+        class="level-button"
+        :aria-label="`100% で表示（今は ${Math.round(viewport.zoom * 100)}%）`"
+        @click="() => editor.zoomTo(1)"
+      >
+        {{ Math.round(viewport.zoom * 100) }}%
+      </button>
+    </HintTooltip>
     <HintTooltip text="拡大">
-      <IconButton class="zoom-in-button" aria-label="拡大" @click="() => editor.zoomBy(1.2)">
+      <IconButton class="zoom-in-button" aria-label="拡大" @click="() => editor.zoomStep(1)">
         <SvgIcon name="plus" />
       </IconButton>
     </HintTooltip>
@@ -48,9 +57,6 @@ const viewport = editor.viewport;
 
 <style scoped>
 .zoom-controls {
-  position: absolute;
-  inset-block-end: 16px;
-  inset-inline-start: 16px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -62,9 +68,6 @@ const viewport = editor.viewport;
   backdrop-filter: blur(8px);
 
   @media (width < 48rem) {
-    inset-block: 12px auto;
-    inset-inline: auto 12px;
-
     &[data-empty] {
       display: none;
     }
@@ -76,12 +79,21 @@ const viewport = editor.viewport;
     }
   }
 
-  > .level-text {
+  > .level-button {
     min-inline-size: 46px;
+    block-size: 32px;
+    border-radius: var(--radius-sm);
     text-align: center;
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     color: var(--color-ink-2);
+    transition: background-color var(--duration-fast) var(--ease-out);
+
+    &:hover {
+      @media (hover: hover) {
+        background: var(--color-surface-2);
+      }
+    }
 
     @media (width < 48rem) {
       display: none;

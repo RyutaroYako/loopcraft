@@ -11,6 +11,7 @@ import { useAutosave } from "./useAutosave.ts";
 function fakeStore() {
   let handlers: WatchHandlers | undefined;
   const store = {
+    kind: "file" as const,
     label: "a.json",
     save: vi.fn(
       async (

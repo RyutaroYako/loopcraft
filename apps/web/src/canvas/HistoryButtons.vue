@@ -3,9 +3,9 @@ import { injectEditor } from "../editor/useEditor.ts";
 import HintTooltip from "../primitives/HintTooltip.vue";
 import IconButton from "../primitives/IconButton.vue";
 import SvgIcon from "../primitives/SvgIcon.vue";
-import { mod } from "./shortcut.ts";
+import { mod } from "../toolbar/shortcut.ts";
 
-const { size = "default" } = defineProps<{ size?: "default" | "large" }>();
+const { size = "default" } = defineProps<{ size?: "default" | "touch" }>();
 
 const editor = injectEditor();
 const historySize = editor.historySize;
@@ -43,11 +43,13 @@ const historySize = editor.historySize;
     align-items: center;
     gap: 2px;
 
-    &[data-size="large"] {
+    &[data-size="touch"] {
       > .undo-button,
       > .redo-button {
-        inline-size: 44px;
-        block-size: 44px;
+        @media (width < 48rem) {
+          inline-size: 44px;
+          block-size: 44px;
+        }
       }
     }
   }

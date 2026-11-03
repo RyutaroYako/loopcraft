@@ -23,6 +23,7 @@ async function open(diagram: Diagram = createSampleDiagram()) {
 }
 
 const heading = (name: string) => page.getByRole("heading", { name, exact: true });
+const inspectorGroup = (name: string) => page.getByRole("group", { name, exact: true });
 const field = (name: string | RegExp) =>
   page.getByRole("textbox", { name, exact: typeof name === "string" });
 const inspector = () => page.getByRole("region", { name: "選択中の項目" });
@@ -40,15 +41,6 @@ async function writeAndClearDescription(read: (diagram: Diagram) => string | und
 const button = (name: string | RegExp) =>
   page.getByRole("button", { name, exact: typeof name === "string" });
 
-describe("図の概要", () => {
-  it("伝えたいことを書ける", async () => {
-    await open();
-    await expect.element(heading("図の概要")).toBeVisible();
-    await userEvent.fill(field(/^この図で伝えたいこと/), "成長と負荷");
-    await expect.element(field(/^この図で伝えたいこと/)).toHaveValue("成長と負荷");
-  });
-});
-
 describe("変数", () => {
   it("広い画面では、選んでも一覧の位置を変えず、下端のボタンで変数を足す", async () => {
     await open();
@@ -65,27 +57,24 @@ describe("変数", () => {
     expect(variables()).toBe(count + 1);
   });
 
-  it("名前と説明を書き換え、原因と結果を辿り、削除する", async () => {
+  it("名前を書き換え、原因と結果を辿り、削除する", async () => {
     await open();
     nodeElement("sales").focus();
-    await expect.element(heading("変数")).toBeVisible();
+    await expect.element(inspectorGroup("変数")).toBeVisible();
     await userEvent.fill(field("名前"), "売上高");
     await expect.element(node("売上高")).toBeVisible();
-    await writeAndClearDescription(
-      (diagram) => diagram.variables.find((item) => item.id === "sales")?.description,
-    );
 
     await inspector()
       .getByRole("button", { name: /社員数$/ })
       .click();
-    await expect.element(heading("関連")).toBeVisible();
+    await expect.element(inspectorGroup("関連")).toBeVisible();
     await inspector().getByRole("button", { name: "売上高" }).click();
-    await expect.element(heading("変数")).toBeVisible();
+    await expect.element(inspectorGroup("変数")).toBeVisible();
 
     await inspector()
       .getByRole("button", { name: /一人あたりの業務量$/ })
       .click();
-    await expect.element(heading("関連")).toBeVisible();
+    await expect.element(inspectorGroup("関連")).toBeVisible();
     await inspector().getByRole("button", { name: "売上高" }).click();
     await button(/変数を削除/).click();
     await expect.element(node("売上高")).not.toBeInTheDocument();
@@ -100,8 +89,9 @@ describe("変数", () => {
       ],
     });
     nodeElement("a").focus();
-    await expect.element(page.getByText("この変数に影響する矢印はありません")).toBeVisible();
-    await expect.element(page.getByText("この変数から出る矢印はありません")).toBeVisible();
+    const none = inspectorGroup("変数").getByText("なし", { exact: true });
+    await expect.element(none.nth(0)).toBeVisible();
+    await expect.element(none.nth(1)).toBeVisible();
   });
 });
 
@@ -116,7 +106,7 @@ describe("関連", () => {
     const polarity = () =>
       page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement;
     polarity().focus();
-    await expect.element(heading("関連")).toBeVisible();
+    await expect.element(inspectorGroup("関連")).toBeVisible();
     await expect.element(page.getByText("社員数が増えると売上も増える")).toBeVisible();
     const polarityGroup = page.getByRole("radiogroup", { name: "極性" });
     await expect
@@ -141,7 +131,9 @@ describe("関連", () => {
     // 削除ボタンへ戻さないのは、Enter を続けて押すと関連まで消してしまうため
     await expect.poll(() => document.activeElement === inspector().element()).toBe(true);
     await button(/関連を削除/).click();
-    await expect.element(heading("図の概要")).toBeVisible();
+    await expect
+      .element(page.getByRole("region", { name: "選択中の項目" }))
+      .not.toBeInTheDocument();
     expect(document.querySelector('[aria-label^="社員数から売上への関連"]')).toBeNull();
   });
 
@@ -155,7 +147,7 @@ describe("関連", () => {
     (
       page.getByRole("button", { name: /^社員数から売上への関連/ }).element() as SVGGElement
     ).focus();
-    await expect.element(heading("関連")).toBeVisible();
+    await expect.element(inspectorGroup("関連")).toBeVisible();
     expect(inspector().element().textContent).not.toMatch(/に戻す/);
 
     await open({
@@ -209,7 +201,9 @@ describe("ループ", () => {
       .getByRole("region", { name: "選択中の項目の操作" })
       .getByRole("button", { name: "注目から外す" })
       .click();
-    await expect.element(heading("図の概要")).toBeVisible();
+    await expect
+      .element(page.getByRole("region", { name: "選択中の項目" }))
+      .not.toBeInTheDocument();
 
     await button(/負荷と離職の悪循環/)
       .last()
@@ -249,12 +243,12 @@ describe("ループ", () => {
       .toBe(4);
   });
 
-  it("ループが無いときは案内し、多すぎるときは知らせる", async () => {
+  it("ループが無いときは無いと示し、多すぎるときは知らせる", async () => {
     await open({
       ...createEmptyDiagram(),
       variables: [{ id: "a" as VariableId, label: "社員数", position: { x: 0, y: 0 } }],
     });
-    await expect.element(page.getByText(/矢印をつないで輪を作ると/)).toBeVisible();
+    await expect.element(page.getByText("ループはありません")).toBeVisible();
 
     const ids = ["a", "b", "c", "d", "e", "f", "g"] as VariableId[];
     const complete: Diagram = {
@@ -298,7 +292,7 @@ describe("変数の一覧", () => {
       .getByRole("tabpanel")
       .getByRole("button", { name: /^売上/ })
       .click();
-    await expect.element(heading("変数")).toBeVisible();
+    await expect.element(inspectorGroup("変数")).toBeVisible();
     await expect.element(field("名前")).toHaveValue("売上");
     expect(panel().querySelector('[aria-current="true"]')).not.toBeNull();
 
@@ -316,7 +310,7 @@ describe("変数の一覧", () => {
     (page.getByRole("tab", { name: /ループ/ }).element() as HTMLElement).focus();
     await userEvent.keyboard("{ArrowRight}");
     await expect.element(page.getByRole("tab", { name: /変数/ })).toHaveFocus();
-    await expect.element(page.getByText(/ここに並びます/)).toBeVisible();
+    await expect.element(page.getByText("変数はありません")).toBeVisible();
     await userEvent.keyboard("{ArrowLeft}");
     await expect.element(page.getByRole("tab", { name: /ループ/ })).toHaveFocus();
   });
@@ -331,9 +325,6 @@ describe("読み取り専用", () => {
       ),
     );
     await expect.element(node("社員数")).toBeVisible();
-    await expect
-      .element(page.getByText("変数・矢印・ループを選ぶと、ここで詳しく見られます"))
-      .toBeVisible();
     nodeElement("sales").focus();
     await expect.element(field("名前")).toHaveAttribute("readonly");
     await expect.element(button(/変数を削除/)).not.toBeInTheDocument();

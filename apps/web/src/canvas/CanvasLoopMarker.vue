@@ -5,10 +5,16 @@ import type { LoopEntry } from "@loopcraft/core/loops";
 import type { Loop, LoopId, Point } from "@loopcraft/core/schema";
 import { injectEditor } from "../editor/useEditor.ts";
 import { LOOP_ARC, LOOP_ARROW_HEAD } from "@loopcraft/core/glyphs";
+import { kindLabel } from "../sidebar/loopText.ts";
+import type { CanvasNote } from "./note.ts";
 
 const { loop, entry } = defineProps<{ loop: Loop; entry: LoopEntry }>();
 
-const emit = defineEmits<{ "pointerdown:marker": [event: PointerEvent, id: LoopId, at: Point] }>();
+const emit = defineEmits<{
+  "pointerdown:marker": [event: PointerEvent, id: LoopId, at: Point];
+  "note:show": [note: CanvasNote, immediate: boolean];
+  "note:hide": [target: Element];
+}>();
 
 const editor = injectEditor();
 const id = computed(() => loop.id);
@@ -36,9 +42,38 @@ const classes = computed(() => {
   };
 });
 const name = computed(() => loop.name ?? "");
+const noteTitle = computed(() =>
+  name.value ? `${name.value}（${kindLabel(entry.kind)}）` : kindLabel(entry.kind),
+);
 
-function onFocus() {
+function showNote(event: Event, immediate: boolean) {
+  const target = event.currentTarget;
+  if (!(target instanceof Element)) return;
+  emit("note:show", { target, title: noteTitle.value, text: loop.description }, immediate);
+}
+
+function onFocus(event: FocusEvent) {
+  showNote(event, true);
   if (!selected.value) editor.select({ kind: "loop", id: id.value });
+}
+
+function hideNote(event: Event) {
+  if (event.currentTarget instanceof Element) emit("note:hide", event.currentTarget);
+}
+
+function onPointerDown(event: PointerEvent) {
+  hideNote(event);
+  emit("pointerdown:marker", event, id.value, position.value);
+}
+
+function onPointerEnter(event: PointerEvent) {
+  editor.setHoveredLoop(entry.key);
+  showNote(event, false);
+}
+
+function onPointerLeave(event: PointerEvent) {
+  editor.setHoveredLoop(null);
+  hideNote(event);
 }
 
 function onKeyDown(event: KeyboardEvent) {
@@ -55,13 +90,16 @@ function onKeyDown(event: KeyboardEvent) {
     :transform="`translate(${position.x} ${position.y})`"
     role="button"
     tabindex="0"
-    :aria-label="`${entry.featured?.badge ?? ''} ${name}`"
+    :aria-label="`${entry.featured?.badge ?? ''} ${noteTitle}`"
     :aria-pressed="selected"
-    @pointerdown="(event) => emit('pointerdown:marker', event, id, position)"
+    @pointerdown="onPointerDown"
+    @pointerenter="onPointerEnter"
+    @pointerleave="onPointerLeave"
     @focus="onFocus"
+    @blur="hideNote"
     @keydown="onKeyDown"
   >
-    <title>{{ entry.kind === "reinforcing" ? "自己強化ループ" : "バランスループ" }}</title>
+    <desc v-if="loop.description">{{ loop.description }}</desc>
     <circle class="backdrop-circle" r="26" />
     <g class="direction-arrow" :transform="isClockwise(points) ? undefined : 'scale(-1 1)'">
       <path class="arc-path" :d="LOOP_ARC" />

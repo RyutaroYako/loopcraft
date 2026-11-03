@@ -19,40 +19,44 @@ const sheetHeight = computed(() => ({ "--sheet-height": `${sheet.height.value}px
 <template>
   <aside
     class="editor-sidebar"
+    :data-selected="selection ? '' : undefined"
     :data-sheet-size="sheet.size.value"
     :data-dragging="sheet.dragging.value ? '' : undefined"
     :style="sheetHeight"
   >
     <SheetHandle :sheet />
-    <!-- 選んだときにシートを上げないのは、動かそうと触れた変数や、その行き先がシートの下に隠れるため -->
+    <!-- 詳細を一覧の上に置かないのは、選んで詳細が出たときに一覧が下へずれ、押した行がカーソルの下から動くため -->
+    <ListTabs @canvas:reveal="() => emit('canvas:reveal')" />
     <!--
-      操作バーをグリッドの 1 行にしないのは、選ぶたびに行が増減し、ループ一覧がカーソルの下で動くため。
-      狭い画面で包みを残さないのは、上端の操作バーをシート全体のスクロールに対して貼り付けるため
+      狭い画面で包みを残さないのは、上端の操作バーをシート全体のスクロールに対して貼り付けるため。
+      選んだときにシートを上げないのは、動かそうと触れた変数や、その行き先がシートの下に隠れるため
     -->
-    <div class="inspection-area">
+    <div v-if="selection" class="inspection-area">
       <SelectionBar
-        v-if="selection"
         :selection
         :expandable="sheet.size.value === 'peek'"
         @click:expand="() => sheet.setSize('half')"
       />
       <InspectorPanel />
     </div>
-    <ListTabs @canvas:reveal="() => emit('canvas:reveal')" />
   </aside>
 </template>
 
 <style scoped>
 /*
- * 中身の高さで分けないのは、選択で検査パネルが伸び縮みし、ループ一覧がカーソルの下で動くため。
- * 狭い画面で縮ませないのは、シートの高さに押し込められて一覧と概要が重なるため。スクロールはシート全体で受ける
+ * 選んだときに中身の高さで分けないのは、選ぶたびに一覧の見える高さが変わり、読んでいた行が隠れるため。
+ * 狭い画面で縮ませないのは、シートの高さに押し込められて一覧と詳細が重なるため。スクロールはシート全体で受ける
  */
 .editor-sidebar {
   display: grid;
   min-block-size: 0;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   border-inline-start: 1px solid var(--color-line);
   background: var(--color-surface);
+
+  &[data-selected] {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
 
   @media (width < 48rem) {
     position: relative;
@@ -84,7 +88,7 @@ const sheetHeight = computed(() => ({ "--sheet-height": `${sheet.height.value}px
     display: flex;
     min-block-size: 0;
     flex-direction: column;
-    border-block-end: 1px solid var(--color-line);
+    border-block-start: 1px solid var(--color-line);
 
     @media (width < 48rem) {
       display: contents;

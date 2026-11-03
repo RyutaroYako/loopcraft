@@ -37,10 +37,7 @@ function resetMarker() {
 </script>
 
 <template>
-  <SectionHeading
-    :kicker="entry?.featured?.badge ?? 'Loop'"
-    :title="kindLabel(entry?.kind ?? 'reinforcing')"
-  />
+  <SectionHeading :title="kindLabel(entry?.kind ?? 'reinforcing')" />
   <TextField
     name="loop-name"
     label="名前"

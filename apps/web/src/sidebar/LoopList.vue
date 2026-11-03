@@ -20,13 +20,7 @@ const loopEntries = editor.loopEntries;
       <LoopListItem v-for="(entry, index) in loopEntries" :key="entry.key" :entry :index />
     </RowList>
     <EmptyMessage v-else>
-      <svg class="loop-illustration" viewBox="0 0 64 40" aria-hidden="true">
-        <path d="M14 20a10 10 0 1 1 10 10h-6" />
-        <path d="M50 20a10 10 0 1 1-10-10h6" />
-        <path d="m20 26-3 4 4 3" />
-        <path d="m44 14 3-4-4-3" />
-      </svg>
-      <p>矢印をつないで輪を作ると、ここにループが自動で現れます</p>
+      <p>ループはありません</p>
     </EmptyMessage>
   </div>
 </template>
@@ -44,16 +38,6 @@ const loopEntries = editor.loopEntries;
     padding: 8px 10px;
     font-size: var(--text-sm);
     color: var(--color-warning);
-  }
-
-  .loop-illustration {
-    block-size: 40px;
-    inline-size: 64px;
-    fill: none;
-    stroke: var(--color-line-strong);
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
   }
 }
 </style>

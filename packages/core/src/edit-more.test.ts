@@ -6,7 +6,6 @@ import {
   moveVariables,
   removeLoop,
   removeVariable,
-  setDescription,
   setTitle,
   togglePolarity,
   updateLink,
@@ -21,13 +20,10 @@ const lid = (id: string) => id as LinkId;
 const pid = (id: string) => id as LoopId;
 
 describe("edit（図全体とループ）", () => {
-  it("タイトルと説明を変え、同じ値なら同じ図を返す", () => {
+  it("タイトルを変え、同じ値なら同じ図を返す", () => {
     const sample = createSample();
     expect(setTitle(sample, sample.title)).toBe(sample);
     expect(setTitle(sample, "新しい題").title).toBe("新しい題");
-    const described = setDescription(sample, "メモ");
-    expect(described.description).toBe("メモ");
-    expect(setDescription(described, "")).not.toHaveProperty("description");
   });
 
   it("新しいループに注目し、名前や記号の位置を変え、外せる", () => {

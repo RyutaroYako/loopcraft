@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 const startup = (opened: Opened, overrides: Partial<Startup> = {}): Startup => ({
-  store: { label: "a.json" } as DocumentStore,
+  store: { kind: "file", label: "a.json" } as DocumentStore,
   opened,
   blank: createEmptyDiagram(),
   readonly: false,
@@ -55,15 +55,14 @@ describe("createNotices", () => {
       problems: ["ファイルが削除されました"],
     });
     file.notices.explain({ kind: "suspended", reason: "external" });
-    file.run("保存されている内容を読み込む");
+    file.run("変更後の内容を読み込む");
     await vi.waitFor(() => expect(file.shown()?.details).toContain("ファイルが削除されました"));
   });
 
-  it("つながりが切れたら、書き出しと再読み込みを勧める", () => {
+  it("つながりが切れたら、書き出せる", () => {
     const file = setup(missing);
     file.notices.explain({ kind: "suspended", reason: "disconnected" });
     expect(file.shown()?.title).toBe("loopcraft serve との接続が切れました");
-    expect(file.shown()?.details?.[2]).toContain("新しい URL");
     expect(file.shown()?.actions?.map((action) => action.label)).toEqual(["JSON を書き出す"]);
     file.run("JSON を書き出す");
     expect(file.exportFile).toHaveBeenCalledOnce();
@@ -89,7 +88,7 @@ describe("createNotices", () => {
     expect(viewer.shown()?.actions).toEqual([]);
     viewer.notices.explain({ kind: "suspended", reason: "external" });
     expect(viewer.shown()?.actions?.map((action) => action.label)).toEqual([
-      "保存されている内容を読み込む",
+      "変更後の内容を読み込む",
     ]);
   });
 
@@ -98,13 +97,13 @@ describe("createNotices", () => {
     file.notices.unwatched("ENOENT");
     expect(file.shown()?.details?.[0]).toBe("ENOENT");
     file.notices.unwatched(undefined);
-    expect(file.shown()?.details).toHaveLength(1);
+    expect(file.shown()?.details).toBeUndefined();
     dispose();
 
     const broken = setup(startup({ status: "missing" }, { sessionInvalid: true }));
     broken.notices.atStartup(undefined);
-    expect(broken.shown()?.title).toBe("loopcraft serve の情報を読めませんでした");
-    broken.run("ページを再読み込み");
+    expect(broken.shown()?.title).toBe("loopcraft serve とつなげませんでした");
+    broken.run("再読み込み");
     expect(broken.reloadPage).toHaveBeenCalledOnce();
   });
 
@@ -112,8 +111,8 @@ describe("createNotices", () => {
     const failing: AutosaveStatus = { kind: "failing", error: new Error("quota") };
     const target = setup(missing);
     target.notices.explain(failing);
-    expect(target.shown()?.title).toBe("自動保存できません");
-    expect(target.shown()?.details?.slice(0, 2)).toEqual(["保存先: a.json", "Error: quota"]);
+    expect(target.shown()?.title).toBe("a.json に保存できません");
+    expect(target.shown()?.details).toEqual(["Error: quota"]);
     target.run("JSON を書き出す");
     expect(target.exportFile).toHaveBeenCalledOnce();
     target.notices.explain(failing);
@@ -127,23 +126,21 @@ describe("createNotices", () => {
     const target = setup(missing);
     target.notices.explain(external);
     expect(target.shown()?.title).toBe("図が外部で変更されました");
-    target.run("保存されている内容を読み込む");
+    target.run("変更後の内容を読み込む");
     expect(target.autosave.reload).toHaveBeenCalledOnce();
     target.notices.explain(external);
-    target.run("この画面の内容で上書き");
+    target.run("今の図で上書き保存");
     expect(target.autosave.resume).toHaveBeenCalledOnce();
   });
 
   it("開けなかった図は、理由を伝え、上書きを選べる", () => {
     const target = setup(startup({ status: "unreadable", problems: ["links.0.to: x"] }));
     target.notices.atStartup({ kind: "suspended", reason: "unreadable" });
-    expect(target.shown()?.title).toBe("保存されていた図を開けませんでした");
-    expect(target.shown()?.details?.[0]).toBe("保存先: a.json");
+    expect(target.shown()?.title).toBe("a.json を開けませんでした");
+    expect(target.shown()?.details?.[0]).toBe("自動保存を止めています");
     expect(target.shown()?.details).toContain("links.0.to: x");
-    expect(target.shown()?.actions?.map((action) => action.label)).toEqual([
-      "この画面の内容で上書き",
-    ]);
-    target.run("この画面の内容で上書き");
+    expect(target.shown()?.actions?.map((action) => action.label)).toEqual(["今の図で上書き保存"]);
+    target.run("今の図で上書き保存");
     expect(target.autosave.resume).toHaveBeenCalledOnce();
   });
 
@@ -153,7 +150,7 @@ describe("createNotices", () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     const target = setup(startup({ status: "unreadable", problems: ["e"], raw: "{" }));
     target.notices.atStartup({ kind: "suspended", reason: "unreadable" });
-    target.run("開けなかったデータを書き出す");
+    target.run("元のデータをファイルに保存");
     expect(click).toHaveBeenCalledOnce();
   });
 

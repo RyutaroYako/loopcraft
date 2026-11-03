@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { VisuallyHidden } from "reka-ui";
 import type { LoopEntry } from "@loopcraft/core/loops";
 import { UNNAMED } from "../editor/boxes.ts";
 import { injectEditor } from "../editor/useEditor.ts";
@@ -59,15 +58,6 @@ function togglePin() {
     </template>
     <template #title>{{ entry.featured?.loop.name || kindLabel(entry.kind) }}</template>
     <template #route>{{ labels.join(" → ") }}</template>
-    <template #trailing>
-      <HintTooltip text="ループを構成する関連の数">
-        <span class="link-count-text">
-          <VisuallyHidden>関連</VisuallyHidden>
-          {{ entry.links.length }}
-          <VisuallyHidden>本</VisuallyHidden>
-        </span>
-      </HintTooltip>
-    </template>
     <template #after>
       <HintTooltip :text="featured ? '注目から外す' : 'このループに注目する'">
         <IconButton
@@ -129,12 +119,6 @@ function togglePin() {
     @media (hover: hover) {
       box-shadow: var(--shadow-edge-inset);
     }
-  }
-
-  .link-count-text {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--color-faint);
   }
 
   .pin-button {

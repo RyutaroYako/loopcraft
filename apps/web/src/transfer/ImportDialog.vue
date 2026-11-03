@@ -53,7 +53,8 @@ async function openFile() {
     <form :id="formId" @submit.prevent="submit">
       <TextField
         initial-focus
-        label="図の JSON を貼り付けてください。今の図は置き換わります（元に戻せます）"
+        label="図の JSON"
+        hint="読み込むと、今の図と置き換わります"
         :value="text"
         :placeholder="PLACEHOLDER"
         code

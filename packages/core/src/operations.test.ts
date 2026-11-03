@@ -30,7 +30,7 @@ describe("parseOperation", () => {
   it("知らない操作には近い操作を示し、知らないキーはエラーにする", () => {
     expect(parseOperation({ op: "add-varible", label: "x" })).toEqual({
       ok: false,
-      message: '知らない操作 "add-varible" です',
+      message: '"add-varible" という操作はありません',
       hint: '"add-variable" のことですか',
     });
     expect(parseOperation({ op: "frobnicate" })).toMatchObject({
@@ -38,7 +38,7 @@ describe("parseOperation", () => {
     });
     expect(parseOperation({ op: "add-variable", label: "x", lable: "y" })).toEqual({
       ok: false,
-      message: '知らないキー "lable" です',
+      message: '"lable" という項目はありません',
       hint: '"label" のことですか',
     });
     expect(parseOperation({ op: "add-link", from: "a" })).toMatchObject({
@@ -54,8 +54,7 @@ describe("applyOperations", () => {
       createEmptyDiagram(),
       ops(
         { op: "set-title", title: "成長" },
-        { op: "set-description", description: "説明" },
-        { op: "add-variable", id: "sales", label: "売上", description: "月の売上" },
+        { op: "add-variable", id: "sales", label: "売上" },
         { op: "add-variable", label: "社員数" },
         {
           op: "add-link",
@@ -69,10 +68,10 @@ describe("applyOperations", () => {
         { op: "add-loop", through: ["売上", "社員数"], name: "成長", description: "伸びる" },
       ),
     );
-    expect(result.ids).toEqual([null, null, "sales", "v1", "sales_v1", "v1_sales", "loop1"]);
+    expect(result.ids).toEqual([null, "sales", "v1", "sales_v1", "v1_sales", "loop1"]);
     const { diagram } = result;
-    expect(diagram).toMatchObject({ title: "成長", description: "説明" });
-    expect(diagram.variables[0]).toMatchObject({ id: "sales", description: "月の売上" });
+    expect(diagram).toMatchObject({ title: "成長" });
+    expect(diagram.variables[0]).toMatchObject({ id: "sales" });
     expect(diagram.links[0]).toMatchObject({ polarity: "+", delay: true, description: "雇う" });
     expect(diagram.links[1]!.polarity).toBe("+");
     expect(diagram.loops).toMatchObject([
@@ -110,10 +109,8 @@ describe("applyOperations", () => {
           op: "update-variable",
           id: "社員数",
           label: "人数",
-          description: "d",
           position: { x: 1, y: 2 },
         },
-        { op: "update-variable", id: "sales", description: "" },
         {
           op: "update-link",
           from: "staff",
@@ -134,7 +131,6 @@ describe("applyOperations", () => {
     );
     expect(diagram.variables.find((item) => item.id === "staff")).toMatchObject({
       label: "人数",
-      description: "d",
       position: { x: 1, y: 2 },
     });
     expect(diagram.links.find((link) => link.id === "l_sales")).toMatchObject({
