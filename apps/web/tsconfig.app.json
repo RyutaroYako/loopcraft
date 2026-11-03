@@ -8,5 +8,14 @@
     "moduleResolution": "bundler",
     "allowArbitraryExtensions": true
   },
+  "contentMappers": [
+    {
+      "package": "vize",
+      "extensions": [".vue"]
+    }
+  ],
+  "vueCompilerOptions": {
+    "checkUnknownProps": true
+  },
   "include": ["src"]
 }
