@@ -9,6 +9,15 @@ import type { LegendItem } from "./legend.ts";
 export const appendLegend = async (image: Blob, items: readonly LegendItem[]): Promise<Blob> => {
   await document.fonts.ready;
   const bitmap = await createImageBitmap(image);
+  try {
+    return await drawWithLegend(bitmap, items);
+  } finally {
+    // ガベージコレクションに任せないのは、大きな図では画像を作り直すたびにデコードした画素が溜まるため
+    bitmap.close();
+  }
+};
+
+const drawWithLegend = async (bitmap: ImageBitmap, items: readonly LegendItem[]) => {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (!context) throw new Error("画像を作れませんでした");

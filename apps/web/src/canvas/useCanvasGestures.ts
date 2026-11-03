@@ -238,9 +238,8 @@ export function useCanvasGestures(editor: Editor, svg: Readonly<Ref<SVGSVGElemen
 
   function onWheel(event: WheelEvent) {
     event.preventDefault();
-    const page = svg.value?.clientHeight ?? 0;
-    const dx = wheelPixels(event.deltaX, event.deltaMode, page);
-    const dy = wheelPixels(event.deltaY, event.deltaMode, page);
+    const dx = wheelPixels(event.deltaX, event.deltaMode, svg.value?.clientWidth ?? 0);
+    const dy = wheelPixels(event.deltaY, event.deltaMode, svg.value?.clientHeight ?? 0);
     if (event.ctrlKey || event.metaKey) {
       editor.zoomAt(screenPoint(event), wheelZoomFactor(dy));
     } else {

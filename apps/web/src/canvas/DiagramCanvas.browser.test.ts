@@ -514,7 +514,10 @@ describe("関連とループの説明", () => {
 
   it("ループの記号に重ねると説明を出し、ほかのループを薄くする", async () => {
     await open();
-    const marker = page.getByRole("button", { name: "R1 成長エンジン", exact: true });
+    const marker = page.getByRole("button", {
+      name: "R1 成長エンジン（自己強化ループ）",
+      exact: true,
+    });
     await userEvent.hover(marker);
     const others = () => [...document.querySelectorAll(".canvas-loop-marker.dimmed")];
     await expect.poll(() => others().length).toBe(2);

@@ -13,7 +13,7 @@ const { loop, entry } = defineProps<{ loop: Loop; entry: LoopEntry }>();
 const emit = defineEmits<{
   "pointerdown:marker": [event: PointerEvent, id: LoopId, at: Point];
   "note:show": [note: CanvasNote, immediate: boolean];
-  "note:hide": [];
+  "note:hide": [target: Element];
 }>();
 
 const editor = injectEditor();
@@ -57,8 +57,12 @@ function onFocus(event: FocusEvent) {
   if (!selected.value) editor.select({ kind: "loop", id: id.value });
 }
 
+function hideNote(event: Event) {
+  if (event.currentTarget instanceof Element) emit("note:hide", event.currentTarget);
+}
+
 function onPointerDown(event: PointerEvent) {
-  emit("note:hide");
+  hideNote(event);
   emit("pointerdown:marker", event, id.value, position.value);
 }
 
@@ -67,9 +71,9 @@ function onPointerEnter(event: PointerEvent) {
   showNote(event, false);
 }
 
-function onPointerLeave() {
+function onPointerLeave(event: PointerEvent) {
   editor.setHoveredLoop(null);
-  emit("note:hide");
+  hideNote(event);
 }
 
 function onKeyDown(event: KeyboardEvent) {
@@ -86,13 +90,13 @@ function onKeyDown(event: KeyboardEvent) {
     :transform="`translate(${position.x} ${position.y})`"
     role="button"
     tabindex="0"
-    :aria-label="`${entry.featured?.badge ?? ''} ${name}`"
+    :aria-label="`${entry.featured?.badge ?? ''} ${noteTitle}`"
     :aria-pressed="selected"
     @pointerdown="onPointerDown"
     @pointerenter="onPointerEnter"
     @pointerleave="onPointerLeave"
     @focus="onFocus"
-    @blur="() => emit('note:hide')"
+    @blur="hideNote"
     @keydown="onKeyDown"
   >
     <desc v-if="loop.description">{{ loop.description }}</desc>

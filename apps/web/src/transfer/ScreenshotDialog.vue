@@ -34,17 +34,28 @@ function fail(error: unknown) {
   shot.value = { status: "failed", error: error instanceof Error ? error.message : String(error) };
 }
 
+let generation = 0;
+
+// 終わった順に表示しないのは、凡例を切り替えた後に前の合成が終わると、選んでいない方の画像が出るため
 async function compose() {
   if (!plain) return;
-  const next =
-    withLegend.value && legendAvailable.value
-      ? await appendLegend(plain, legendItems.value)
-      : plain;
+  const current = ++generation;
+  let next: Blob;
+  try {
+    next =
+      withLegend.value && legendAvailable.value
+        ? await appendLegend(plain, legendItems.value)
+        : plain;
+  } catch (error) {
+    if (current === generation) fail(error);
+    return;
+  }
+  if (current !== generation) return;
   if (shot.value.status === "ready") URL.revokeObjectURL(shot.value.url);
   shot.value = { status: "ready", blob: next, url: URL.createObjectURL(next) };
 }
 
-watch(withLegend, () => compose().catch(fail));
+watch(withLegend, compose);
 
 onMounted(() => {
   // 選択を外してすぐ写さないのは、描き直される前の選択の枠や名前の入力欄が写るため

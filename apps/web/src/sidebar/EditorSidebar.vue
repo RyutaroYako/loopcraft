@@ -25,7 +25,7 @@ const sheetHeight = computed(() => ({ "--sheet-height": `${sheet.height.value}px
     :style="sheetHeight"
   >
     <SheetHandle :sheet />
-    <!-- 一覧を上に置くのは、選んで下に詳細が出ても、押した行がカーソルの下から動かないため -->
+    <!-- 詳細を一覧の上に置かないのは、選んで詳細が出たときに一覧が下へずれ、押した行がカーソルの下から動くため -->
     <ListTabs @canvas:reveal="() => emit('canvas:reveal')" />
     <!--
       狭い画面で包みを残さないのは、上端の操作バーをシート全体のスクロールに対して貼り付けるため。

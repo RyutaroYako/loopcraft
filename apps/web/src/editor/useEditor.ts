@@ -65,13 +65,28 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
       neighborhoodOf(selection.value, index.links.value, editingVariable.value),
     ),
   );
+  let unnamed: { id: VariableId; gesture: Gesture } | undefined;
+  let settleNaming: (() => void) | undefined;
+
+  // 名前の入力を残したまま始めないのは、始めたジェスチャーが入力中の変数の追加を先に確定し、
+  // 名前を付けずに終えても、取り消しの履歴に空の変数が残るため
+  function finishNaming() {
+    const settle = settleNaming;
+    settleNaming = undefined;
+    settle?.();
+  }
+
+  function setNamingSettler(settle: (() => void) | undefined) {
+    settleNaming = settle;
+  }
+
   function commit(next: Diagram, coalesceKey?: string) {
+    finishNaming();
     if (editable) history.commit(next, coalesceKey);
   }
 
-  let unnamed: { id: VariableId; gesture: Gesture } | undefined;
-
   function beginGesture(): Gesture {
+    finishNaming();
     return editable ? history.beginGesture() : { preview() {}, end() {}, cancel() {} };
   }
 
@@ -119,6 +134,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
   // 足した時点で確定しないのは、名前を付けずに終えたら足す前に戻し、取り消しの履歴にも残さないため
   function addVariableAt(position: Point) {
     if (!editable) return undefined;
+    finishNaming();
     const result = edit.addVariable(diagram.value, { label: "", position });
     const gesture = history.beginGesture();
     gesture.preview(result.diagram);
@@ -264,6 +280,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
     dismissNotice: notices.dismiss,
     addVariableAt,
     takeUnnamedVariable,
+    setNamingSettler,
     connect,
     deleteSelection,
     featureLoop,

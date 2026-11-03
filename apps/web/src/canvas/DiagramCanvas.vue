@@ -20,7 +20,7 @@ const editingVariable = editor.editingVariable;
 const container = useTemplateRef<HTMLDivElement>("container");
 const svg = useTemplateRef<SVGSVGElement>("svg");
 const gestures = useCanvasGestures(editor, svg);
-const canvasNote = useCanvasNote();
+const canvasNote = useCanvasNote(editor.diagram);
 const linkDraft = gestures.linkDraft;
 
 const empty = computed(() => diagram.value.variables.length === 0);
@@ -174,7 +174,7 @@ function onLabelFinished(id: VariableId, refocus: boolean) {
 
     <EmptyState v-if="empty" />
     <CanvasActions :empty />
-    <CanvasNoteTooltip :note="canvasNote.note.value" @note:close="canvasNote.hide" />
+    <CanvasNoteTooltip :note="canvasNote.note.value" @note:close="canvasNote.close" />
   </div>
 </template>
 

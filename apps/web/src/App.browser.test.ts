@@ -73,6 +73,11 @@ describe("エディタ", () => {
     await userEvent.fill(input, "  ");
     await userEvent.click(canvas(), { position: { x: 60, y: 200 } });
     await expect.poll(count).toBe(before);
+
+    await userEvent.dblClick(canvas(), { position: { x: 40, y: 40 } });
+    await expect.element(input).toHaveFocus();
+    await node("社員数").click();
+    await expect.poll(count).toBe(before);
     await expect.element(page.getByRole("button", { name: "元に戻す" })).toBeDisabled();
   });
 

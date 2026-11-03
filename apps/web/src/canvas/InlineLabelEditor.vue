@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, useTemplateRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, useTemplateRef } from "vue";
 import * as edit from "@loopcraft/core/edit";
 import type { VariableId } from "@loopcraft/core/schema";
 import { injectEditor } from "../editor/useEditor.ts";
@@ -17,9 +17,10 @@ const center = computed(() => box.value?.center ?? { x: 0, y: 0 });
 const original = editor.variableById.value.get(id)?.label ?? "";
 const added = editor.takeUnnamedVariable(id);
 // 入力のたびに commit しないのは、元に戻すが 1 文字ずつになり、Escape で取り消せないため。
-// unmount で後始末しないのは、別の操作が割り込むとジェスチャーは自動で確定されるため
-let gesture: Gesture | undefined = added;
+// 開いた時点で始めるのは、入力の途中で割り込んだ操作が、空の変数の追加を確定させないため
+const gesture: Gesture = added ?? editor.beginGesture();
 let done = false;
+editor.setNamingSettler(() => finish("blur"));
 
 // :value で渡さないのは、Vue が描き直すたびに入力欄の値を書き戻し、図の更新で入力中の文字が消えるため
 onMounted(() => {
@@ -29,19 +30,22 @@ onMounted(() => {
 });
 
 function preview(label: string) {
-  gesture ??= editor.beginGesture();
   gesture.preview(edit.updateVariable(editor.diagram.value, id, { label }));
 }
+
+// blur に任せないのは、ほかの変数を押すと入力欄が先に取り除かれ、blur が届かないことがあるため
+onBeforeUnmount(() => finish("blur"));
 
 function finish(how: "confirm" | "cancel" | "blur") {
   if (done) return;
   done = true;
+  editor.setNamingSettler(undefined);
   const label = input.value?.value.trim() ?? "";
   if (how === "cancel" || (added && label === "")) {
-    gesture?.cancel();
+    gesture.cancel();
   } else {
     preview(label);
-    gesture?.end();
+    gesture.end();
   }
   editor.setEditingVariable(null);
   if (added && label === "") {

@@ -12,7 +12,7 @@ const { link, geometry } = defineProps<{ link: Link; geometry: LinkGeometry }>()
 
 const emit = defineEmits<{
   "note:show": [note: CanvasNote, immediate: boolean];
-  "note:hide": [];
+  "note:hide": [target: Element];
 }>();
 
 const editor = injectEditor();
@@ -51,8 +51,12 @@ function showNote(event: Event, immediate: boolean) {
   }
 }
 
+function hideNote(event: Event) {
+  if (event.currentTarget instanceof Element) emit("note:hide", event.currentTarget);
+}
+
 function select(event: PointerEvent) {
-  emit("note:hide");
+  hideNote(event);
   if (event.button !== 0) return;
   event.stopPropagation();
   editor.setEditingVariable(null);
@@ -90,9 +94,9 @@ function onKeyDown(event: KeyboardEvent) {
       :aria-label="accessibleName"
       @pointerdown="select"
       @pointerenter="(event) => showNote(event, false)"
-      @pointerleave="() => emit('note:hide')"
+      @pointerleave="hideNote"
       @focus="onFocus"
-      @blur="() => emit('note:hide')"
+      @blur="hideNote"
       @click="toggle"
       @keydown="onKeyDown"
     >
