@@ -74,6 +74,7 @@ npx loopcraft schema               # JSON Schema を出力する
 ```bash
 vp install                 # 依存関係のインストール
 vp run dev                 # エディタの開発サーバー
+vp run cli serve a.json    # ソースのままの CLI を動かす（パスはリポジトリのルートから）
 vp check                   # フォーマット・lint・型チェック
 vp test run --coverage     # テスト（カバレッジのしきい値は 90%）
 vp run -r build            # ビルド
