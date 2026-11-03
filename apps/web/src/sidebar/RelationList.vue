@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Link, LinkId } from "@loopcraft/core/schema";
 import FieldLabel from "../primitives/FieldLabel.vue";
-import PolarityGlyph from "./PolarityGlyph.vue";
+import PolarityGlyph from "../primitives/PolarityGlyph.vue";
 
 const { title, empty, links, labelOf } = defineProps<{
   title: string;

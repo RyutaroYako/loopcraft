@@ -17,7 +17,8 @@ export type Opened =
 export type ReloadResult = { ok: true; diagram: Diagram } | { ok: false; problems: string[] };
 
 export interface WatchHandlers {
-  change(): void;
+  /** writer は、serve の中の AI が書いたなら "agent" */
+  change(writer?: "agent"): void;
   /** unwatched でも保存はできる */
   lost(reason: "disconnected" | "unwatched", detail?: string): void;
   restored(): void;

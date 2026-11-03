@@ -25,6 +25,8 @@ const emit = defineEmits<{
   "explain:unwatched": [detail: string | undefined];
 }>();
 
+defineSlots<{ default?: () => unknown }>();
+
 const editor = injectEditor();
 const diagram = editor.diagram;
 
@@ -65,6 +67,7 @@ function setTitle(title: string) {
       @explain:status="(status) => emit('explain:status', status)"
       @explain:unwatched="(detail) => emit('explain:unwatched', detail)"
     />
+    <slot />
   </header>
 </template>
 

@@ -84,5 +84,6 @@ export function useHistory(diagram: ShallowRef<Diagram>) {
     undo: () => travel(undo),
     redo: () => travel(redo),
     applyExternal,
+    finishGesture,
   };
 }

@@ -2,6 +2,8 @@ import { createEmptyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { Diagram } from "@loopcraft/core/schema";
 import type { Session } from "@loopcraft/core/session";
+import { createAgentClient } from "../agent/agentClient.ts";
+import type { AgentClient } from "../agent/agentClient.ts";
 import type { AutosaveStatus } from "./autosave.ts";
 import { createFileClient } from "./fileStore.ts";
 import type { LoadResult } from "./fileStore.ts";
@@ -19,6 +21,8 @@ export interface Startup {
   readonly: boolean;
   /** serve の情報が埋め込まれていたのに読めず、ブラウザに保存している */
   sessionInvalid: boolean;
+  /** serve が手元の AI を使えるときだけある */
+  agent?: AgentClient;
 }
 
 export const prepareStartup = async (doc: Document = document): Promise<Startup> => {
@@ -27,7 +31,13 @@ export const prepareStartup = async (doc: Document = document): Promise<Startup>
     return startInBrowser(loadStoredDiagram(), session === "invalid");
   }
   const client = createFileClient(session);
-  return startWithFile(session, await client.load(), client.store);
+  const { agent } = session;
+  return startWithFile(
+    session,
+    await client.load(),
+    client.store,
+    agent ? createAgentClient({ ...session, agent }) : undefined,
+  );
 };
 
 export const startInBrowser = (opened: Opened, sessionInvalid = false): Startup => ({
@@ -42,6 +52,7 @@ export const startWithFile = (
   session: Session,
   loaded: LoadResult,
   store: DocumentStore,
+  agent?: AgentClient,
 ): Startup => ({
   store,
   opened:
@@ -53,6 +64,7 @@ export const startWithFile = (
   blank: session.sample ? createSampleDiagram() : createEmptyDiagram(titleOf(session.file)),
   readonly: session.readonly,
   sessionInvalid: false,
+  ...(agent ? { agent } : {}),
 });
 
 export interface ResolvedStartup {

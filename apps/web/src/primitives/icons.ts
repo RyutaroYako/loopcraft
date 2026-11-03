@@ -20,4 +20,7 @@ export type IconName =
   | "chevron-down"
   | "sun"
   | "moon"
-  | "monitor";
+  | "monitor"
+  | "stop"
+  | "compose"
+  | "arrow-up";

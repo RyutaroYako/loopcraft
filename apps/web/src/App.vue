@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { onErrorCaptured, onMounted, onUnmounted, provide, ref, useTemplateRef } from "vue";
 import { ToastProvider, ToastViewport, TooltipProvider } from "reka-ui";
+import AgentBanner from "./agent/AgentBanner.vue";
+import AgentPanel from "./agent/AgentPanel.vue";
+import AgentToggle from "./agent/AgentToggle.vue";
+import { useAgent } from "./agent/useAgent.ts";
 import DiagramCanvas from "./canvas/DiagramCanvas.vue";
 import { captureDiagram } from "./canvas/screenshot.ts";
 import { refocusWhenLost } from "./editor/focus.ts";
@@ -25,8 +29,10 @@ const { startup } = defineProps<{ startup: Startup }>();
 // 追わないのは、起動時の情報が描画中に変わらないため
 const { initial, store, readonly, initialStatus } = resolveStartup(startup);
 const canvas = useTemplateRef<InstanceType<typeof DiagramCanvas>>("canvas");
+/** AI が図を変えている間 */
+const agentLocked = ref(false);
 const editor = useEditor(initial, {
-  editable: !readonly,
+  editable: () => !readonly && !agentLocked.value,
   restoreFocus: () => refocusWhenLost(canvasSvg),
 });
 provide(EditorKey, editor);
@@ -34,10 +40,16 @@ const notices = createNotices({ editor, startup, autosave: () => autosave });
 const autosave = useAutosave(editor, store, {
   initialStatus,
   onProblem: notices.explain,
-  onReload: notices.reloaded,
+  // AI の変更を知らせないのは、頼んだ本人が、パネルで変わった所を見ているため
+  onReload: (writer) => {
+    if (writer !== "agent") notices.reloaded();
+  },
   onUnwatched: notices.unwatched,
   onRecovered: notices.recovered,
 });
+const agent = startup.agent
+  ? useAgent(startup.agent, { editor, autosave, locked: agentLocked })
+  : undefined;
 const theme = useTheme();
 const notice = editor.notice;
 const noticeKey = editor.noticeKey;
@@ -143,7 +155,12 @@ function capture() {
 
 onMounted(() => {
   notices.atStartup(initialStatus);
-  stops = [autosave.start(), theme.start(), listenUnhandledErrors(window, reportError)];
+  stops = [
+    autosave.start(),
+    theme.start(),
+    listenUnhandledErrors(window, reportError),
+    ...(agent ? [agent.start()] : []),
+  ];
   window.addEventListener("keydown", onKeyDown);
 });
 
@@ -171,11 +188,29 @@ onUnmounted(() => {
           @dialog:open="openDialog"
           @explain:status="notices.explain"
           @explain:unwatched="notices.unwatched"
-        />
+        >
+          <AgentToggle
+            v-if="agent"
+            :open="agent.open.value"
+            :running="agent.running.value"
+            @update:open="(open) => (agent!.open.value = open)"
+          />
+        </EditorToolbar>
         <!-- 狭い画面でページごとスクロールさせないのは、キャンバスのパンとページのスクロールが同じ指の操作で取り合うため -->
         <main class="workspace-area">
-          <DiagramCanvas ref="canvas" />
-          <EditorSidebar @canvas:reveal="revealCanvas" />
+          <DiagramCanvas ref="canvas" class="canvas-area" :touched="agent?.touched.value" />
+          <AgentBanner
+            v-if="agent?.running.value"
+            class="agent-status-banner"
+            @agent:stop="() => void agent!.stop()"
+          />
+          <AgentPanel
+            v-if="agent?.open.value"
+            :agent
+            @panel:close="() => (agent!.open.value = false)"
+          />
+          <!-- 消さずに隠すのは、AI のパネルを閉じたときに、一覧のタブやスクロール位置を戻すため -->
+          <EditorSidebar v-show="!agent?.open.value" @canvas:reveal="revealCanvas" />
         </main>
         <!-- key で作り直すのは、別のお知らせに替わったときに、出てくる動きと消えるまでの時間を付け直すため -->
         <NoticeBanner
@@ -225,6 +260,19 @@ onUnmounted(() => {
     @media (width < 48rem) {
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    /* 場所を決めておくのは、帯をキャンバスに重ねるため。決めないと、帯が空いている次の枠に入る */
+    > .canvas-area,
+    > .agent-status-banner {
+      grid-area: 1 / 1;
+    }
+
+    > .agent-status-banner {
+      z-index: var(--z-raised);
+      align-self: start;
+      justify-self: center;
+      margin-block-start: 16px;
     }
   }
 

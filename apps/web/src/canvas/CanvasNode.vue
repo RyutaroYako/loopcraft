@@ -6,10 +6,12 @@ import { UNNAMED } from "../editor/boxes.ts";
 import type { NodeBox } from "../editor/boxes.ts";
 import { injectEditor } from "../editor/useEditor.ts";
 
-const { variable, box, connectTarget } = defineProps<{
+const { variable, box, connectTarget, touched } = defineProps<{
   variable: Variable;
   box: NodeBox;
   connectTarget: boolean;
+  /** AI が足したか変えた */
+  touched: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -41,6 +43,7 @@ const classes = computed(() => ({
   dimmed: outside.value === "loop",
   faded: outside.value === "neighborhood",
   target: connectTarget,
+  touched,
   editing: editor.editingVariable.value === id.value,
   unnamed: label.value === "",
 }));
@@ -173,7 +176,8 @@ function onKeyDown(event: KeyboardEvent) {
     stroke-width: 1.5;
   }
 
-  &.highlighted > .body-rect {
+  &.highlighted > .body-rect,
+  &.touched > .body-rect {
     stroke: var(--color-accent);
     fill: var(--color-accent-tint);
   }
