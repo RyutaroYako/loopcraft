@@ -1,7 +1,7 @@
 import { findLoops } from "./cycles.ts";
 import { linkPairKey } from "./integrity.ts";
 import type { LoopKind } from "./loop.ts";
-import type { Diagram, Link, VariableId } from "./schema.ts";
+import type { Diagram, Link, Polarity, VariableId } from "./schema.ts";
 
 export interface VariableSummary {
   id: string;
@@ -12,7 +12,7 @@ export interface LinkSummary {
   id: string;
   from: string;
   to: string;
-  polarity: string;
+  polarity: Polarity;
 }
 
 export interface LoopSummary {

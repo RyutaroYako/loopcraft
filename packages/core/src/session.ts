@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { AgentInfoSchema } from "./agent.ts";
 import { DiagramSchema } from "./schema.ts";
 
 /**
@@ -20,6 +21,8 @@ export const SessionSchema = v.object({
   readonly: v.boolean(),
   /** true なら、ファイルが無いときに空の図ではなくサンプルの図で始める */
   sample: v.optional(v.boolean()),
+  /** 図を変えさせられる手元の AI。読み取り専用のときや、見つからないときは無い */
+  agent: v.optional(AgentInfoSchema),
 });
 
 export type Session = v.InferOutput<typeof SessionSchema>;

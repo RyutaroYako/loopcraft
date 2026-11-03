@@ -1,4 +1,5 @@
 import { toJsonSchema } from "@valibot/to-json-schema";
+import { OperationSchema } from "./operations.ts";
 import {
   DiagramShapeSchema,
   LinkSchema,
@@ -21,4 +22,12 @@ export const createDiagramJsonSchema = () => {
     // finite を出さないのは、JSON の数値はもともと有限で、桁あふれだけが読み込みで無限大になるため
     ignoreActions: ["brand", "finite"],
   });
+};
+
+export const createOperationJsonSchema = () => {
+  const { $schema: _, ...schema } = toJsonSchema(OperationSchema, {
+    target: "draft-2020-12",
+    ignoreActions: ["brand", "finite"],
+  });
+  return schema;
 };

@@ -6,6 +6,8 @@ import { exists, isDirectory } from "../files.ts";
 import { startServer } from "../server/server.ts";
 import type { RunningServer } from "../server/server.ts";
 import { resolveWebDir } from "../web-dir.ts";
+import { CLAUDE_COMMAND, CLAUDE_LABEL } from "../agent/claude.ts";
+import { readVersion } from "../agent/process.ts";
 
 export const DEFAULT_PORT = 4747;
 
@@ -16,12 +18,16 @@ export interface ServeOptions {
   readonly?: boolean;
   /** 保存するまでファイルは作らない */
   sample?: boolean;
+  /** false なら、手元の AI に図を変えさせない */
+  agent?: boolean;
 }
 
 export interface ServeDependencies {
   openBrowser?: (url: string) => Promise<unknown>;
   webDir?: string;
   defaultPort?: number;
+  /** AI の CLI の名前。PATH から探す */
+  agentCommand?: string;
 }
 
 export async function serve(
@@ -47,12 +53,25 @@ export async function serve(
     );
   }
 
+  const readonly = options.readonly ?? false;
+  const agentCommand = dependencies.agentCommand ?? CLAUDE_COMMAND;
+  const agentVersion =
+    readonly || options.agent === false ? undefined : await readVersion(agentCommand);
   const common = {
     file: path,
     webDir,
-    readonly: options.readonly ?? false,
+    readonly,
     sample: options.sample ?? false,
     log,
+    ...(agentVersion === undefined
+      ? {}
+      : {
+          agent: {
+            command: agentCommand,
+            cwd,
+            info: { label: CLAUDE_LABEL, ...(agentVersion ? { version: agentVersion } : {}) },
+          },
+        }),
   };
   let server: RunningServer;
   try {
@@ -71,6 +90,9 @@ export async function serve(
     log.note(`  サンプルの図を表示しています。編集して保存すると ${shown} を作ります`);
   if (!options.readonly) {
     log.note("  変更はこのファイルに自動で保存します");
+  }
+  if (agentVersion !== undefined) {
+    log.note(`  画面の「AI」から ${CLAUDE_LABEL} に図の編集を頼めます（止めるには --no-agent）`);
   }
   log.note("  Ctrl+C で終了します");
   if (options.open !== false && dependencies.openBrowser) {

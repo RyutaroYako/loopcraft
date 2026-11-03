@@ -1,6 +1,9 @@
 import { request } from "node:http";
 import { join } from "node:path";
+import { AgentStateSchema } from "@loopcraft/core/agent";
+import type { AgentState } from "@loopcraft/core/agent";
 import { TOKEN_HEADER } from "@loopcraft/core/session";
+import * as v from "valibot";
 import { startServer } from "../server/server.ts";
 import type { RunningServer, ServerOptions } from "../server/server.ts";
 import { createWebDir, createWorkspace, writeSample } from "./fixtures.ts";
@@ -21,7 +24,7 @@ export async function startTracked(options: Omit<ServerOptions, "webDir" | "port
 }
 
 export async function start(
-  options: { readonly?: boolean; existing?: boolean; sample?: boolean } = {},
+  options: { readonly?: boolean; existing?: boolean; sample?: boolean; agent?: string } = {},
 ) {
   const workspace = await createWorkspace();
   const file = join(workspace.cwd, "diagram.json");
@@ -32,6 +35,15 @@ export async function start(
     sample: options.sample,
     log: workspace.logger,
     token: TOKEN,
+    ...(options.agent
+      ? {
+          agent: {
+            command: options.agent,
+            cwd: workspace.cwd,
+            info: { label: "Claude Code", version: "9.9.9" },
+          },
+        }
+      : {}),
   });
   return { ...workspace, file, server };
 }
@@ -68,9 +80,9 @@ export function send(
 export const api = (server: RunningServer, path: string, init: Parameters<typeof send>[2] = {}) =>
   send(server, path, { ...init, headers: { [TOKEN_HEADER]: TOKEN, ...init.headers } });
 
-export async function openEvents(server: RunningServer) {
+export async function openEvents(server: RunningServer, path = "/api/events") {
   const controller = new AbortController();
-  const response = await fetch(`http://127.0.0.1:${server.port}/api/events?token=${TOKEN}`, {
+  const response = await fetch(`http://127.0.0.1:${server.port}${path}?token=${TOKEN}`, {
     signal: controller.signal,
   });
   const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();
@@ -89,5 +101,21 @@ export async function openEvents(server: RunningServer) {
       return chunk;
     },
     close: () => controller.abort(),
+  };
+}
+
+/** AI の会話の状態を受け取り、条件を満たすまで待つ */
+export async function openAgentEvents(server: RunningServer) {
+  const events = await openEvents(server, "/api/agent/events");
+  let latest: AgentState | undefined;
+  return {
+    async until(predicate: (state: AgentState) => boolean) {
+      while (!latest || !predicate(latest)) {
+        const chunk = await events.next("event: state");
+        latest = v.parse(AgentStateSchema, JSON.parse(chunk.slice(chunk.indexOf("data: ") + 6)));
+      }
+      return latest;
+    },
+    close: events.close,
   };
 }
