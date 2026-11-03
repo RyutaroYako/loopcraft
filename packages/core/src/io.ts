@@ -109,11 +109,11 @@ const describeIssue = (issue: v.BaseIssue<unknown>): DiagramError => {
     const near = allowed && closest(last, allowed);
     return {
       path,
-      message: `知らないキー "${last}" です`,
+      message: `"${last}" という項目はありません`,
       hint: near
         ? `"${near}" のことですか`
         : allowed
-          ? `書けるキーは ${allowed.join(", ")} です`
+          ? `書ける項目は ${allowed.join(", ")} です`
           : undefined,
     };
   }

@@ -15,9 +15,10 @@ const box = computed(() => editor.boxes.value.get(id));
 const width = computed(() => Math.max(180, (box.value?.size.width ?? 0) + 24));
 const center = computed(() => box.value?.center ?? { x: 0, y: 0 });
 const original = editor.variableById.value.get(id)?.label ?? "";
+const added = editor.takeUnnamedVariable(id);
 // 入力のたびに commit しないのは、元に戻すが 1 文字ずつになり、Escape で取り消せないため。
 // unmount で後始末しないのは、別の操作が割り込むとジェスチャーは自動で確定されるため
-let gesture: Gesture | undefined;
+let gesture: Gesture | undefined = added;
 let done = false;
 
 // :value で渡さないのは、Vue が描き直すたびに入力欄の値を書き戻し、図の更新で入力中の文字が消えるため
@@ -35,13 +36,21 @@ function preview(label: string) {
 function finish(how: "confirm" | "cancel" | "blur") {
   if (done) return;
   done = true;
-  if (how === "cancel") {
+  const label = input.value?.value.trim() ?? "";
+  if (how === "cancel" || (added && label === "")) {
     gesture?.cancel();
   } else {
-    preview(input.value?.value.trim() ?? "");
+    preview(label);
     gesture?.end();
   }
   editor.setEditingVariable(null);
+  if (added && label === "") {
+    // ジェスチャーの取り消しだけで済ませないのは、名前の入力中に別の編集が入ると、足した操作が確定済みになるため
+    if (editor.variableById.value.has(id)) {
+      editor.commit(edit.removeVariable(editor.diagram.value, id));
+    }
+    editor.select(null);
+  }
   // blur で戻さないのは、移った先から奪うため
   emit("edit:finish", id, how !== "blur");
 }

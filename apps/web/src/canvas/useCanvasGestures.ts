@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import * as edit from "@loopcraft/core/edit";
 import type { LoopId, Point, VariableId } from "@loopcraft/core/schema";
 import type { Editor, Gesture } from "../editor/useEditor.ts";
+import { wheelPixels, wheelZoomFactor } from "../editor/viewport.ts";
 import { movedPast, nodeAt, offsetBy } from "./gestures.ts";
 import type { LinkDraft } from "./linkDraft.ts";
 import { usePinchZoom } from "./usePinchZoom.ts";
@@ -237,10 +238,13 @@ export function useCanvasGestures(editor: Editor, svg: Readonly<Ref<SVGSVGElemen
 
   function onWheel(event: WheelEvent) {
     event.preventDefault();
+    const page = svg.value?.clientHeight ?? 0;
+    const dx = wheelPixels(event.deltaX, event.deltaMode, page);
+    const dy = wheelPixels(event.deltaY, event.deltaMode, page);
     if (event.ctrlKey || event.metaKey) {
-      editor.zoomAt(screenPoint(event), Math.exp(-event.deltaY * 0.01));
+      editor.zoomAt(screenPoint(event), wheelZoomFactor(dy));
     } else {
-      editor.panBy(-event.deltaX, -event.deltaY);
+      editor.panBy(-dx, -dy);
     }
   }
 

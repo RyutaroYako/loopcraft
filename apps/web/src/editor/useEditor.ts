@@ -69,6 +69,8 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
     if (editable) history.commit(next, coalesceKey);
   }
 
+  let unnamed: { id: VariableId; gesture: Gesture } | undefined;
+
   function beginGesture(): Gesture {
     return editable ? history.beginGesture() : { preview() {}, end() {}, cancel() {} };
   }
@@ -114,13 +116,22 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
     focusedLoop.value = key;
   }
 
+  // 足した時点で確定しないのは、名前を付けずに終えたら足す前に戻し、取り消しの履歴にも残さないため
   function addVariableAt(position: Point) {
     if (!editable) return undefined;
     const result = edit.addVariable(diagram.value, { label: "", position });
-    commit(result.diagram);
+    const gesture = history.beginGesture();
+    gesture.preview(result.diagram);
+    unnamed = { id: result.id, gesture };
     select({ kind: "variable", id: result.id });
     setEditingVariable(result.id);
     return result.id;
+  }
+
+  function takeUnnamedVariable(id: VariableId): Gesture | undefined {
+    const taken = unnamed?.id === id ? unnamed.gesture : undefined;
+    unnamed = undefined;
+    return taken;
   }
 
   function connect(from: VariableId, to: VariableId) {
@@ -252,6 +263,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
     notify: notices.notify,
     dismissNotice: notices.dismiss,
     addVariableAt,
+    takeUnnamedVariable,
     connect,
     deleteSelection,
     featureLoop,
@@ -265,7 +277,8 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
     setViewportSize: view.setSize,
     screenToWorld: view.screenToWorld,
     zoomAt: view.zoomAt,
-    zoomBy: view.zoomBy,
+    zoomTo: view.zoomTo,
+    zoomStep: view.zoomStep,
     panBy: view.panBy,
     fitView,
     centerOn: view.centerOn,

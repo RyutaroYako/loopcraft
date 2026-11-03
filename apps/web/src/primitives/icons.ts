@@ -17,7 +17,7 @@ export type IconName =
   | "lock"
   | "spark"
   | "arrow-right"
-  | "more"
+  | "chevron-down"
   | "sun"
   | "moon"
   | "monitor";

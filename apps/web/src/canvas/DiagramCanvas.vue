@@ -8,10 +8,11 @@ import CanvasLink from "./CanvasLink.vue";
 import CanvasLinkDraft from "./CanvasLinkDraft.vue";
 import CanvasLoopMarker from "./CanvasLoopMarker.vue";
 import CanvasNode from "./CanvasNode.vue";
+import CanvasNoteTooltip from "./CanvasNoteTooltip.vue";
 import EmptyState from "./EmptyState.vue";
 import InlineLabelEditor from "./InlineLabelEditor.vue";
 import { useCanvasGestures } from "./useCanvasGestures.ts";
-import ZoomControls from "./ZoomControls.vue";
+import { useCanvasNote } from "./useCanvasNote.ts";
 
 const editor = injectEditor();
 const diagram = editor.diagram;
@@ -19,6 +20,7 @@ const editingVariable = editor.editingVariable;
 const container = useTemplateRef<HTMLDivElement>("container");
 const svg = useTemplateRef<SVGSVGElement>("svg");
 const gestures = useCanvasGestures(editor, svg);
+const canvasNote = useCanvasNote();
 const linkDraft = gestures.linkDraft;
 
 const empty = computed(() => diagram.value.variables.length === 0);
@@ -134,6 +136,8 @@ function onLabelFinished(id: VariableId, refocus: boolean) {
             :key="item.link.id"
             :link="item.link"
             :geometry="item.geometry"
+            @note:show="canvasNote.show"
+            @note:hide="canvasNote.hide"
           />
         </g>
         <CanvasLinkDraft v-if="linkDraft" :draft="linkDraft" />
@@ -144,6 +148,8 @@ function onLabelFinished(id: VariableId, refocus: boolean) {
             :loop="item.loop"
             :entry="item.entry"
             @pointerdown:marker="gestures.onMarkerPointerDown"
+            @note:show="canvasNote.show"
+            @note:hide="canvasNote.hide"
           />
         </g>
         <g class="nodes">
@@ -167,11 +173,8 @@ function onLabelFinished(id: VariableId, refocus: boolean) {
     </svg>
 
     <EmptyState v-if="empty" />
-    <CanvasActions v-if="editor.editable" :empty />
-    <ZoomControls :empty />
-    <p v-if="!empty && !editor.editable" class="readonly-hint">
-      <span>ドラッグで移動、Ctrl+ホイールで拡大縮小</span>
-    </p>
+    <CanvasActions :empty />
+    <CanvasNoteTooltip :note="canvasNote.note.value" @note:close="canvasNote.hide" />
   </div>
 </template>
 
@@ -209,21 +212,6 @@ function onLabelFinished(id: VariableId, refocus: boolean) {
 
     .grid-dot {
       fill: var(--color-line-strong);
-    }
-  }
-
-  > .readonly-hint {
-    position: absolute;
-    inset-block-end: 18px;
-    inset-inline-end: 16px;
-    display: flex;
-    gap: 14px;
-    font-size: var(--text-sm);
-    color: var(--color-muted);
-    pointer-events: none;
-
-    @media (width < 48rem) {
-      display: none;
     }
   }
 }

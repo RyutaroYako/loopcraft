@@ -23,8 +23,12 @@ export function useViewport() {
     viewport.value = view.zoomAt(viewport.value, screenPoint, factor);
   }
 
-  function zoomBy(factor: number) {
-    zoomAt({ x: size.width / 2, y: size.height / 2 }, factor);
+  function zoomTo(zoom: number) {
+    viewport.value = view.zoomToAt(viewport.value, { x: size.width / 2, y: size.height / 2 }, zoom);
+  }
+
+  function zoomStep(direction: 1 | -1) {
+    zoomTo(view.steppedZoom(viewport.value.zoom, direction));
   }
 
   function panBy(dx: number, dy: number) {
@@ -49,7 +53,8 @@ export function useViewport() {
     setSize,
     screenToWorld,
     zoomAt,
-    zoomBy,
+    zoomTo,
+    zoomStep,
     panBy,
     fitTo,
     centerOn,

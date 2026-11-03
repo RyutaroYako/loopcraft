@@ -186,13 +186,16 @@ describe("狭い画面", () => {
     });
   });
 
-  it("下端のボタンで画面の中央に変数を足し、元に戻せる", async () => {
+  it("下端のボタンで画面の中央に変数を足し、名前を付けたら元に戻せる", async () => {
     await atPhoneSize(async () => {
       const count = () => document.querySelectorAll("[data-variable-id]").length;
       const before = count();
       await button("変数を追加").click();
       await expect.poll(count).toBe(before + 1);
-      await expect.element(page.getByRole("textbox", { name: "変数の名前" })).toHaveFocus();
+      const input = page.getByRole("textbox", { name: "変数の名前" });
+      await expect.element(input).toHaveFocus();
+      await userEvent.fill(input, "在庫");
+      await userEvent.keyboard("{Enter}");
       await button("元に戻す").click();
       await expect.poll(count).toBe(before);
       await expect.element(button("やり直す")).not.toBeDisabled();
@@ -262,61 +265,50 @@ describe("指での操作", () => {
 
 describe("メニュー", () => {
   const dialog = (name: string) => page.getByRole("dialog", { name });
-  // 前方一致にするのは、項目名に続く補足も名前に含めて読み上げるため
-  const menuItem = (name: string) =>
-    dialog("メニュー").getByRole("button", { name: new RegExp(`^${name}`) });
+  const menuItem = (menu: string, item: string) =>
+    page.getByRole("menu", { name: menu }).getByRole("menuitem", { name: item, exact: true });
 
-  it("ツールバーから外したファイル操作を、メニューから選ぶ", async () => {
+  it("タイトルの横のメニューからファイルを操作し、整列は下端から押せる", async () => {
     await atPhoneSize(async () => {
-      await expect.element(page.getByRole("button", { name: "新規" })).not.toBeInTheDocument();
-
-      await button("メニュー").click();
-      await menuItem("整列").click();
-      await expect.element(dialog("メニュー")).not.toBeInTheDocument();
+      await button("整列").click();
       await expect.element(button("元に戻す")).not.toBeDisabled();
 
-      await button("メニュー").click();
-      await menuItem("新規").click();
+      await button("ファイル").click();
+      await menuItem("ファイル", "新規").click();
       await expect.poll(() => document.querySelectorAll("[data-variable-id]").length).toBe(0);
       await button("元に戻す").click();
 
       for (const [item, title] of [
-        ["読み込み", "JSON を読み込む"],
-        ["画像", "画像として書き出す"],
+        ["JSON を読み込む", "JSON を読み込む"],
+        ["画像を書き出す", "画像を書き出す"],
         ["JSON を書き出す", "JSON を書き出す"],
       ] as const) {
-        await button("メニュー").click();
-        await menuItem(item).click();
+        await button("ファイル").click();
+        await menuItem("ファイル", item).click();
         await expect.element(dialog(title)).toBeVisible();
-        await expect.element(dialog("メニュー")).not.toBeInTheDocument();
         await dialog(title).getByRole("button", { name: "閉じる" }).click();
         await expect.element(dialog(title)).not.toBeInTheDocument();
       }
     });
   });
 
-  it("テーマを切り替えても、メニューは開いたままにする", async () => {
+  it("ロゴのメニューでテーマを切り替える", async () => {
     await atPhoneSize(async () => {
-      await expect.element(page.getByRole("button", { name: /^テーマ/ })).not.toBeInTheDocument();
-      await button("メニュー").click();
-      const theme = dialog("メニュー").getByRole("radiogroup", { name: "テーマ" });
-      await expect.element(theme.getByRole("radio", { name: "システム" })).toBeChecked();
-      await theme.getByRole("radio", { name: "ダーク" }).click();
-      await expect.element(theme.getByRole("radio", { name: "ダーク" })).toBeChecked();
-      await expect.element(theme.getByRole("radio", { name: "システム" })).not.toBeChecked();
+      await button("Loopcraft").click();
+      const theme = page.getByRole("menu", { name: "Loopcraft" });
+      await theme.getByRole("menuitemradio", { name: "ダーク" }).click();
       expect(document.documentElement.dataset.theme).toBe("dark");
-      await expect.element(dialog("メニュー")).toBeVisible();
     });
   });
 
   it("読み取り専用では、編集する項目を出さない", async () => {
     await atPhoneSize(
       async () => {
-        await button("メニュー").click();
-        await expect.element(menuItem("画像")).toBeVisible();
-        await expect.element(menuItem("整列")).not.toBeInTheDocument();
-        await expect.element(menuItem("読み込み")).not.toBeInTheDocument();
+        await expect.element(button("整列")).not.toBeInTheDocument();
         await expect.element(button("変数を追加")).not.toBeInTheDocument();
+        await button("ファイル").click();
+        await expect.element(menuItem("ファイル", "画像を書き出す")).toBeVisible();
+        await expect.element(menuItem("ファイル", "JSON を読み込む")).not.toBeInTheDocument();
         await userEvent.keyboard("{Escape}");
         nodeElement("sales").focus();
         await expect.element(button("詳しく")).toBeVisible();

@@ -13,7 +13,6 @@ import TextField from "../primitives/TextField.vue";
 import ToggleSwitch from "../primitives/ToggleSwitch.vue";
 import { labelOf } from "../editor/labels.ts";
 import PolarityGlyph from "./PolarityGlyph.vue";
-import SectionHeading from "./SectionHeading.vue";
 
 const { id } = defineProps<{ id: LinkId }>();
 
@@ -53,7 +52,6 @@ function resetCurvature() {
 </script>
 
 <template>
-  <SectionHeading kicker="Link" title="関連" />
   <p class="route-buttons">
     <button type="button" class="from-button" @click="() => selectEnd('from')">{{ from }}</button>
     <SvgIcon class="arrow-icon" name="arrow-right" />

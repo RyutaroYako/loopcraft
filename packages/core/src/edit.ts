@@ -53,9 +53,6 @@ const applyPatch = <T extends object>(item: T, patch: NoInfer<Patch<T>>): T => {
 export const setTitle = (diagram: Diagram, title: string): Diagram =>
   diagram.title === title ? diagram : { ...diagram, title };
 
-export const setDescription = (diagram: Diagram, description: string): Diagram =>
-  applyPatch(diagram, { description: description || undefined });
-
 export const addVariable = (
   diagram: Diagram,
   init: { label: string; position: Point; id?: VariableId },

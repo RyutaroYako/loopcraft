@@ -39,10 +39,11 @@ describe("edit", () => {
 
   it("空の説明は項目ごと消す", () => {
     const sample = createSample();
-    const described = updateVariable(sample, vid("staff"), { description: "正社員のみ" });
-    expect(described.variables[0]!.description).toBe("正社員のみ");
-    const cleared = updateVariable(described, vid("staff"), { description: undefined });
-    expect(cleared.variables[0]).not.toHaveProperty("description");
+    const id = sample.links[0]!.id;
+    const described = updateLink(sample, id, { description: "人数に比例して研修費がかかる" });
+    expect(described.links[0]!.description).toBe("人数に比例して研修費がかかる");
+    const cleared = updateLink(described, id, { description: undefined });
+    expect(cleared.links[0]).not.toHaveProperty("description");
   });
 
   it("変数を消すと繋がる関連とループも消える", () => {

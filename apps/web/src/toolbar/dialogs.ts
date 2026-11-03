@@ -1,1 +1,1 @@
-export type DialogKind = "import" | "export" | "screenshot" | "menu";
+export type DialogKind = "import" | "export" | "screenshot";

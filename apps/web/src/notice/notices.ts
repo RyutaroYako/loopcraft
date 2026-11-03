@@ -34,6 +34,8 @@ export const createNotices = (context: {
     };
 
   const exportAction: Action = { label: "JSON を書き出す", run: () => editor.exportFile() };
+  // 空白を挟まずに続けないのは、英数字の名前と助詞が詰まって読みにくいため
+  const place = store.kind === "browser" ? "ブラウザ" : `${store.label} `;
 
   const unreadable = opened.status === "unreadable" ? opened : undefined;
   const raw = unreadable?.raw;
@@ -43,7 +45,7 @@ export const createNotices = (context: {
       ? []
       : [
           {
-            label: "開けなかったデータを書き出す",
+            label: "元のデータをファイルに保存",
             run: () => downloadText(raw, "system-diagram-unreadable.json"),
           },
         ];
@@ -57,8 +59,8 @@ export const createNotices = (context: {
     if (status.kind === "failing") {
       return {
         tone: "error",
-        title: "自動保存できません",
-        details: [`保存先: ${store.label}`, String(status.error)],
+        title: `${place}に保存できません`,
+        details: [String(status.error)],
         actions: [{ label: "再試行", run: run((autosave) => autosave.retry()) }, exportAction],
       };
     }
@@ -77,24 +79,23 @@ export const createNotices = (context: {
         details: [
           "自動保存を止めています",
           ...(status.problems?.length
-            ? ["保存されている内容を読み込めませんでした:", ...status.problems]
+            ? ["変更後の内容を読み込めませんでした:", ...status.problems]
             : []),
         ],
         actions: [
-          { label: "保存されている内容を読み込む", run: reloadSaved },
-          ...overwrite("この画面の内容で上書き"),
+          { label: "変更後の内容を読み込む", run: reloadSaved },
+          ...overwrite("今の図で上書き保存"),
         ],
       };
     }
     return {
       tone: "error",
-      title: "保存されていた図を開けませんでした",
-      details: [
-        `保存先: ${store.label}`,
-        "自動保存を止めています",
-        ...(unreadable?.problems ?? []),
-      ],
-      actions: [...downloadUnreadable, ...overwrite("この画面の内容で上書き")],
+      title:
+        store.kind === "browser"
+          ? "ブラウザに保存した図を開けませんでした"
+          : `${store.label} を開けませんでした`,
+      details: ["自動保存を止めています", ...(unreadable?.problems ?? [])],
+      actions: [...downloadUnreadable, ...overwrite("今の図で上書き保存")],
     };
   };
 
@@ -115,9 +116,9 @@ export const createNotices = (context: {
       if (startup.sessionInvalid) {
         editor.notify({
           tone: "error",
-          title: "loopcraft serve の情報を読めませんでした",
+          title: "loopcraft serve とつなげませんでした",
           details: ["変更はブラウザに保存されます"],
-          actions: [{ label: "ページを再読み込み", run: reloadPage }],
+          actions: [{ label: "再読み込み", run: reloadPage }],
         });
       } else if (initialStatus) {
         explain(initialStatus);

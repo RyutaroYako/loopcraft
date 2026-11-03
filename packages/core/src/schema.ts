@@ -33,7 +33,6 @@ export const VariableSchema = v.pipe(
   v.strictObject({
     id: VariableIdSchema,
     label: v.pipe(v.string(), v.description("表示名（例: 社員数）")),
-    description: v.optional(v.string()),
     position: v.optional(
       v.pipe(PointSchema, v.description("中心の座標。省くと、読み込むときに自動で配置する")),
     ),
@@ -93,7 +92,6 @@ export const DiagramShapeSchema = v.pipe(
     $schema: v.optional(v.string()),
     version: v.literal(DIAGRAM_FORMAT_VERSION),
     title: v.string(),
-    description: v.optional(v.string()),
     variables: v.array(VariableSchema),
     links: v.array(LinkSchema),
     loops: v.array(LoopSchema),

@@ -19,15 +19,15 @@ describe("parseDiagramJson のエラー", () => {
       expect.arrayContaining([
         {
           path: "links.0.polarty",
-          message: '知らないキー "polarty" です',
+          message: '"polarty" という項目はありません',
           hint: '"polarity" のことですか',
         },
         {
           path: "variables.0.colour",
-          message: '知らないキー "colour" です',
-          hint: "書けるキーは id, label, description, position です",
+          message: '"colour" という項目はありません',
+          hint: "書ける項目は id, label, position です",
         },
-        expect.objectContaining({ path: "extra", message: '知らないキー "extra" です' }),
+        expect.objectContaining({ path: "extra", message: '"extra" という項目はありません' }),
       ]),
     );
   });
@@ -38,8 +38,8 @@ describe("parseDiagramJson のエラー", () => {
     expect(errorsOf(input)).toEqual([
       {
         path: "variables.0.position.z",
-        message: '知らないキー "z" です',
-        hint: "書けるキーは x, y です",
+        message: '"z" という項目はありません',
+        hint: "書ける項目は x, y です",
       },
     ]);
   });

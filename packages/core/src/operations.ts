@@ -6,7 +6,6 @@ import {
   removeLinks,
   removeLoop,
   removeVariable,
-  setDescription,
   setTitle,
   updateLink,
   updateLoop,
@@ -32,14 +31,12 @@ const OperationSchema = v.variant("op", [
     op: v.literal("add-variable"),
     id: v.optional(Ref),
     label: Text,
-    description: v.optional(Text),
     position: v.optional(PointSchema),
   }),
   v.strictObject({
     op: v.literal("update-variable"),
     id: Ref,
     label: v.optional(Text),
-    description: v.optional(Text),
     position: v.optional(PointSchema),
   }),
   v.strictObject({ op: v.literal("remove-variable"), id: Ref }),
@@ -83,7 +80,6 @@ const OperationSchema = v.variant("op", [
   }),
   v.strictObject({ op: v.literal("remove-loop"), id: Ref }),
   v.strictObject({ op: v.literal("set-title"), title: Text }),
-  v.strictObject({ op: v.literal("set-description"), description: Text }),
 ]);
 
 export type Operation = v.InferOutput<typeof OperationSchema>;
@@ -129,7 +125,7 @@ export const parseOperation = (
     const near = option && closest(key, Object.keys(option.entries));
     return {
       ok: false,
-      message: `知らないキー "${key}" です`,
+      message: `"${key}" という項目はありません`,
       ...(near ? { hint: `"${near}" のことですか` } : {}),
     };
   }
@@ -138,7 +134,7 @@ export const parseOperation = (
     const near = closest(op, OPERATION_NAMES);
     return {
       ok: false,
-      message: `知らない操作 "${op}" です`,
+      message: `"${op}" という操作はありません`,
       hint: near ? `"${near}" のことですか` : `使える操作は ${OPERATION_NAMES.join(", ")} です`,
     };
   }
@@ -217,10 +213,7 @@ const apply = (
         position: operation.position ?? { x: 0, y: 0 },
       });
       if (!operation.position) unplaced.add(added.id);
-      const described = operation.description
-        ? updateVariable(added.diagram, added.id, { description: operation.description })
-        : added.diagram;
-      return { diagram: described, id: added.id };
+      return { diagram: added.diagram, id: added.id };
     }
     case "update-variable": {
       const id = variableRef(diagram, operation.id);
@@ -228,9 +221,6 @@ const apply = (
       return {
         diagram: updateVariable(diagram, id, {
           ...(operation.label === undefined ? {} : { label: operation.label }),
-          ...(operation.description === undefined
-            ? {}
-            : { description: operation.description || undefined }),
           ...(operation.position ? { position: operation.position } : {}),
         }),
       };
@@ -336,8 +326,6 @@ const apply = (
       return { diagram: removeLoop(diagram, loopRef(diagram, operation.id)) };
     case "set-title":
       return { diagram: setTitle(diagram, operation.title) };
-    case "set-description":
-      return { diagram: setDescription(diagram, operation.description) };
   }
 };
 

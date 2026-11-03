@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useSlots } from "vue";
+import { computed, nextTick, useSlots, useTemplateRef } from "vue";
 
 const {
   active,
@@ -23,16 +23,28 @@ defineSlots<{
 
 const slots = useSlots();
 const order = computed(() => ({ "--index": Math.min(index, 12) }));
+const row = useTemplateRef<HTMLLIElement>("row");
+
+/**
+ * 選ぶだけで済ませないのは、広い画面では一覧の下に詳細が出て一覧が縮み、押した行が隠れることがあるため。
+ * 狭い画面で寄せないのは、詳細がシートの上に出て、一覧の位置はシートのスクロールで決まるため
+ */
+async function select() {
+  emit("click:row");
+  if (!matchMedia("(width >= 48rem)").matches) return;
+  await nextTick();
+  row.value?.scrollIntoView({ block: "nearest" });
+}
 </script>
 
 <template>
-  <li class="list-row" :data-active="active ? '' : undefined" :style="order">
+  <li ref="row" class="list-row" :data-active="active ? '' : undefined" :style="order">
     <button
       type="button"
       class="select-button"
       :data-leading="slots.leading ? '' : undefined"
       :aria-current="active ? 'true' : undefined"
-      @click="() => emit('click:row')"
+      @click="select"
     >
       <slot name="leading" />
       <span class="label-area">

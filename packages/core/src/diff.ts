@@ -145,8 +145,6 @@ export const diffDiagrams = (before: Diagram, after: Diagram): DiagramDiff => {
   };
 
   const other = [
-    ...(before.description === after.description ? [] : ["description"]),
-    ...otherChanges("variables", before.variables, after.variables, ["description"]),
     ...otherChanges("links", before.links, after.links, ["description", "curvature"]),
     ...otherChanges("loops", before.loops, after.loops, ["name", "links", "description", "marker"]),
   ];

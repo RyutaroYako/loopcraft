@@ -1,7 +1,6 @@
 {
   "version": 1,
   "title": "組織の成長と人の負荷",
-  "description": "人を増やすと売上が伸びる一方で、育成と業務負荷が成長を押し戻す。",
   "variables": [
     {
       "id": "staff",

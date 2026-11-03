@@ -2,7 +2,6 @@
 import { computed, useTemplateRef } from "vue";
 import { refocusWhenLost } from "../editor/focus.ts";
 import { injectEditor } from "../editor/useEditor.ts";
-import DiagramInspector from "./DiagramInspector.vue";
 import LinkInspector from "./LinkInspector.vue";
 import LoopInspector from "./LoopInspector.vue";
 import VariableInspector from "./VariableInspector.vue";
@@ -11,8 +10,14 @@ const editor = injectEditor();
 const selection = editor.selection;
 const panel = useTemplateRef<HTMLElement>("panel");
 // 選び直しても中身を使い回すと、出てくる動きが最初の 1 回しか付かない
-const bodyKey = computed(() =>
-  selection.value ? `${selection.value.kind}:${selection.value.id}` : "diagram",
+const bodyKey = computed(() => `${selection.value?.kind}:${selection.value?.id}`);
+// 見出しを付けないのは、上の操作バーに選んだものの名前が出ていて、見た目では繰り返しになるため
+const bodyLabel = computed(() =>
+  selection.value?.kind === "variable"
+    ? "変数"
+    : selection.value?.kind === "link"
+      ? "関連"
+      : undefined,
 );
 
 function keepFocus() {
@@ -20,16 +25,14 @@ function keepFocus() {
 }
 </script>
 
-<!-- 選んでいないときに狭い画面で図の概要を先に出さないのは、一覧の方がよく使い、概要は広げたときに読めれば足りるため -->
 <template>
-  <section
-    ref="panel"
-    class="inspector-panel"
-    :data-selected="selection ? '' : undefined"
-    aria-label="選択中の項目"
-    tabindex="-1"
-  >
-    <div :key="bodyKey" class="panel-body">
+  <section ref="panel" class="inspector-panel" aria-label="選択中の項目" tabindex="-1">
+    <div
+      :key="bodyKey"
+      class="panel-body"
+      :role="bodyLabel ? 'group' : undefined"
+      :aria-label="bodyLabel"
+    >
       <VariableInspector v-if="selection?.kind === 'variable'" :id="selection.id" />
       <LinkInspector
         v-else-if="selection?.kind === 'link'"
@@ -41,7 +44,6 @@ function keepFocus() {
         :id="selection.id"
         @focus:lost="keepFocus"
       />
-      <DiagramInspector v-else />
     </div>
   </section>
 </template>
@@ -54,16 +56,9 @@ function keepFocus() {
   outline: none;
 
   @media (width < 48rem) {
-    order: 2;
     flex: none;
     overflow: visible;
-    border-block-start: 1px solid var(--color-line);
-
-    &[data-selected] {
-      order: 0;
-      border-block-start: none;
-      border-block-end: 1px solid var(--color-line);
-    }
+    border-block-end: 1px solid var(--color-line);
   }
 
   > .panel-body {

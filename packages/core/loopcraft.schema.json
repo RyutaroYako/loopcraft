@@ -10,9 +10,6 @@
     "title": {
       "type": "string"
     },
-    "description": {
-      "type": "string"
-    },
     "variables": {
       "type": "array",
       "items": {
@@ -72,9 +69,6 @@
         "label": {
           "type": "string",
           "description": "表示名（例: 社員数）"
-        },
-        "description": {
-          "type": "string"
         },
         "position": {
           "type": "object",

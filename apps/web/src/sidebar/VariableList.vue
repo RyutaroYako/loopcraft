@@ -87,11 +87,7 @@ function onSearch(event: Event) {
     </RowList>
     <EmptyMessage v-else>
       <p>
-        {{
-          diagram.variables.length === 0
-            ? "変数を追加すると、ここに並びます"
-            : "名前が一致する変数はありません"
-        }}
+        {{ diagram.variables.length === 0 ? "変数はありません" : "名前が一致する変数はありません" }}
       </p>
     </EmptyMessage>
   </div>

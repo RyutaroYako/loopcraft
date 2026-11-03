@@ -15,7 +15,6 @@ import EditorSidebar from "./sidebar/EditorSidebar.vue";
 import { useTheme } from "./theme/useTheme.ts";
 import type { DialogKind } from "./toolbar/dialogs.ts";
 import EditorToolbar from "./toolbar/EditorToolbar.vue";
-import MenuDialog from "./toolbar/MenuDialog.vue";
 import ExportDialog from "./transfer/ExportDialog.vue";
 import ImportDialog from "./transfer/ImportDialog.vue";
 import ScreenshotDialog from "./transfer/ScreenshotDialog.vue";
@@ -55,11 +54,6 @@ function openDialog(kind: DialogKind) {
 
 function closeDialog() {
   dialog.value = null;
-}
-
-// 確かめずに閉じないのは、他のダイアログへ切り替えた後に閉じた知らせが届くと、その切り替えを取り消すため
-function closeMenu() {
-  if (dialog.value === "menu") closeDialog();
 }
 
 function onKeyDown(event: KeyboardEvent) {
@@ -193,12 +187,6 @@ onUnmounted(() => {
           :key="noticeKey"
           :notice
           @notice:close="(closed) => editor.dismissNotice(closed)"
-        />
-        <MenuDialog
-          v-if="dialog === 'menu'"
-          :theme
-          @dialog:open="openDialog"
-          @dialog:close="closeMenu"
         />
         <ImportDialog v-if="dialog === 'import'" @dialog:close="closeDialog" />
         <ExportDialog v-if="dialog === 'export'" @dialog:close="closeDialog" />

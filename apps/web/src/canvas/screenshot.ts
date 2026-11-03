@@ -3,7 +3,7 @@ import { domToBlob } from "modern-screenshot";
 /** 図の座標 */
 const PADDING = 32;
 /** 等倍だと高解像度の画面で粗く見える */
-const SCALE = 2;
+export const CAPTURE_SCALE = 2;
 
 export const captureDiagram = async (svg: SVGSVGElement): Promise<Blob> => {
   const content = svg.querySelector<SVGGElement>('[data-layer="content"]');
@@ -17,12 +17,13 @@ export const captureDiagram = async (svg: SVGSVGElement): Promise<Blob> => {
   const blob = await domToBlob(container, {
     width,
     height,
-    scale: SCALE,
+    scale: CAPTURE_SCALE,
     backgroundColor: getComputedStyle(container).backgroundColor,
     filter: (node) =>
       !(node instanceof Element) ||
       ((node.parentElement !== container || node === svg) &&
-        node.getAttribute("data-layer") !== "grid"),
+        node.getAttribute("data-layer") !== "grid" &&
+        !node.hasAttribute("data-screen-only")),
     onCloneNode: (cloned) => {
       const clonedSvg = (cloned as Element).querySelector("svg");
       const group = clonedSvg?.querySelector<SVGGElement>('[data-layer="content"]');

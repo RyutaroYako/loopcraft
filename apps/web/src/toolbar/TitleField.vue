@@ -42,6 +42,13 @@ function onCompositionEnd(event: CompositionEvent) {
   > .title-input {
     block-size: 34px;
     inline-size: min(100%, 440px);
+    /* 幅を中身に合わせるのを field-sizing に対応したブラウザだけにするのは、ほかでは幅が既定の約 20 文字に縮むため */
+    @supports (field-sizing: content) {
+      field-sizing: content;
+      inline-size: auto;
+      min-inline-size: 8em;
+      max-inline-size: min(100%, 440px);
+    }
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     padding-inline: 10px;
