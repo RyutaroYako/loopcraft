@@ -12,10 +12,15 @@ const lid = (id: string) => id as LinkId;
 const pid = (id: string) => id as LoopId;
 
 let cleanup: (() => void) | undefined;
+// jsdom の canvas に任せないのは、未実装の getContext を呼ぶたびにログを出すため。幅は文字種からの概算になる
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+});
 afterEach(() => {
   cleanup?.();
   cleanup = undefined;
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 function setup(...args: Parameters<typeof setupEditor>) {

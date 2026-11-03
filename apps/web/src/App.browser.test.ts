@@ -2,7 +2,7 @@ import * as edit from "@loopcraft/core/edit";
 import { createEmptyDiagram, stringifyDiagram } from "@loopcraft/core/io";
 import { createSampleDiagram } from "@loopcraft/core/sample";
 import type { LinkId } from "@loopcraft/core/schema";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { startInBrowser } from "./persistence/startup.ts";
 import {
   browserStartup,
@@ -192,7 +192,13 @@ describe("ファイルのドロップ", () => {
 });
 
 describe("案内", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  // 黙らせるのは、アプリが受けた例外も Vitest が console.error に出し、テストのたびにログが流れるため
+  const silenceUnhandled = () => vi.spyOn(console, "error").mockImplementation(() => {});
+
   it("取りこぼした例外を画面に出し、閉じられる", async () => {
+    const consoleError = silenceUnhandled();
     mount(browserStartup(createSampleDiagram()));
     await expect.element(node("売上")).toBeVisible();
     window.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
@@ -209,9 +215,11 @@ describe("案内", () => {
     await expect.element(notice()).toMatchTextContent(/rejected/);
     await page.getByRole("button", { name: "閉じる" }).click();
     await expect.element(notice()).not.toBeInTheDocument();
+    expect(consoleError).toHaveBeenCalled();
   });
 
   it("案内は時間で消え、エラーは閉じるまで残る", async () => {
+    silenceUnhandled();
     const { store, control } = fakeFileStore();
     mount(fileStartup(ok(), { store }));
     control.reloadResult = { ok: true, diagram: { ...createSampleDiagram(), title: "外で直した" } };
