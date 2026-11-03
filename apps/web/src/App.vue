@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, provide, ref, useTemplateRef } from "vue";
+import { onErrorCaptured, onMounted, onUnmounted, provide, ref, useTemplateRef } from "vue";
 import { ToastProvider, ToastViewport, TooltipProvider } from "reka-ui";
 import DiagramCanvas from "./canvas/DiagramCanvas.vue";
 import { captureDiagram } from "./canvas/screenshot.ts";
 import { refocusWhenLost } from "./editor/focus.ts";
 import { isInMenu, isInteractive, isTextInput } from "./editor/keyboard.ts";
 import { EditorKey, useEditor } from "./editor/useEditor.ts";
+import { consoleLogger, createErrorReporter, listenUnhandledErrors } from "./notice/errors.ts";
 import NoticeBanner from "./notice/NoticeBanner.vue";
 import { createNotices } from "./notice/notices.ts";
 import { resolveStartup } from "./persistence/startup.ts";
@@ -93,14 +94,13 @@ function onKeyDown(event: KeyboardEvent) {
   }
 }
 
-function onUnhandled(event: PromiseRejectionEvent | ErrorEvent) {
-  const reason = "reason" in event ? event.reason : (event.error ?? event.message);
-  editor.notify({
-    tone: "error",
-    title: "予期しないエラーが起きました",
-    details: [String(reason)],
-  });
-}
+const reportError = createErrorReporter(editor.notify, consoleLogger);
+
+// 伝えるのを止めるのは、Vue が既定でもコンソールに出し、二重になるため
+onErrorCaptured((error, _instance, info) => {
+  reportError(error, info);
+  return false;
+});
 
 function hasFiles(event: DragEvent) {
   return event.dataTransfer?.types.includes("Files") ?? false;
@@ -143,17 +143,13 @@ function capture() {
 
 onMounted(() => {
   notices.atStartup(initialStatus);
-  stops = [autosave.start(), theme.start()];
+  stops = [autosave.start(), theme.start(), listenUnhandledErrors(window, reportError)];
   window.addEventListener("keydown", onKeyDown);
-  window.addEventListener("unhandledrejection", onUnhandled);
-  window.addEventListener("error", onUnhandled);
 });
 
 onUnmounted(() => {
   for (const stop of stops) stop();
   window.removeEventListener("keydown", onKeyDown);
-  window.removeEventListener("unhandledrejection", onUnhandled);
-  window.removeEventListener("error", onUnhandled);
 });
 </script>
 
