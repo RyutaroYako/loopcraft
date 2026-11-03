@@ -59,11 +59,10 @@ describe("createNotices", () => {
     await vi.waitFor(() => expect(file.shown()?.details).toContain("ファイルが削除されました"));
   });
 
-  it("つながりが切れたら、書き出しと再読み込みを勧める", () => {
+  it("つながりが切れたら、書き出せる", () => {
     const file = setup(missing);
     file.notices.explain({ kind: "suspended", reason: "disconnected" });
     expect(file.shown()?.title).toBe("loopcraft serve との接続が切れました");
-    expect(file.shown()?.details?.[2]).toContain("新しい URL");
     expect(file.shown()?.actions?.map((action) => action.label)).toEqual(["JSON を書き出す"]);
     file.run("JSON を書き出す");
     expect(file.exportFile).toHaveBeenCalledOnce();
@@ -98,7 +97,7 @@ describe("createNotices", () => {
     file.notices.unwatched("ENOENT");
     expect(file.shown()?.details?.[0]).toBe("ENOENT");
     file.notices.unwatched(undefined);
-    expect(file.shown()?.details).toHaveLength(1);
+    expect(file.shown()?.details).toBeUndefined();
     dispose();
 
     const broken = setup(startup({ status: "missing" }, { sessionInvalid: true }));

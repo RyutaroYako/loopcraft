@@ -41,11 +41,7 @@ export async function serveStatic(url: URL, response: ServerResponse, site: Site
   // トークン無しで画面を返さないのは、同じマシンのほかの利用者が埋め込まれたトークンを読み取って、
   // ファイルを書き換えられるため
   if (isIndex && !sameToken(url.searchParams.get("token"), site.token)) {
-    sendText(
-      response,
-      403,
-      "この URL では開けません。loopcraft serve を起動し直した場合は、ターミナルに表示された新しい URL を開いてください",
-    );
+    sendText(response, 403, "この URL では開けません");
     return;
   }
   let content: Buffer;
