@@ -63,7 +63,7 @@ npx loopcraft schema               # JSON Schema を出力する
 
 ## 開発
 
-[Vite+](https://viteplus.dev/)、Vue（[Vize](https://vizejs.dev/)）、Lightning CSS、valibot で作っているモノレポです。
+モノレポです。コマンドは [Vite+](https://viteplus.dev/) の `vp` で実行します。
 
 | ディレクトリ    | 内容                                                        |
 | --------------- | ----------------------------------------------------------- |
