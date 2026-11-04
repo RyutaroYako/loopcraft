@@ -78,4 +78,26 @@ describe("createAgentSession", () => {
     expect(control.undone).toEqual(["turn-1"]);
     expect(notices[0]?.title).toBe("その後に図が変わったため、取り消せません");
   });
+
+  it("止める・新しい会話・取り消しを送れなければ伝え、受け付けなかっただけなら伝えない", async () => {
+    const { session, control, notices } = setup();
+    control.result = { ok: false, reason: "rejected" };
+    await session.stop();
+    await session.reset();
+    expect(notices).toEqual([]);
+    control.result = { ok: false, reason: "failed", error: new Error("HTTP 500") };
+    await session.stop();
+    await session.reset();
+    await session.undo("turn-1");
+    expect(notices).toEqual(
+      [
+        "AI を止められませんでした",
+        "新しい会話を始められませんでした",
+        "指示の変更を取り消せませんでした",
+      ].map((title) => ({ tone: "error", title, details: ["HTTP 500"] })),
+    );
+    control.result = { ok: true };
+    await session.undo("turn-1");
+    expect(notices).toHaveLength(3);
+  });
 });

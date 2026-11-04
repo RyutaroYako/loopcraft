@@ -27,11 +27,11 @@ export function fakeAgentClient() {
     },
     stop: async () => {
       control.stops++;
-      return { ok: true };
+      return control.result;
     },
     reset: async () => {
       control.resets++;
-      return { ok: true };
+      return control.result;
     },
     undo: async (turn) => {
       control.undone.push(turn);

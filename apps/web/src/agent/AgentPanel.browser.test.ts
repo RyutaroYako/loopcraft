@@ -2,6 +2,7 @@ import { createSampleDiagram } from "@loopcraft/core/sample";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 import {
   agentTurn,
+  canvasSvg,
   cleanup,
   fakeAgentClient,
   fakeFileStore,
@@ -81,6 +82,26 @@ describe("AI に図を変えてもらう", () => {
     await expect.element(promptInput()).toHaveValue("並べ直して\n");
     await panel().getByRole("button", { name: "送る" }).click();
     await expect.poll(() => control.prompts.at(-1)).toEqual({ prompt: "並べ直して" });
+  });
+
+  it("選んでいる関連やループも、名前を添えて送る", async () => {
+    const { control } = mountWithAgent();
+    await aiButton().click();
+    // click で選ばないのは、極性の印を押すと極性まで変わるため
+    const polarity = page.getByRole("button", { name: /^社員数から売上への関連/ }).element();
+    polarity.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+    canvasSvg().dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    await expect.poll(() => textOf(panel().element())).toContain("選んでいる関連社員数→売上");
+    await page
+      .getByRole("button", { name: /成長エンジン/ })
+      .first()
+      .click();
+    await expect.poll(() => textOf(panel().element())).toContain("選んでいるループ成長エンジン");
+    await userEvent.fill(promptInput(), "強めて");
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .poll(() => control.prompts.at(-1)?.selection)
+      .toEqual({ kind: "loop", id: "p_growth", label: "成長エンジン" });
   });
 
   it("AI が動いている間は編集できず、帯やパネルから止められる", async () => {
