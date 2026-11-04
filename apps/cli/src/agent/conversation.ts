@@ -202,7 +202,10 @@ export function createConversation(host: ConversationHost) {
       const turn = turns.find((item) => item.id === id);
       if (!turn || !undoable(turn) || turn.before === null) return { ok: false, reason: "stale" };
       const before = turn.before;
-      const restored = await host.access.update(() => before);
+      // キューに入る前の確認だけで済ませないのは、先に並んだ画面の保存を、指示の前の図で上書きしないため
+      const restored = await host.access.update(() =>
+        undoable(turn) ? before : { failure: "その後に図が変わりました" },
+      );
       if ("failure" in restored) return { ok: false, reason: "stale" };
       turn.undone = true;
       publish();

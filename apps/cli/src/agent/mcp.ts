@@ -54,7 +54,9 @@ export async function handleMcpMessage(body: unknown, tools: readonly Tool[]) {
     if (!call.success) return rpcError(id, INVALID_PARAMS, "name がありません");
     const tool = tools.find((item) => item.name === call.output.name);
     if (!tool) return rpcError(id, INVALID_PARAMS, `${call.output.name} という道具はありません`);
-    const outcome = await tool.run(call.output.arguments ?? {});
+    const outcome = await tool
+      .run(call.output.arguments ?? {})
+      .catch((error: unknown) => ({ ok: false as const, message: messageOf(error) }));
     return result(
       id,
       outcome.ok
@@ -64,6 +66,8 @@ export async function handleMcpMessage(body: unknown, tools: readonly Tool[]) {
   }
   return rpcError(id, METHOD_NOT_FOUND, `${method} には対応していません`);
 }
+
+const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 const result = (id: string | number, value: unknown) => ({ jsonrpc: "2.0", id, result: value });
 

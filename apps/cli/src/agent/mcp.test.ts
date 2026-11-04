@@ -52,6 +52,24 @@ describe("handleMcpMessage", () => {
     });
   });
 
+  it("道具が例外を投げても、道具の失敗として返す", async () => {
+    const broken: Tool = {
+      ...echo,
+      name: "broken",
+      run: async () => {
+        throw new Error("EACCES: permission denied");
+      },
+    };
+    expect(
+      await handleMcpMessage(
+        { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "broken" } },
+        [broken],
+      ),
+    ).toMatchObject({
+      result: { content: [{ type: "text", text: "EACCES: permission denied" }], isError: true },
+    });
+  });
+
   it("形の違う要求、無い道具、知らない手続きはエラーで返す", async () => {
     expect(await handleMcpMessage({ id: 1 }, [echo])).toMatchObject({
       id: null,

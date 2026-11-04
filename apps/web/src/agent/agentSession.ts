@@ -66,6 +66,7 @@ export const createAgentSession = (client: AgentClient, options: AgentSessionOpt
           } else failed("AI に指示を送れませんでした", result.error);
           return false;
         }
+        if (state.turns.length > count) return true;
         awaited = count + 1;
         clearTimeout(giveUp);
         // いつまでも待たないのは、知らせの接続が切れていると、読み取り専用のまま戻れなくなるため
@@ -91,6 +92,11 @@ export const createAgentSession = (client: AgentClient, options: AgentSessionOpt
       }
     },
     undo: async (turn: string) => {
+      // 画面の変更を先に書くのは、書く前の変更が、取り消しで戻した図とぶつからないようにするため
+      if (!(await options.prepare())) {
+        options.notify({ tone: "error", title: "図を保存できないため、取り消せません" });
+        return;
+      }
       const result = await client.undo(turn);
       if (result.ok) return;
       if (result.reason === "rejected") {

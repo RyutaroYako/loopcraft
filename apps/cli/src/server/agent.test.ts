@@ -4,6 +4,7 @@ import { isRunning } from "@loopcraft/core/agent";
 import type { AgentState } from "@loopcraft/core/agent";
 import { parseDiagramJson } from "@loopcraft/core/io";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { revisionOf } from "../files.ts";
 import { installFakeClaude } from "../testing/fake-claude.ts";
 import type { FakeRun } from "../testing/fake-claude.ts";
 import {
@@ -230,6 +231,27 @@ describe("AI に図を変えさせる", () => {
     await writeFile(join(agent.cwd, "diagram.json"), JSON.stringify(original));
     await agent.events.until((state) => !lastTurn(state).undoable);
     expect((await agent.post("undo", { turn: second.id })).status).toBe(409);
+  });
+
+  it("画面の保存と取り消しが重なっても、画面の変更を黙って上書きしない", async () => {
+    fake.script(addQuitMeeting);
+    const agent = await startAgent();
+    await agent.prompt({ prompt: "足して" });
+    const { id } = lastTurn(await agent.finished());
+    const after = await agent.diagram();
+    const edited = { ...after, title: "画面で直した" };
+    const [saved, undone] = await Promise.all([
+      api(agent.server, "/api/document", {
+        method: "PUT",
+        body: JSON.stringify({
+          diagram: edited,
+          baseRevision: revisionOf(await readFile(agent.file, "utf8")),
+        }),
+      }),
+      agent.post("undo", { turn: id }),
+    ]);
+    expect([saved.status, undone.status]).not.toEqual([200, 200]);
+    if (saved.status === 200) expect(await agent.diagram()).toEqual(edited);
   });
 
   it("道具はトークンが無ければ断り、AI が動いていないときは使わせない", async () => {

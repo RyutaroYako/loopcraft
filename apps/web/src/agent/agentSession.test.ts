@@ -71,6 +71,31 @@ describe("createAgentSession", () => {
     expect(session.locked()).toBe(false);
   });
 
+  it("始まりの知らせが受け付けの応答より先に届いても、後で読み取り専用に戻さない", async () => {
+    const { client, control } = fakeAgentClient();
+    client.prompt = async () => {
+      control.push(agentTurn({ status: "failed", error: "claude が見つかりません" }));
+      return { ok: true };
+    };
+    const session = createAgentSession(client, {
+      prepare: async () => true,
+      onView: () => {},
+      notify: () => {},
+    });
+    session.start();
+    expect(await session.send("足して", undefined)).toBe(true);
+    expect(session.locked()).toBe(false);
+    control.push();
+    expect(session.locked()).toBe(false);
+  });
+
+  it("図を保存できなければ取り消さない", async () => {
+    const { session, control, notices } = setup(false);
+    await session.undo("turn-1");
+    expect(control.undone).toEqual([]);
+    expect(notices[0]?.title).toBe("図を保存できないため、取り消せません");
+  });
+
   it("取り消せなくなっていたら伝える", async () => {
     const { session, control, notices } = setup();
     control.result = { ok: false, reason: "rejected" };

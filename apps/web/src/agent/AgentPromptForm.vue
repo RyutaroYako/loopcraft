@@ -29,8 +29,9 @@ const input = useTemplateRef<HTMLTextAreaElement>("input");
 const inputId = useId();
 
 function onKeyDown(event: KeyboardEvent) {
-  // 変換中の Enter で送らないのは、変換を確定するつもりの Enter で、書きかけの指示が送られるため
-  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  // 変換中の Enter で送らないのは、変換を確定するつもりの Enter で、書きかけの指示が送られるため。
+  // 廃止予定の keyCode も見るのは、Safari では確定の Enter が変換の終わりの後に届き、isComposing が false になるため
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) return;
   event.preventDefault();
   emit("prompt:send");
 }
