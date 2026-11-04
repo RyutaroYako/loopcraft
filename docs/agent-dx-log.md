@@ -10,12 +10,12 @@ vp run -r build
 node scripts/agent-dx/run.ts --tarball tmp/packs/loopcraft-0.2.0.tgz --label after --runs 5
 ```
 
-- `--label` ごとに `tmp/agent-dx/<label>/` を作り、パックした CLI を入れた空のディレクトリで `claude -p` を走らせます。手元の設定・MCP サーバー・`serve`（ブラウザを開いて終わらない）は使わせません。
+- `--label` ごとに `--out`（既定は OS の一時ディレクトリの `loopcraft-agent-dx`）の下に `<label>/` を作り、パックした CLI を入れた空のディレクトリで `claude -p` を走らせます。手元の設定・MCP サーバー・`serve`（ブラウザを開いて終わらない）は使わせません。
 - タスクは `scripts/agent-dx/tasks.ts` にあります。採点は `scripts/agent-dx/score.ts` で、比べる CLI の版によって基準が動かないよう、`@loopcraft/core` は使いません。
   - **create**: 文章から図を作る。変数どうしが重ならず、矢印が変数を突き抜けない配置にする
   - **extend**: 既にある図に変数と関連を足し、できたループに注目する。ほかは変えない
   - **tidy**: 変数が重なった図の配置を直す。構造は変えない
-- `--out` はリポジトリの外にします。リポジトリの中だと、ルートの `package.json` の `devEngines`（pnpm）に `npm init` が引っかかって止まります。
+- `--out` を変えるときもリポジトリの外にします。リポジトリの中だと、ルートの `package.json` の `devEngines`（pnpm）に `npm init` が引っかかって止まります。
 - 結果は `results.jsonl` に 1 回ずつ追記し、最後に表を出します。数えるのは、成功した回数・ターン数・コスト・出力トークン・Bash の呼び出し・loopcraft の呼び出し・`--help` を読んだ回数・スクリプトを書いた回数です。
 
 ## 2026-10-18: 早見表・JSON の形・check / edit / layout / render / diff
