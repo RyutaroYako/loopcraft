@@ -18,6 +18,14 @@ import {
 afterEach(cleanup);
 
 const title = () => page.getByRole("textbox", { name: "図のタイトル" });
+/** 見本の図は手で並べてあり、整列しても変わらないので、変数を 1 か所に重ねておく */
+const piledSample = () => {
+  const sample = createSampleDiagram();
+  return {
+    ...sample,
+    variables: sample.variables.map((variable) => ({ ...variable, position: { x: 0, y: 0 } })),
+  };
+};
 const button = (name: string) => page.getByRole("button", { name, exact: true });
 const fileMenu = () => page.getByRole("menu", { name: "ファイル" });
 const fileMenuItem = (name: string) => fileMenu().getByRole("menuitem", { name, exact: true });
@@ -57,7 +65,7 @@ describe("ツールバー", () => {
   });
 
   it("変換中にほかの操作で図が変わっても、入力中のタイトルを消さない", async () => {
-    mount(browserStartup(createSampleDiagram()));
+    mount(browserStartup(piledSample()));
     const input = title().element() as HTMLInputElement;
     input.value = "へんかん";
     input.dispatchEvent(new InputEvent("input", { bubbles: true, isComposing: true }));
@@ -75,14 +83,19 @@ describe("ツールバー", () => {
     await expect.element(node("社員数")).toBeVisible();
   });
 
-  it("整列で変数を並べ直し、元に戻せる", async () => {
-    mount(browserStartup(createSampleDiagram()));
+  it("整列で重なった変数を並べ直し、元に戻せる。崩れが無ければそう知らせる", async () => {
+    mount(browserStartup(piledSample()));
     const transform = () => node("社員数").element().getAttribute("transform");
     const before = transform();
     await button("整列").click();
     await expect.poll(transform).not.toBe(before);
     await button("元に戻す").click();
     await expect.poll(transform).toBe(before);
+
+    mount(browserStartup(createSampleDiagram()));
+    await button("整列").click();
+    await expect.element(notice()).toMatchTextContent(/整える所はありませんでした/);
+    await expect.element(button("元に戻す")).toBeDisabled();
 
     mount(browserStartup(createEmptyDiagram()));
     await expect.element(button("整列")).toBeDisabled();
