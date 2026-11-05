@@ -84,9 +84,9 @@ describe("AI に図を変えてもらう", () => {
     promptInput()
       .element()
       .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 229, bubbles: true }));
-    expect(control.prompts).toHaveLength(1);
     await panel().getByRole("button", { name: "送る" }).click();
     await expect.poll(() => control.prompts.at(-1)).toEqual({ prompt: "並べ直して" });
+    expect(control.prompts).toHaveLength(2);
   });
 
   it("選んでいる関連やループも、名前を添えて送る", async () => {
