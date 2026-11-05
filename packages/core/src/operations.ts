@@ -26,7 +26,7 @@ import { closest } from "./suggest.ts";
 const Ref = v.pipe(v.string(), v.nonEmpty());
 const Text = v.string();
 
-export const OperationSchema = v.variant("op", [
+const OperationSchema = v.variant("op", [
   v.strictObject({
     op: v.literal("add-variable"),
     id: v.optional(Ref),

@@ -29,27 +29,26 @@ afterEach(async () => {
   await closeServers();
 });
 
+const edit = (...operations: unknown[]) => ({
+  bash: `loopcraft edit diagram.json - <<< '${operations.map((op) => JSON.stringify(op)).join("\n")}'`,
+});
+
 const addQuitMeeting: FakeRun = {
   steps: [
     { text: "面談の回数を足します。" },
-    { tool: "get_diagram" },
-    {
-      tool: "apply_operations",
-      input: {
-        operations: [
-          { op: "add-variable", id: "meetings", label: "面談の回数" },
-          { op: "add-link", from: "attrition", to: "meetings", polarity: "+" },
-          { op: "add-link", from: "meetings", to: "attrition", polarity: "-" },
-        ],
-      },
-    },
-    { tool: "check" },
+    { read: "diagram.json" },
+    edit(
+      { op: "add-variable", id: "meetings", label: "面談の回数" },
+      { op: "add-link", from: "attrition", to: "meetings", polarity: "+" },
+      { op: "add-link", from: "meetings", to: "attrition", polarity: "-" },
+    ),
+    { bash: "loopcraft check diagram.json --format json" },
     { text: "離職を抑えるバランスループを足しました。" },
   ],
   result: { text: "離職を抑えるバランスループを足しました。" },
 };
 
-async function startAgent(options: { readonly?: boolean } = {}) {
+async function startAgent(options: { readonly?: boolean; name?: string } = {}) {
   const started = await start({ agent: fake.command, ...options });
   const events = await openAgentEvents(started.server);
   closers.push(events.close);
@@ -79,7 +78,7 @@ describe("AI に図を変えさせる", () => {
     expect((await api(readonly.server, "/api/agent/prompt", { method: "POST" })).status).toBe(404);
   });
 
-  it("読むだけの道具と loopcraft の道具だけを許して claude を動かし、選んでいる要素を添える", async () => {
+  it("読むだけの道具と、図に対する loopcraft のコマンドだけを許して claude を動かし、選んでいる要素を添える", async () => {
     fake.script(addQuitMeeting);
     const agent = await startAgent();
     const response = await agent.prompt({
@@ -93,20 +92,47 @@ describe("AI に図を変えさせる", () => {
       expect.arrayContaining(["-p", "--output-format", "stream-json", "--strict-mcp-config"]),
     );
     const after = (flag: string) => call!.args[call!.args.indexOf(flag) + 1];
+    const listed = (flag: string, count: number) =>
+      call!.args.slice(call!.args.indexOf(flag) + 1, call!.args.indexOf(flag) + 1 + count);
     expect(after("--permission-mode")).toBe("dontAsk");
-    expect(
-      call!.args.slice(call!.args.indexOf("--tools") + 1, call!.args.indexOf("--tools") + 4),
-    ).toEqual(["Read", "Grep", "Glob"]);
-    expect(after("--allowedTools")).toBe("mcp__loopcraft");
+    expect(after("--setting-sources")).toBe("");
+    expect(listed("--tools", 4)).toEqual(["Bash", "Read", "Grep", "Glob"]);
+    expect(listed("--allowedTools", 6)).toEqual([
+      "Bash(loopcraft edit diagram.json:*)",
+      "Bash(loopcraft layout diagram.json:*)",
+      "Bash(loopcraft check diagram.json:*)",
+      "Read",
+      "Grep",
+      "Glob",
+    ]);
     expect(call!.args).not.toContain("--resume");
-    expect(call!.args.join(" ")).not.toMatch(/Bash|Write|Edit/);
+    expect(call!.args).not.toContain("--mcp-config");
     expect(call!.stdin).toBe(
       "（画面で選んでいる変数: 離職数、ID: attrition）\n\n離職数を減らす打ち手を足して",
     );
     expect(call!.cwd).toBe(agent.cwd);
   });
 
-  it("道具で変えた図をファイルに書き、変えた内容と確かめた結果を、画面へ順に伝える", async () => {
+  it("ファイル名に空白があれば、引用符で囲んだ名前で許し、そのとおりに打たせる", async () => {
+    fake.script({
+      steps: [{ bash: `loopcraft edit 'my map.json' - <<< '{"op":"set-title","title":"x"}'` }],
+      result: { text: "変えました" },
+    });
+    const agent = await startAgent({ name: "my map.json" });
+    await agent.prompt({ prompt: "題名を変えて" });
+    const state = await agent.finished();
+    const [call] = fake.calls();
+    expect(call!.args).toContain("Bash(loopcraft edit 'my map.json':*)");
+    expect(call!.args[call!.args.indexOf("--system-prompt") + 1]).toContain(
+      "loopcraft edit 'my map.json' - <<< '操作'",
+    );
+    expect(lastTurn(state).undoable).toBe(true);
+    expect(lastTurn(state).items).toEqual([
+      { kind: "changes", changes: [{ kind: "title-changed", title: "x" }] },
+    ]);
+  });
+
+  it("serve と同じ loopcraft で図を変えさせ、変えた内容と確かめた結果を、画面へ順に伝える", async () => {
     fake.script(addQuitMeeting);
     const agent = await startAgent();
     const changes = await openEvents(agent.server);
@@ -141,23 +167,41 @@ describe("AI に図を変えさせる", () => {
     ]);
   });
 
-  it("失敗した操作は書き込まず、理由を AI に返す", async () => {
+  it("失敗した操作では何も変わらず、読んだほかのファイルを伝える", async () => {
     fake.script({
       steps: [
-        {
-          tool: "apply_operations",
-          input: { operations: [{ op: "add-link", from: "attrition", to: "missing" }] },
-        },
+        { read: "notes.md" },
+        edit({ op: "add-link", from: "attrition", to: "missing", polarity: "+" }),
       ],
       result: { text: "できませんでした" },
     });
     const agent = await startAgent();
+    await writeFile(join(agent.cwd, "notes.md"), "離職の理由");
     const before = await readFile(agent.file, "utf8");
     await agent.prompt({ prompt: "つないで" });
     const state = await agent.finished();
     expect(await readFile(agent.file, "utf8")).toBe(before);
-    expect(fake.replies()[0]).toMatchObject({ result: { isError: true } });
-    expect(lastTurn(state)).toMatchObject({ status: "done", undoable: false });
+    expect(fake.replies()[0]).toMatchObject({ code: 1 });
+    expect(lastTurn(state)).toMatchObject({
+      status: "done",
+      undoable: false,
+      items: [{ kind: "read", path: "notes.md" }],
+    });
+  });
+
+  it("止めても、それまでに変えた所は一覧に出し、取り消せる", async () => {
+    fake.script({
+      steps: [edit({ op: "set-title", title: "途中まで" }), { hang: true }],
+    });
+    const agent = await startAgent();
+    await agent.prompt({ prompt: "変えて" });
+    await agent.events.until((state) => (state.turns.at(-1)?.items.length ?? 0) > 0);
+    await agent.post("stop");
+    expect(lastTurn(await agent.finished())).toMatchObject({
+      status: "stopped",
+      undoable: true,
+      items: [{ kind: "changes", changes: [{ kind: "title-changed", title: "途中まで" }] }],
+    });
   });
 
   it("次の指示は同じ会話を続け、会話が消えていたら新しく始める", async () => {
@@ -252,33 +296,5 @@ describe("AI に図を変えさせる", () => {
     ]);
     expect([saved.status, undone.status]).not.toEqual([200, 200]);
     if (saved.status === 200) expect(await agent.diagram()).toEqual(edited);
-  });
-
-  it("道具はトークンが無ければ断り、AI が動いていないときは使わせない", async () => {
-    fake.script({ result: { text: "はい" } });
-    const agent = await startAgent();
-    await agent.prompt({ prompt: "読んで" });
-    await agent.finished();
-    const [call] = fake.calls();
-    const config = JSON.parse(call!.args[call!.args.indexOf("--mcp-config") + 1]!) as {
-      mcpServers: { loopcraft: { headers: { authorization: string } } };
-    };
-    const tool = (authorization?: string) =>
-      send(agent.server, "/mcp", {
-        method: "POST",
-        headers: authorization ? { authorization } : {},
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "tools/call",
-          params: { name: "get_diagram", arguments: {} },
-        }),
-      });
-    expect((await tool()).status).toBe(403);
-    expect((await tool(`Bearer ${TOKEN}`)).status).toBe(403);
-    const idle = await tool(config.mcpServers.loopcraft.headers.authorization);
-    expect(JSON.parse(idle.body)).toMatchObject({
-      result: { isError: true, content: [{ text: "AI の実行中だけ使えます" }] },
-    });
   });
 });

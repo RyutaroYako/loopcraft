@@ -1,4 +1,5 @@
 // テストで PATH に置く claude の代わり。FAKE_CLAUDE_DIR/scenario.json の筋書きどおりに stream-json を流す
+import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -21,25 +22,25 @@ appendFileSync(callsFile, `${JSON.stringify({ args, stdin, cwd: process.cwd() })
 
 const runs = JSON.parse(readFileSync(join(dir, "scenario.json"), "utf8"));
 const run = runs[Math.min(previous, runs.length - 1)];
-const config = JSON.parse(args[args.indexOf("--mcp-config") + 1]);
-const server = Object.values(config.mcpServers)[0];
 const session = run.session ?? "sess-1";
 const print = (line) => process.stdout.write(`${JSON.stringify(line)}\n`);
 
 let id = 0;
-const callTool = async (name, input) => {
-  const response = await fetch(server.url, {
-    method: "POST",
-    headers: { ...server.headers, "content-type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: ++id,
-      method: "tools/call",
-      params: { name, arguments: input },
-    }),
+const useTool = (name, input) => {
+  const toolId = `tool-${++id}`;
+  print({
+    type: "assistant",
+    message: { content: [{ type: "tool_use", id: toolId, name, input }] },
   });
-  return response.json();
+  return toolId;
 };
+const toolResult = (toolId, content, isError = false) =>
+  print({
+    type: "user",
+    message: {
+      content: [{ type: "tool_result", tool_use_id: toolId, content, is_error: isError }],
+    },
+  });
 
 if (run.stderr) process.stderr.write(run.stderr);
 if (run.exit !== undefined && !run.steps) process.exit(run.exit);
@@ -49,29 +50,17 @@ for (const step of run.steps ?? []) {
   if (step.text) {
     print({ type: "assistant", message: { content: [{ type: "text", text: step.text }] } });
   } else if (step.read) {
-    print({
-      type: "assistant",
-      message: {
-        content: [
-          { type: "tool_use", name: "Read", input: { file_path: join(process.cwd(), step.read) } },
-        ],
-      },
-    });
-  } else if (step.tool) {
-    print({
-      type: "assistant",
-      message: {
-        content: [
-          { type: "tool_use", name: `mcp__loopcraft__${step.tool}`, input: step.input ?? {} },
-        ],
-      },
-    });
-    const reply = await callTool(step.tool, step.input ?? {});
-    appendFileSync(join(dir, "replies.jsonl"), `${JSON.stringify(reply)}\n`);
-    print({
-      type: "user",
-      message: { content: [{ type: "tool_result", content: reply.result?.content ?? [] }] },
-    });
+    const toolId = useTool("Read", { file_path: join(process.cwd(), step.read) });
+    toolResult(toolId, readFileSync(join(process.cwd(), step.read), "utf8"));
+  } else if (step.bash) {
+    // 許可の規則は確かめない。規則どおりに claude を動かすかは、渡した引数で確かめる
+    const toolId = useTool("Bash", { command: step.bash });
+    const ran = spawnSync("bash", ["-c", step.bash], { encoding: "utf8", env: process.env });
+    appendFileSync(
+      join(dir, "replies.jsonl"),
+      `${JSON.stringify({ code: ran.status, stdout: ran.stdout, stderr: ran.stderr })}\n`,
+    );
+    toolResult(toolId, `${ran.stdout}${ran.stderr}`, ran.status !== 0);
   } else if (step.hang) {
     await new Promise(() => setInterval(() => {}, 1000));
   }

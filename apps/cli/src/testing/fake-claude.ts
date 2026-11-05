@@ -8,7 +8,8 @@ const script = fileURLToPath(new URL("./fake-claude.mjs", import.meta.url));
 export type FakeStep =
   | { text: string }
   | { read: string }
-  | { tool: string; input?: unknown }
+  /** Bash で打つ。PATH には serve が置いた loopcraft がある */
+  | { bash: string }
   /** 止められるまで終わらない */
   | { hang: true };
 
@@ -28,7 +29,7 @@ export interface FakeCall {
 
 /**
  * 本物の claude を動かさないのは、テストが手元のログインや通信に左右されるため。
- * 引数の組み立て・ストリームの読み取り・MCP の呼び出しは本物の道筋を通る
+ * 引数の組み立て・ストリームの読み取り・loopcraft の呼び出しは本物の道筋を通る
  */
 export function installFakeClaude() {
   const dir = mkdtempSync(join(tmpdir(), "loopcraft-fake-claude-"));

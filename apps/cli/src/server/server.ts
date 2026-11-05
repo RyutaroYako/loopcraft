@@ -1,8 +1,10 @@
 import { randomBytes } from "node:crypto";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { basename } from "node:path";
+import { tmpdir } from "node:os";
+import { basename, delimiter, join } from "node:path";
 import { AGENT_WRITER, PromptRequestSchema, UndoRequestSchema } from "@loopcraft/core/agent";
 import type { AgentInfo, AgentState } from "@loopcraft/core/agent";
 import { CLIENT_HEADER, SaveRequestSchema, TOKEN_HEADER } from "@loopcraft/core/session";
@@ -12,8 +14,7 @@ import "@valibot/i18n/ja/schema";
 import { createEmptyDiagram, formatDiagramError } from "@loopcraft/core/io";
 import { createConversation } from "../agent/conversation.ts";
 import type { Conversation } from "../agent/conversation.ts";
-import { handleMcpMessage } from "../agent/mcp.ts";
-import type { DiagramAccess } from "../agent/tools.ts";
+import type { DiagramAccess } from "../agent/conversation.ts";
 import { currentRevision, readDiagramFile, writeDiagramFile } from "../files.ts";
 import type { Logger } from "../log.ts";
 import {
@@ -41,7 +42,13 @@ export interface ServerOptions {
   log: Logger;
   token?: string;
   /** 図を変えさせる手元の AI。読み取り専用のときは使わない */
-  agent?: { command: string; info: AgentInfo; cwd: string };
+  agent?: {
+    command: string;
+    info: AgentInfo;
+    cwd: string;
+    /** AI に打たせる loopcraft を動かすコマンドと引数。この serve と同じ版を使わせる */
+    cli: readonly string[];
+  };
 }
 
 export interface RunningServer {
@@ -56,8 +63,6 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   // 0.0.0.0 で待ち受けないのは、同じネットワークの他の端末からファイルを書き換えられてしまうため
   const host = options.host ?? "127.0.0.1";
   const token = options.token ?? randomBytes(24).toString("base64url");
-  // 画面と同じトークンにしないのは、画面に埋め込んだトークンで AI の道具を直接呼ばせないため
-  const mcpToken = randomBytes(24).toString("base64url");
   const agentOptions = options.readonly ? undefined : options.agent;
   const session: Session = {
     token,
@@ -77,7 +82,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   }
   const listeners = new Set<ServerResponse>();
   const agentListeners = new Set<ServerResponse>();
-  /** 待ち受けてポートが決まってから作る。MCP の URL にポートが要る */
+  /** 待ち受ける前に作らないのは、待ち受けに失敗したときに、AI 用の loopcraft の置き場を残さないため */
   let conversation: Conversation | undefined;
   let port = options.port;
   /** 並行に処理しないのは、版を確かめてから書き込むまでの間に別の保存が割り込むため */
@@ -101,10 +106,6 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       return;
     }
     const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
-    if (url.pathname === "/mcp") {
-      await handleMcp(request, response);
-      return;
-    }
     if (url.pathname.startsWith("/api/")) {
       await handleApi(request, response, url);
       return;
@@ -145,33 +146,6 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       return;
     }
     sendJson(response, 404, { error: "not found" });
-  }
-
-  async function handleMcp(request: IncomingMessage, response: ServerResponse) {
-    const given = headerValue(request.headers.authorization)?.replace(/^Bearer /, "");
-    if (!conversation || !sameToken(given, mcpToken)) {
-      sendJson(response, 403, { error: "invalid token" });
-      return;
-    }
-    // GET の SSE を開かないのは、サーバーから知らせることが無く、claude を待たせるだけのため
-    if (request.method !== "POST") {
-      sendText(response, 405, "Method Not Allowed");
-      return;
-    }
-    let body: unknown;
-    try {
-      body = JSON.parse(await readBody(request));
-    } catch (error) {
-      sendJson(response, 400, { error: String(error) });
-      return;
-    }
-    const reply = await handleMcpMessage(body, conversation.tools);
-    if (reply === undefined) {
-      response.writeHead(202);
-      response.end();
-      return;
-    }
-    sendJson(response, 200, reply);
   }
 
   async function handleAgent(request: IncomingMessage, response: ServerResponse, action: string) {
@@ -340,13 +314,11 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         if ("failure" in before) return before;
         const after = change(before);
         if ("failure" in after) return after;
-        if (after !== before) {
-          const revision = await writeDiagramFile(options.file, after);
-          knownRevision = revision;
-          lastWriter = AGENT_WRITER;
-          broadcast("change", { revision, writer: AGENT_WRITER });
-        }
-        return { before, after };
+        const revision = await writeDiagramFile(options.file, after);
+        knownRevision = revision;
+        lastWriter = AGENT_WRITER;
+        broadcast("change", { revision, writer: AGENT_WRITER });
+        return after;
       });
       saveQueue = updating.then(
         () => {},
@@ -356,6 +328,21 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     },
   };
 
+  /** ほかが書いたファイルの版を取り込み、画面へ知らせる */
+  function sync(writer: string | null) {
+    const syncing = saveQueue.then(async () => {
+      const revision = await currentRevision(options.file);
+      if (revision === knownRevision) return;
+      knownRevision = revision;
+      lastWriter = writer;
+      if (writer === null) log.warn(`${session.file} が外部で変更されました`);
+      broadcast("change", { revision, writer });
+      conversation?.revisionChanged();
+    });
+    saveQueue = syncing.catch(() => {});
+    return syncing;
+  }
+
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(options.port, host, () => {
@@ -364,32 +351,29 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     });
   });
   port = (server.address() as AddressInfo).port;
-  conversation = agentOptions
-    ? createConversation({
-        cwd: agentOptions.cwd,
-        command: agentOptions.command,
-        mcp: { url: `http://${host}:${port}/mcp`, token: mcpToken },
-        access,
-        revision: () => knownRevision,
-        publish: publishAgent,
-      })
-    : undefined;
+  const cliDir = agentOptions ? await installCli(agentOptions.cli) : undefined;
+  conversation =
+    agentOptions && cliDir
+      ? createConversation({
+          cwd: agentOptions.cwd,
+          command: agentOptions.command,
+          file: options.file,
+          env: { ...process.env, PATH: [cliDir, process.env["PATH"]].join(delimiter) },
+          access,
+          revision: () => knownRevision,
+          sync: () => sync(AGENT_WRITER),
+          publish: publishAgent,
+        })
+      : undefined;
 
   // 待ち受けより先に見張らないのは、待ち受けに失敗したときに見張りが残るため
   let fileWatch: FileWatch;
   try {
     fileWatch = await watchFile(options.file, {
       changed: () => {
-        currentRevision(options.file).then(
-          (revision) => {
-            if (revision === knownRevision) return;
-            knownRevision = revision;
-            lastWriter = null;
-            log.warn(`${session.file} が外部で変更されました`);
-            broadcast("change", { revision, writer: null });
-            conversation?.revisionChanged();
-          },
-          (error: unknown) => log.warn(`${session.file} を読めません: ${describeError(error)}`),
+        // AI が動いている間の変更を外部の変更と扱わないのは、画面に「外部の変更を読み込みました」と出さないため
+        sync(conversation?.isRunning() ? AGENT_WRITER : null).catch((error: unknown) =>
+          log.warn(`${session.file} を読めません: ${describeError(error)}`),
         );
       },
       lost: (reason) => {
@@ -402,6 +386,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     });
   } catch (error) {
     await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (cliDir) await rm(cliDir, { recursive: true, force: true });
     throw error;
   }
 
@@ -417,6 +402,20 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       conversation?.close();
       for (const listener of [...listeners, ...agentListeners]) listener.end();
       await new Promise<void>((resolve) => server.close(() => resolve()));
+      if (cliDir) await rm(cliDir, { recursive: true, force: true });
     },
   };
+}
+
+/**
+ * AI が打つ loopcraft を、この serve と同じ CLI にする置き場を作る。
+ * PATH にある loopcraft を使わせないのは、入っていないか、版が違うことがあるため
+ */
+async function installCli(cli: readonly string[]) {
+  const dir = await mkdtemp(join(tmpdir(), "loopcraft-agent-"));
+  const command = join(dir, "loopcraft");
+  const quoted = cli.map((part) => `'${part.replaceAll("'", `'\\''`)}'`).join(" ");
+  await writeFile(command, `#!/bin/sh\nexec ${quoted} "$@"\n`);
+  await chmod(command, 0o755);
+  return dir;
 }

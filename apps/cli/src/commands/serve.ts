@@ -28,6 +28,8 @@ export interface ServeDependencies {
   defaultPort?: number;
   /** AI の CLI の名前。PATH から探す */
   agentCommand?: string;
+  /** AI に打たせる loopcraft を動かすコマンドと引数。既定は今動いているこの CLI */
+  loopcraftCommand?: readonly string[];
 }
 
 export async function serve(
@@ -69,6 +71,7 @@ export async function serve(
           agent: {
             command: agentCommand,
             cwd,
+            cli: dependencies.loopcraftCommand ?? [process.execPath, process.argv[1] ?? ""],
             info: { label: CLAUDE_LABEL, ...(agentVersion ? { version: agentVersion } : {}) },
           },
         }),

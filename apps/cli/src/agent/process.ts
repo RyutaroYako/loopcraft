@@ -16,10 +16,11 @@ const STDERR_LIMIT = 4000;
 export async function* spawnJsonLines(
   command: string,
   args: readonly string[],
-  options: { cwd: string; signal: AbortSignal; stdin: string },
+  options: { cwd: string; env?: NodeJS.ProcessEnv; signal: AbortSignal; stdin: string },
 ): AsyncGenerator<{ line: unknown } | { exit: JsonLinesExit }> {
   const child = spawn(command, args, {
     cwd: options.cwd,
+    env: options.env,
     stdio: ["pipe", "pipe", "pipe"],
     signal: options.signal,
   });

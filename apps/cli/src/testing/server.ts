@@ -1,5 +1,6 @@
 import { request } from "node:http";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { AgentStateSchema } from "@loopcraft/core/agent";
 import type { AgentState } from "@loopcraft/core/agent";
 import { TOKEN_HEADER } from "@loopcraft/core/session";
@@ -9,6 +10,12 @@ import type { RunningServer, ServerOptions } from "../server/server.ts";
 import { createWebDir, createWorkspace, writeSample } from "./fixtures.ts";
 
 export const TOKEN = "test-token";
+
+/** pack した dist でなくソースを動かすのは、テストのたびに pack し直さずに済むようにするため */
+export const LOOPCRAFT_COMMAND = [
+  process.execPath,
+  fileURLToPath(new URL("../cli.ts", import.meta.url)),
+];
 
 const running = new Set<RunningServer>();
 
@@ -24,11 +31,18 @@ export async function startTracked(options: Omit<ServerOptions, "webDir" | "port
 }
 
 export async function start(
-  options: { readonly?: boolean; existing?: boolean; sample?: boolean; agent?: string } = {},
+  options: {
+    readonly?: boolean;
+    existing?: boolean;
+    sample?: boolean;
+    agent?: string;
+    name?: string;
+  } = {},
 ) {
   const workspace = await createWorkspace();
-  const file = join(workspace.cwd, "diagram.json");
-  if (options.existing !== false) await writeSample(workspace.cwd);
+  const name = options.name ?? "diagram.json";
+  const file = join(workspace.cwd, name);
+  if (options.existing !== false) await writeSample(workspace.cwd, name);
   const server = await startTracked({
     file,
     readonly: options.readonly ?? false,
@@ -40,6 +54,7 @@ export async function start(
           agent: {
             command: options.agent,
             cwd: workspace.cwd,
+            cli: LOOPCRAFT_COMMAND,
             info: { label: "Claude Code", version: "9.9.9" },
           },
         }
