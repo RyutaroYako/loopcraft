@@ -8,7 +8,12 @@ import { injectEditor } from "../editor/useEditor.ts";
 import { delayMarkPath } from "@loopcraft/core/glyphs";
 import type { CanvasNote } from "./note.ts";
 
-const { link, geometry } = defineProps<{ link: Link; geometry: LinkGeometry }>();
+const { link, geometry, touched } = defineProps<{
+  link: Link;
+  geometry: LinkGeometry;
+  /** AI が足したか変えた */
+  touched: boolean;
+}>();
 
 const emit = defineEmits<{
   "note:show": [note: CanvasNote, immediate: boolean];
@@ -29,6 +34,7 @@ const classes = computed(() => ({
   positive: link.polarity !== "-",
   selected: selected.value,
   highlighted: editor.highlightedLoop.value?.links.has(link.id) ?? false,
+  touched,
   dimmed: outside.value === "loop",
   faded: outside.value === "neighborhood",
 }));
@@ -156,7 +162,8 @@ function onKeyDown(event: KeyboardEvent) {
     stroke: var(--color-ink-2);
   }
 
-  &.selected > .line-path {
+  &.selected > .line-path,
+  &.touched > .line-path {
     stroke: var(--color-accent);
     stroke-width: 2;
   }

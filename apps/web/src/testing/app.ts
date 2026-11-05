@@ -6,6 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import "../styles/tokens.css";
 import "../styles/base.css";
 import App from "../App.vue";
+import type { AgentClient } from "../agent/agentClient.ts";
 import type { LoadResult } from "../persistence/fileStore.ts";
 import { startInBrowser, startWithFile } from "../persistence/startup.ts";
 import type { Startup } from "../persistence/startup.ts";
@@ -73,12 +74,13 @@ export function fakeFileStore() {
 
 export function fileStartup(
   loaded: LoadResult,
-  options: { readonly?: boolean; store?: DocumentStore } = {},
+  options: { readonly?: boolean; store?: DocumentStore; agent?: AgentClient } = {},
 ): Startup {
   return startWithFile(
     { token: "t", file: "growth.json", readonly: options.readonly ?? false },
     loaded,
     options.store ?? fakeFileStore().store,
+    options.agent,
   );
 }
 
@@ -181,4 +183,5 @@ export function jsonFile(diagram: Diagram, name = "diagram.json") {
   return new File([JSON.stringify(diagram)], name, { type: "application/json" });
 }
 
+export { agentTurn, fakeAgentClient } from "./agent.ts";
 export { page, userEvent };

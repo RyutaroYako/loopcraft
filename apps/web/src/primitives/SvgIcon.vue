@@ -108,6 +108,18 @@ const { name } = defineProps<{ name: IconName }>();
       <rect x="3" y="4" width="14" height="9.5" rx="1.5" />
       <path d="M7.5 16.5h5M10 13.5v3" />
     </template>
+    <template v-else-if="name === 'stop'">
+      <rect x="5.5" y="5.5" width="9" height="9" rx="1.75" fill="currentColor" stroke="none" />
+    </template>
+    <template v-else-if="name === 'compose'">
+      <path
+        d="M16.5 11v4.25a1.75 1.75 0 0 1-1.75 1.75h-9.5a1.75 1.75 0 0 1-1.75-1.75v-9.5A1.75 1.75 0 0 1 5.25 4H9"
+      />
+      <path d="m13.75 3.25 3 3-6.5 6.5H7.25v-3z" />
+    </template>
+    <template v-else-if="name === 'arrow-up'">
+      <path d="M10 16V4M5.5 8.5 10 4l4.5 4.5" />
+    </template>
   </svg>
 </template>
 

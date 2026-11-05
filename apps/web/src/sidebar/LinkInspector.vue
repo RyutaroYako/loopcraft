@@ -12,7 +12,7 @@ import SvgIcon from "../primitives/SvgIcon.vue";
 import TextField from "../primitives/TextField.vue";
 import ToggleSwitch from "../primitives/ToggleSwitch.vue";
 import { labelOf } from "../editor/labels.ts";
-import PolarityGlyph from "./PolarityGlyph.vue";
+import PolarityGlyph from "../primitives/PolarityGlyph.vue";
 
 const { id } = defineProps<{ id: LinkId }>();
 

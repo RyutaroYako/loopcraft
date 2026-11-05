@@ -1,5 +1,5 @@
-import type { InjectionKey, Ref } from "vue";
-import { computed, inject, ref, shallowRef } from "vue";
+import type { InjectionKey, MaybeRefOrGetter, Ref } from "vue";
+import { computed, inject, ref, shallowRef, toValue } from "vue";
 import * as edit from "@loopcraft/core/edit";
 import { createEmptyDiagram } from "@loopcraft/core/io";
 import { autoLayout as layoutDiagram } from "@loopcraft/core/layout";
@@ -19,7 +19,8 @@ import { useViewport } from "./useViewport.ts";
 export type { Gesture } from "./useHistory.ts";
 
 export interface EditorOptions {
-  editable?: boolean;
+  /** 動いている間に変わることがある（AI が図を変えている間など） */
+  editable?: MaybeRefOrGetter<boolean>;
   /** 消した要素にフォーカスがあったまま放っておくと、キーボード操作を続けられない */
   restoreFocus?: () => void;
 }
@@ -35,7 +36,7 @@ export function injectEditor(): Editor {
 }
 
 export function useEditor(initial: Diagram, options: EditorOptions = {}) {
-  const editable = options.editable ?? true;
+  const editable = () => toValue(options.editable ?? true);
   const restoreFocus = options.restoreFocus ?? (() => {});
   // shallowRef にするのは、深い ref だと中身がプロキシに替わり、core の編集関数が返す「変わっていない図」を === で見分けられないため
   const diagram = shallowRef(initial);
@@ -82,16 +83,16 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
 
   function commit(next: Diagram, coalesceKey?: string) {
     finishNaming();
-    if (editable) history.commit(next, coalesceKey);
+    if (editable()) history.commit(next, coalesceKey);
   }
 
   function beginGesture(): Gesture {
     finishNaming();
-    return editable ? history.beginGesture() : { preview() {}, end() {}, cancel() {} };
+    return editable() ? history.beginGesture() : { preview() {}, end() {}, cancel() {} };
   }
 
   function travel(move: () => boolean) {
-    if (!editable || !move()) return;
+    if (!editable() || !move()) return;
     dropStaleSelection(diagram.value);
     restoreFocus();
   }
@@ -119,7 +120,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
   }
 
   function setEditingVariable(id: VariableId | null) {
-    if (id !== null && !editable) return;
+    if (id !== null && !editable()) return;
     editingVariable.value = id;
   }
 
@@ -133,7 +134,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
 
   // 足した時点で確定しないのは、名前を付けずに終えたら足す前に戻し、取り消しの履歴にも残さないため
   function addVariableAt(position: Point) {
-    if (!editable) return undefined;
+    if (!editable()) return undefined;
     finishNaming();
     const result = edit.addVariable(diagram.value, { label: "", position });
     const gesture = history.beginGesture();
@@ -151,7 +152,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
   }
 
   function connect(from: VariableId, to: VariableId) {
-    if (!editable) return;
+    if (!editable()) return;
     const result = edit.addLink(diagram.value, { from, to });
     if (result.ok) {
       commit(result.diagram);
@@ -165,7 +166,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
   }
 
   function deleteSelection() {
-    if (!editable) return;
+    if (!editable()) return;
     const selected = selection.value;
     if (!selected) return;
     if (selected.kind === "variable") commit(edit.removeVariable(diagram.value, selected.id));
@@ -176,14 +177,14 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
   }
 
   function featureLoop(linkIds: LinkId[]) {
-    if (!editable) return;
+    if (!editable()) return;
     const result = edit.featureLoop(diagram.value, linkIds);
     commit(result.diagram);
     select({ kind: "loop", id: result.id });
   }
 
   function unfeatureLoop(id: LoopId) {
-    if (!editable) return;
+    if (!editable()) return;
     const loop = diagram.value.loops.find((item) => item.id === id);
     commit(edit.removeLoop(diagram.value, id));
     if (selection.value?.id === id) select(null);
@@ -204,7 +205,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
   }
 
   function replaceDiagram(next: Diagram) {
-    if (!editable) return;
+    if (!editable()) return;
     commit(next);
     select(null);
     focusedLoop.value = null;
@@ -213,7 +214,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
   }
 
   async function importFile(file: File) {
-    if (!editable) return;
+    if (!editable()) return;
     const result = await readDiagramFile(file);
     if (!result.ok) {
       notices.notify({
@@ -232,7 +233,7 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
   }
 
   function autoLayout() {
-    if (!editable) return;
+    if (!editable()) return;
     const sizes = new Map([...index.boxes.value].map(([id, box]) => [id, box.size]));
     const next = layoutDiagram(diagram.value, sizes);
     commit(next);
@@ -247,8 +248,17 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
     view.fitTo(computeBoxes(target.variables).values());
   }
 
+  // 読み取り専用に切り替えるだけにしないのは、名前の入力やドラッグの途中の変更が、確定されずに消えるため
+  function settle() {
+    finishNaming();
+    history.finishGesture();
+  }
+
   return {
-    editable,
+    get editable() {
+      return editable();
+    },
+    settle,
     diagram: diagram as Readonly<Ref<Diagram>>,
     variableById: index.variableById,
     linkById: index.linkById,

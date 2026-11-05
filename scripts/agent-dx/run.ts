@@ -3,7 +3,7 @@
  *
  *   node scripts/agent-dx/run.ts --tarball loopcraft-0.2.0.tgz --label baseline --runs 3
  *
- * 結果は --out（既定: tmp/agent-dx）の <label>/results.jsonl に追記する。記録は docs/agent-dx-log.md
+ * 結果は --out（既定: OS の一時ディレクトリの loopcraft-agent-dx）の <label>/results.jsonl に追記する。記録は docs/agent-dx-log.md
  */
 import { execFileSync, spawn } from "node:child_process";
 import {
@@ -15,6 +15,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { TASKS } from "./tasks.ts";
@@ -29,7 +30,8 @@ const { values } = parseArgs({
     task: { type: "string", multiple: true },
     "agent-init": { type: "boolean", default: false },
     parallel: { type: "string", default: "3" },
-    out: { type: "string", default: "tmp/agent-dx" },
+    // 既定をリポジトリの中にしないのは、ルートの package.json の devEngines（pnpm）に npm init が引っかかって止まるため
+    out: { type: "string", default: join(tmpdir(), "loopcraft-agent-dx") },
   },
 });
 if (!values.tarball || !values.label) {

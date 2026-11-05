@@ -39,6 +39,7 @@ export function useAutosave(
     unwatched: unwatched as Readonly<Ref<string | undefined>>,
     start: autosaver.start,
     retry: autosaver.retry,
+    saveNow: autosaver.saveNow,
     resume: autosaver.resume,
     reload: autosaver.reload,
   };

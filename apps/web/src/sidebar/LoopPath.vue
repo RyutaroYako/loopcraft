@@ -3,7 +3,7 @@ import { computed } from "vue";
 import type { LinkId, VariableId } from "@loopcraft/core/schema";
 import { injectEditor } from "../editor/useEditor.ts";
 import { labelOf } from "../editor/labels.ts";
-import PolarityGlyph from "./PolarityGlyph.vue";
+import PolarityGlyph from "../primitives/PolarityGlyph.vue";
 
 const { links, variables } = defineProps<{
   links: readonly LinkId[];

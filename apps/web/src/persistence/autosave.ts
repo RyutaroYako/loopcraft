@@ -25,7 +25,8 @@ export interface AutosaveOptions {
   initialStatus?: AutosaveStatus;
   onStatus?: (status: AutosaveStatus) => void;
   onProblem?: (status: AutosaveStatus) => void;
-  onReload?: () => void;
+  /** writer は、serve の中の AI が書いたなら "agent" */
+  onReload?: (writer?: "agent") => void;
   /** 外部での変更を見張れなくなったとき。保存は続ける */
   onUnwatched?: (detail: string | undefined) => void;
   onRecovered?: () => void;
@@ -93,7 +94,7 @@ export const createAutosaver = (
     saving = undefined;
   };
 
-  const apply = (result: ReloadResult): ReloadResult => {
+  const apply = (result: ReloadResult, writer?: "agent"): ReloadResult => {
     if (!result.ok) {
       update({ kind: "suspended", reason: "external", problems: result.problems });
       return result;
@@ -108,11 +109,11 @@ export const createAutosaver = (
     target.applyExternal(result.diagram);
     dirty = false;
     update({ kind: "ok" });
-    options.onReload?.();
+    options.onReload?.(writer);
     return result;
   };
 
-  const onExternalChange = async () => {
+  const onExternalChange = async (writer?: "agent") => {
     // 取り込めずに止めた後も追うのは、守る変更が無ければ、直したファイルを取り込めるようにするため
     const following =
       current.kind !== "suspended" || (current.reason !== "disconnected" && !unsaved());
@@ -127,7 +128,7 @@ export const createAutosaver = (
       update({ kind: "suspended", reason: "external" });
       return;
     }
-    apply(result);
+    apply(result, writer);
   };
 
   const changed = () => {
@@ -166,7 +167,7 @@ export const createAutosaver = (
       event.preventDefault();
     };
     const stopWatching = store.watch({
-      change: () => void onExternalChange(),
+      change: (writer) => void onExternalChange(writer),
       lost: (reason, detail) => {
         if (reason === "disconnected") disconnect();
         else options.onUnwatched?.(detail);
@@ -198,6 +199,15 @@ export const createAutosaver = (
     resume: () => {
       dirty = true;
       return save(true);
+    },
+    /**
+     * 変更があるときだけ書かないのは、サンプルの図で始めたときなど、変えていなくても画面とファイルが違うことがあるため。
+     * 止めているときは書かない
+     */
+    saveNow: async () => {
+      dirty = true;
+      await save();
+      return current;
     },
     /** この画面の変更は捨てる */
     reload: async (): Promise<ReloadResult> => apply(await store.reload()),

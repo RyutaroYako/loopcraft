@@ -14,6 +14,11 @@ import InlineLabelEditor from "./InlineLabelEditor.vue";
 import { useCanvasGestures } from "./useCanvasGestures.ts";
 import { useCanvasNote } from "./useCanvasNote.ts";
 
+const { touched } = defineProps<{
+  /** AI が足したか変えた変数と関連 */
+  touched?: { variables: ReadonlySet<string>; links: ReadonlySet<string> } | undefined;
+}>();
+
 const editor = injectEditor();
 const diagram = editor.diagram;
 const editingVariable = editor.editingVariable;
@@ -136,6 +141,7 @@ function onLabelFinished(id: VariableId, refocus: boolean) {
             :key="item.link.id"
             :link="item.link"
             :geometry="item.geometry"
+            :touched="touched?.links.has(item.link.id) ?? false"
             @note:show="canvasNote.show"
             @note:hide="canvasNote.hide"
           />
@@ -159,6 +165,7 @@ function onLabelFinished(id: VariableId, refocus: boolean) {
             :variable="item.variable"
             :box="item.box"
             :connect-target="linkDraft?.target === item.variable.id"
+            :touched="touched?.variables.has(item.variable.id) ?? false"
             @pointerdown:body="gestures.onNodePointerDown"
             @pointerdown:handle="gestures.onHandlePointerDown"
           />

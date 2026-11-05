@@ -6,6 +6,7 @@ import {
   TOKEN_HEADER,
 } from "@loopcraft/core/session";
 import type { DocumentResponse, Revision, Session } from "@loopcraft/core/session";
+import { AGENT_WRITER } from "@loopcraft/core/agent";
 import * as v from "valibot";
 import type { DocumentStore, ReloadResult, SaveResult } from "./store.ts";
 
@@ -116,7 +117,8 @@ export const createFileClient = (session: Session, base = "") => {
           if (inFlight === 0) seen = baseRevision = result.output.revision;
           return;
         }
-        if (result.output.revision !== seen) handlers.change();
+        if (result.output.revision === seen) return;
+        handlers.change(result.output.writer === AGENT_WRITER ? "agent" : undefined);
       };
       source.addEventListener("change", onRevision);
       // change だけ聞くと、切れていた間の変更を取りこぼす。revision はつないだ（つなぎ直した）ときに届く

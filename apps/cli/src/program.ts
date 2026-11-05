@@ -6,6 +6,7 @@ import type { CheckOptions } from "./commands/check.ts";
 import { diff } from "./commands/diff.ts";
 import type { DiffDependencies } from "./commands/diff.ts";
 import { edit } from "./commands/edit.ts";
+import { OPERATION_EXAMPLES } from "./operation-help.ts";
 import { init, DEFAULT_FILE } from "./commands/init.ts";
 import { layout } from "./commands/layout.ts";
 import { render } from "./commands/render.ts";
@@ -36,6 +37,7 @@ export interface ProgramDependencies {
   readStdin: () => Promise<string> | undefined;
   svgToPng?: RenderDependencies["svgToPng"];
   showFile?: DiffDependencies["showFile"];
+  agentCommand?: string;
 }
 
 export async function runCli(argv: string[], dependencies: ProgramDependencies): Promise<number> {
@@ -131,9 +133,10 @@ export function createProgram(
           open: options.open,
           readonly: options.readonly,
           sample: options.sample,
+          agent: options.agent,
         },
         context,
-        { openBrowser: dependencies.openBrowser },
+        { openBrowser: dependencies.openBrowser, agentCommand: dependencies.agentCommand },
       );
       if (started.kind !== "serving") return report(started);
       await dependencies.waitForExit();
@@ -243,6 +246,7 @@ export function createProgram(
     .addOption(new Option("--edit").hideHelp())
     .option("--sample", "新しいファイルをサンプルの図で開く。保存するまでファイルは作らない")
     .option("--no-open", "ブラウザを開かない")
+    .option("--no-agent", "画面から手元の Claude Code に図の編集を頼めないようにする")
     .action(actions.serve);
 
   program
@@ -321,16 +325,7 @@ export function createProgram(
       [
         "",
         "操作（from・to・through・id には、変数の ID かラベルを書ける）:",
-        '  {"op":"add-variable","id":"sales","label":"売上"}          position を省くと自動で置く',
-        '  {"op":"update-variable","id":"sales","label":"月の売上","position":{"x":0,"y":0}}',
-        '  {"op":"remove-variable","id":"sales"}                       つながる関連とループも消す',
-        '  {"op":"add-link","from":"sales","to":"staff","polarity":"+","delay":true}',
-        '  {"op":"update-link","from":"sales","to":"staff","polarity":"-"}   id で指してもよい',
-        '  {"op":"remove-link","from":"sales","to":"staff"}',
-        '  {"op":"add-loop","through":["sales","staff"],"name":"成長"}   辿る順に変数を並べる',
-        '  {"op":"update-loop","id":"成長","name":"成長エンジン"}',
-        '  {"op":"remove-loop","id":"成長"}',
-        '  {"op":"set-title","title":"組織の成長"}',
+        ...OPERATION_EXAMPLES,
         outputHelp(
           [
             `loopcraft edit diagram.json - <<'EOF'\n{"op":"add-variable","id":"sales","label":"売上"}\n{"op":"add-variable","id":"staff","label":"社員数"}\n{"op":"add-link","from":"sales","to":"staff","polarity":"+"}\n{"op":"add-link","from":"staff","to":"sales","polarity":"+"}\n{"op":"add-loop","through":["sales","staff"],"name":"成長"}\nEOF`,
@@ -471,6 +466,7 @@ interface ServeFlags {
   readonly?: boolean;
   sample?: boolean;
   open: boolean;
+  agent: boolean;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
-import { formatDiagramError, parseDiagramJson } from "./io.ts";
+import { formatDiagramError, parseDiagramJson, stringifyDiagram } from "./io.ts";
+import { createSampleDiagram } from "./sample.ts";
 import { createSampleInput } from "./testing/sample.ts";
 
 const parse = (input: unknown) => parseDiagramJson(JSON.stringify(input));
@@ -157,5 +158,16 @@ describe("parseDiagramJson の座標", () => {
       x: expect.any(Number),
       y: expect.any(Number),
     });
+  });
+});
+
+describe("stringifyDiagram", () => {
+  it("キーの順が違うだけの図は、同じ中身で書く", () => {
+    const diagram = createSampleDiagram();
+    const reordered = {
+      ...diagram,
+      links: diagram.links.map(({ id, description, ...rest }) => ({ description, ...rest, id })),
+    };
+    expect(stringifyDiagram(reordered)).toBe(stringifyDiagram(diagram));
   });
 });

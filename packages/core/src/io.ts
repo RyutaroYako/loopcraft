@@ -83,8 +83,9 @@ export const formatDiagramError = (error: DiagramError): string => {
   return error.hint ? `${located}（${error.hint}）` : located;
 };
 
+/** そのまま書かないのは、キーの順が違うだけで中身と版が変わり、同じ図を書いた保存を別の変更と取り違えるため */
 export const stringifyDiagram = (diagram: Diagram): string =>
-  `${JSON.stringify(diagram, null, 2)}\n`;
+  `${JSON.stringify(v.parse(DiagramShapeSchema, diagram), null, 2)}\n`;
 
 type Collection = "variables" | "links" | "loops";
 
