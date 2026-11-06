@@ -3,14 +3,23 @@ import {
   centroid,
   defaultCurvature,
   estimateNodeSizes,
-  linkGeometry,
   NODE_HEIGHT,
   NODE_MIN_WIDTH,
-  quadraticPoint,
 } from "./geometry.ts";
 import type { Size } from "./geometry.ts";
 import { linkPairKey } from "./integrity.ts";
-import type { Diagram, DiagramShape, LinkId, LoopId, Point, VariableId } from "./schema.ts";
+import {
+  curvePoints,
+  findLayoutIssues,
+  polylineHitsBox,
+  polylinesCross,
+  segmentHitsBox,
+  segmentsCross,
+} from "./layout-check.ts";
+import type { Box } from "./layout-check.ts";
+import { placeMarkers } from "./layout-markers.ts";
+import { minimizeStress } from "./layout-stress.ts";
+import type { Diagram, DiagramShape, LinkId, Point, VariableId } from "./schema.ts";
 
 /*
  * 初期配置に乱数を使わないのは、毎回同じ結果にするため。
@@ -18,12 +27,11 @@ import type { Diagram, DiagramShape, LinkId, LoopId, Point, VariableId } from ".
  */
 
 /** 枠の間ではなく中心同士の距離 */
-const IDEAL_LENGTH = 170;
-const ITERATIONS = 400;
+const IDEAL_LENGTH = 190;
 const GAP_X = 40;
 const GAP_Y = 56;
-const GRAVITY = 0.04;
 const FALLBACK_SIZE: Size = { width: NODE_MIN_WIDTH, height: NODE_HEIGHT };
+const BENDS = [0.15, -0.15, 0.25, -0.25, 0.35, -0.35, 0.5, -0.5];
 
 export interface LayoutOptions {
   /** 動かさない変数。1 つでもあれば、それを基準に置くので、図全体の重心は合わせ直さない */
@@ -47,16 +55,43 @@ export const autoLayout = (
   const anchored = pinned.some(Boolean);
 
   const edges = undirectedEdges(diagram, index);
-  const positions = anchored
-    ? initialAroundNeighbors(
-        variables.map((variable) => variable.position),
-        edges,
-        pinned,
-      )
-    : initialCircle(traversalOrder(ids.length, edges), (at) => sizeOf(at).width);
-
-  simulate(positions, edges, sizeOf, pinned);
-  removeOverlaps(positions, sizeOf, pinned);
+  const stress = {
+    edges,
+    cycles: loopCycles(diagram, index),
+    sizeOf,
+    pinned,
+    idealLength: IDEAL_LENGTH,
+  };
+  const settle = (start: Point[]) => {
+    minimizeStress(start, stress);
+    removeOverlaps(start, sizeOf, pinned);
+    return start;
+  };
+  const uncross = (start: Point[]) => {
+    if (untangle(start, edges, sizeOf, pinned)) removeOverlaps(start, sizeOf, pinned);
+    return start;
+  };
+  const current = variables.map((variable) => ({ ...variable.position }));
+  const score = (candidate: readonly Point[]) => crossingScore(candidate, edges, sizeOf);
+  let positions: Point[];
+  if (anchored) {
+    // 動かさない変数があるときに一通りしか試さないのは、その変数のまわりから広げる置き方が一つに決まるため
+    positions = uncross(settle(initialAroundNeighbors(current, edges, pinned)));
+  } else {
+    const scratch = startingVariables(ids.length, edges).map((start) =>
+      settle(initialCircle(traversalOrder(ids.length, edges, start), (at) => sizeOf(at).width)),
+    );
+    const best = Math.min(...scratch.map(score));
+    // 今の並びを残せるなら残す。いつも一から組むと、変数を 1 つ足しただけでも図全体が組み変わり、
+    // 利用者が覚えた配置が失われるため
+    const kept = spacedApart(current, sizeOf) && score(current) <= best ? current : undefined;
+    const tidied = kept ?? settle(current.map((point) => ({ ...point })));
+    positions =
+      kept ??
+      uncross(
+        score(tidied) <= best ? tidied : scratch.find((candidate) => score(candidate) === best)!,
+      );
+  }
 
   // 元の図の重心に合わせ直さないと、整列のたびに表示位置が大きく飛ぶ
   const before = anchored
@@ -95,10 +130,27 @@ export const autoLayout = (
     if (options.keepCurvature?.has(link.id)) continue;
     next = updateLink(next, link.id, { curvature: undefined });
   }
-  const markers = placeMarkers(next, sizes);
+  next = bendAroundVariables(next, sizes, options.keepCurvature);
   const fromByLink = new Map(diagram.links.map((link) => [link.id, link.from]));
+  const reshaped = new Set(
+    next.links.flatMap((link, at) => (link === diagram.links[at] ? [] : [link.id])),
+  );
+  // 動いた所に関わるループだけでなく、記号が変数に重なっているループも置き直す。
+  // 今の並びを残すときに、重なった記号まで残さないため
+  const crowded = findLayoutIssues(next, sizes).flatMap((issue) =>
+    issue.kind === "marker-overlap" ? (issue.loops ?? []) : [],
+  );
+  const replace = new Set([
+    ...crowded,
+    ...next.loops.flatMap((loop) =>
+      loop.links.some((link) => reshaped.has(link) || changed.has(fromByLink.get(link)!))
+        ? [loop.id]
+        : [],
+    ),
+  ]);
+  const markers = placeMarkers(next, sizes, FALLBACK_SIZE, replace);
   for (const loop of next.loops) {
-    if (!loop.links.some((link) => changed.has(fromByLink.get(link)!))) continue;
+    if (!replace.has(loop.id)) continue;
     const marker = markers.get(loop.id);
     // 同じ位置でも差し替えると、整列を繰り返したときに変化の無い編集が生まれる
     if (marker?.x === loop.marker?.x && marker?.y === loop.marker?.y) continue;
@@ -127,6 +179,65 @@ export const placeMissingVariables = (diagram: DiagramShape): Diagram => {
   });
 };
 
+/**
+ * 変数の位置だけでは突き抜けを避けきれないので、突き抜けている矢印を曲げて逃がす。
+ * 書き手が付けた曲がり具合でも、突き抜けていれば付け直す。残すと、今の並びを残すときに突き抜けが直らないため
+ */
+const bendAroundVariables = (
+  diagram: Diagram,
+  sizes: ReadonlyMap<VariableId, Size>,
+  keepCurvature: ReadonlySet<LinkId> = new Set(),
+) => {
+  const boxes: Box[] = diagram.variables.map((variable) => ({
+    id: variable.id,
+    center: variable.position,
+    size: sizes.get(variable.id) ?? FALLBACK_SIZE,
+  }));
+  const boxById = new Map(boxes.map((box) => [box.id, box]));
+  const pairs = new Set(diagram.links.map((link) => linkPairKey(link.from, link.to)));
+  const curveOf = (link: Diagram["links"][number]) =>
+    curvePoints(
+      boxById.get(link.from)!,
+      boxById.get(link.to)!,
+      link.curvature ?? defaultCurvature(pairs.has(linkPairKey(link.to, link.from))),
+    );
+  const curves = new Map(diagram.links.map((link) => [link.id, curveOf(link)]));
+  let next = diagram;
+  for (const link of diagram.links) {
+    if (keepCurvature.has(link.id)) continue;
+    const from = boxById.get(link.from)!;
+    const to = boxById.get(link.to)!;
+    const others = boxes.filter((box) => box !== from && box !== to);
+    const clear = (points: readonly Point[]) =>
+      others.every((box) => !polylineHitsBox(points, box));
+    if (clear(curves.get(link.id)!)) continue;
+    const paired = pairs.has(linkPairKey(link.to, link.from));
+    const base = defaultCurvature(paired);
+    const crossings = (points: readonly Point[]) =>
+      diagram.links.filter(
+        (other) =>
+          other.from !== link.from &&
+          other.from !== link.to &&
+          other.to !== link.from &&
+          other.to !== link.to &&
+          polylinesCross(points, curves.get(other.id)!),
+      ).length;
+    // 逆向きの関連がある矢印を逆へ曲げないのは、対の矢印と重なるため
+    const bends = BENDS.filter((curvature) => !paired || curvature > base)
+      .map((curvature) => ({ curvature, points: curvePoints(from, to, curvature) }))
+      .filter(({ points }) => clear(points));
+    let best: { curvature: number; points: Point[]; crossings: number } | undefined;
+    for (const bend of bends) {
+      const count = crossings(bend.points);
+      if (!best || count < best.crossings) best = { ...bend, crossings: count };
+    }
+    if (!best) continue;
+    curves.set(link.id, best.points);
+    next = updateLink(next, link.id, { curvature: best.curvature });
+  }
+  return next;
+};
+
 const undirectedEdges = (diagram: Diagram, index: ReadonlyMap<VariableId, number>) => {
   const seen = new Set<string>();
   const edges: [number, number][] = [];
@@ -142,7 +253,25 @@ const undirectedEdges = (diagram: Diagram, index: ReadonlyMap<VariableId, number
   return edges;
 };
 
-const traversalOrder = (count: number, edges: readonly [number, number][]) => {
+const loopCycles = (diagram: Diagram, index: ReadonlyMap<VariableId, number>) => {
+  const fromByLink = new Map(diagram.links.map((link) => [link.id, link.from]));
+  return diagram.loops.map((loop) => loop.links.map((link) => index.get(fromByLink.get(link)!)!));
+};
+
+/** 初めの並びを何通り試すか。stress majorization は初めの並びで落ち着く形が変わり、交差の数も変わる */
+const STARTS = 4;
+
+/** 先頭の変数から始めないのは、繋がりの多い変数から辿る方が、中心的なループがまとまって並ぶため */
+const startingVariables = (count: number, edges: readonly [number, number][]) => {
+  const degree = Array.from({ length: count }, () => 0);
+  for (const [a, b] of edges) {
+    degree[a]!++;
+    degree[b]!++;
+  }
+  return [...degree.keys()].sort((a, b) => degree[b]! - degree[a]! || a - b).slice(0, STARTS);
+};
+
+const traversalOrder = (count: number, edges: readonly [number, number][], first: number) => {
   const neighbors: number[][] = Array.from({ length: count }, () => []);
   for (const [a, b] of edges) {
     neighbors[a]!.push(b);
@@ -150,10 +279,10 @@ const traversalOrder = (count: number, edges: readonly [number, number][]) => {
   }
   const visited = new Set<number>();
   const order: number[] = [];
-  // 先頭の変数から始めないのは、繋がりの多い変数からの方が中心的なループがまとまって並ぶため
-  const starts = [...neighbors.keys()].sort(
-    (a, b) => neighbors[b]!.length - neighbors[a]!.length || a - b,
-  );
+  const starts = [
+    first,
+    ...[...neighbors.keys()].sort((a, b) => neighbors[b]!.length - neighbors[a]!.length || a - b),
+  ];
   for (const start of starts) {
     if (visited.has(start)) continue;
     const stack = [start];
@@ -168,6 +297,147 @@ const traversalOrder = (count: number, edges: readonly [number, number][]) => {
     }
   }
   return order;
+};
+
+/** 曲線で数えないのは、並びどうしを比べるだけなら順位はまず変わらず、曲線で数えると整列が遅くなるため */
+const crossingScore = (
+  positions: readonly Point[],
+  edges: readonly [number, number][],
+  sizeOf: (at: number) => Size,
+) => {
+  let score = 0;
+  for (const [i, [a, b]] of edges.entries()) {
+    for (const [at, center] of positions.entries()) {
+      if (at === a || at === b) continue;
+      // 突き抜けは曲げて直すが、曲げると交差が増えやすいので、交差より重く数える
+      if (segmentHitsBox(positions[a]!, positions[b]!, center, sizeOf(at))) score += 3;
+    }
+    for (const [c, d] of edges.slice(i + 1)) {
+      if (c === a || c === b || d === a || d === b) continue;
+      if (segmentsCross(positions[a]!, positions[b]!, positions[c]!, positions[d]!)) score += 1;
+    }
+  }
+  return score;
+};
+
+const UNTANGLE_ROUNDS = 3;
+/** 遠い変数と入れ替えないのは、矢印が長く伸びるだけで、交差がまず減らないため */
+const SWAP_NEIGHBORS = 8;
+const MOVE_RADII = [0.5, 1, 1.5].map((scale) => scale * IDEAL_LENGTH);
+const MOVE_DIRECTIONS = 12;
+
+const roomFor = (
+  positions: readonly Point[],
+  at: number,
+  point: Point,
+  sizeOf: (at: number) => Size,
+) =>
+  positions.every(
+    (other, index) =>
+      index === at ||
+      Math.abs(other.x - point.x) >= (sizeOf(at).width + sizeOf(index).width) / 2 + GAP_X ||
+      Math.abs(other.y - point.y) >= (sizeOf(at).height + sizeOf(index).height) / 2 + GAP_Y,
+  );
+
+const nearest = (positions: readonly Point[], from: number, count: number) =>
+  positions
+    .map((point, at) => ({
+      at,
+      length: Math.hypot(point.x - positions[from]!.x, point.y - positions[from]!.y),
+    }))
+    .filter(({ at }) => at !== from)
+    .sort((a, b) => a.length - b.length || a.at - b.at)
+    .slice(0, count)
+    .map(({ at }) => at);
+
+/**
+ * 突き抜けや交差に関わる変数を、近くの変数と入れ替えたり、まわりの空いた所へ動かしたりして、
+ * 減るなら残す。動かしたかを返す。
+ * stress だけに任せないのは、変数を分け合うループが多いと、どのループも輪にできる形が無く、
+ * 片方のループが 8 の字にねじれたまま落ち着くことがあるため
+ */
+const untangle = (
+  positions: Point[],
+  edges: readonly [number, number][],
+  sizeOf: (at: number) => Size,
+  pinned: readonly boolean[],
+) => {
+  const incident: number[][] = positions.map(() => []);
+  for (const [at, [a, b]] of edges.entries()) {
+    incident[a]!.push(at);
+    incident[b]!.push(at);
+  }
+  const hits = (edge: number, at: number) => {
+    const [a, b] = edges[edge]!;
+    if (at === a || at === b) return false;
+    return segmentHitsBox(positions[a]!, positions[b]!, positions[at]!, sizeOf(at));
+  };
+  const crosses = (one: number, other: number) => {
+    const [a, b] = edges[one]!;
+    const [c, d] = edges[other]!;
+    if (c === a || c === b || d === a || d === b) return false;
+    return segmentsCross(positions[a]!, positions[b]!, positions[c]!, positions[d]!);
+  };
+  // 全体を数え直さないのは、変わるのは動かした変数につながる矢印と、その枠だけで、
+  // 全体を数えると大きな図で整列が目に見えて遅くなるため
+  const local = (a: number, b: number) => {
+    const moved = a === b ? incident[a]! : [...incident[a]!, ...incident[b]!];
+    let score = 0;
+    for (const edge of moved) {
+      for (let at = 0; at < positions.length; at++) if (hits(edge, at)) score += 3;
+      for (let other = 0; other < edges.length; other++) {
+        if (other === edge) continue;
+        // 動いた矢印どうしは 2 度数えないよう、番号の小さい方からだけ数える
+        if (other < edge && moved.includes(other)) continue;
+        if (crosses(edge, other)) score += 1;
+      }
+    }
+    for (let edge = 0; edge < edges.length; edge++) {
+      if (moved.includes(edge)) continue;
+      if (hits(edge, a)) score += 3;
+      if (b !== a && hits(edge, b)) score += 3;
+    }
+    return score;
+  };
+  let changed = false;
+  for (let round = 0; round < UNTANGLE_ROUNDS; round++) {
+    let improved = false;
+    // 崩れに関わらない変数どうしを入れ替えても減らないので、崩れに関わる変数から試す
+    const troubled = positions.flatMap((_, at) => (!pinned[at] && local(at, at) > 0 ? [at] : []));
+    for (const a of troubled) {
+      for (const b of nearest(positions, a, SWAP_NEIGHBORS)) {
+        if (pinned[b]) continue;
+        const before = local(a, b);
+        if (before === 0) continue;
+        [positions[a], positions[b]] = [positions[b]!, positions[a]!];
+        if (local(a, b) < before) {
+          improved = changed = true;
+        } else {
+          [positions[a], positions[b]] = [positions[b]!, positions[a]!];
+        }
+      }
+      // 入れ替えだけで済ませないのは、別の変数の向こう側へ回り込ませないと解けない交差があるため
+      const origin = positions[a]!;
+      let best = { point: origin, score: local(a, a) };
+      for (const radius of MOVE_RADII) {
+        for (let step = 0; step < MOVE_DIRECTIONS; step++) {
+          const angle = (2 * Math.PI * step) / MOVE_DIRECTIONS;
+          const point = {
+            x: origin.x + Math.cos(angle) * radius,
+            y: origin.y + Math.sin(angle) * radius,
+          };
+          if (!roomFor(positions, a, point, sizeOf)) continue;
+          positions[a] = point;
+          const score = local(a, a);
+          if (score < best.score) best = { point, score };
+        }
+      }
+      positions[a] = best.point;
+      if (best.point !== origin) improved = changed = true;
+    }
+    if (!improved) break;
+  }
+  return changed;
 };
 
 const initialCircle = (order: readonly number[], widthOf: (at: number) => number): Point[] => {
@@ -214,49 +484,20 @@ const initialAroundNeighbors = (
   return positions;
 };
 
-/** Fruchterman–Reingold。素のままでは変数を点として扱い長い名前同士が詰まるので、横幅の分だけ反発を強める */
-const simulate = (
-  positions: Point[],
-  edges: readonly [number, number][],
-  sizeOf: (at: number) => Size,
-  pinned: readonly boolean[],
-) => {
-  const count = positions.length;
-  if (count < 2) return;
-  let temperature = IDEAL_LENGTH;
-  const cooling = temperature / (ITERATIONS + 1);
-  for (let iteration = 0; iteration < ITERATIONS; iteration++) {
-    const forces: Point[] = positions.map(() => ({ x: 0, y: 0 }));
-    for (let a = 0; a < count; a++) {
-      for (let b = a + 1; b < count; b++) {
-        const { dx, dy, distance } = delta(positions[a]!, positions[b]!);
-        const reach = IDEAL_LENGTH + (sizeOf(a).width + sizeOf(b).width) / 4;
-        const force = (reach * reach) / distance;
-        apply(forces, a, b, (dx / distance) * force, (dy / distance) * force);
-      }
-    }
-    for (const [a, b] of edges) {
-      const { dx, dy, distance } = delta(positions[a]!, positions[b]!);
-      const force = (distance * distance) / IDEAL_LENGTH;
-      apply(forces, a, b, (-dx / distance) * force, (-dy / distance) * force);
-    }
-    const center = centroid(positions);
-    for (let at = 0; at < count; at++) {
-      if (pinned[at]) continue;
-      const force = forces[at]!;
-      force.x += (center.x - positions[at]!.x) * GRAVITY * IDEAL_LENGTH * 0.1;
-      force.y += (center.y - positions[at]!.y) * GRAVITY * IDEAL_LENGTH * 0.1;
-      const length = Math.hypot(force.x, force.y);
-      if (length === 0) continue;
-      const step = Math.min(length, temperature);
-      positions[at] = {
-        x: positions[at]!.x + (force.x / length) * step,
-        y: positions[at]!.y + (force.y / length) * step,
-      };
-    }
-    temperature -= cooling;
-  }
-};
+/** 座標を整数に丸めた分だけ、離す幅に届かないことがある */
+const ROUNDING = 1;
+
+const spacedApart = (positions: readonly Point[], sizeOf: (at: number) => Size) =>
+  positions.every((pa, a) =>
+    positions.slice(a + 1).every((pb, offset) => {
+      const b = a + 1 + offset;
+      const apartX =
+        Math.abs(pb.x - pa.x) >= (sizeOf(a).width + sizeOf(b).width) / 2 + GAP_X - ROUNDING;
+      const apartY =
+        Math.abs(pb.y - pa.y) >= (sizeOf(a).height + sizeOf(b).height) / 2 + GAP_Y - ROUNDING;
+      return apartX || apartY;
+    }),
+  );
 
 const removeOverlaps = (
   positions: Point[],
@@ -290,124 +531,4 @@ const removeOverlaps = (
     }
     if (!moved) return;
   }
-};
-
-/** 記号だけでなく、添える名前の分も含む */
-const MARKER_CLEARANCE = 64;
-const MARKER_GRID = 8;
-
-const CURVE_STEPS = 8;
-/** 極性の印の半径（11）に余白を足したもの */
-const POLARITY_RADIUS = 28;
-/** ほかのループ記号の半径（26）に余白を足したもの */
-const MARKER_RADIUS = 40;
-
-const placeMarkers = (diagram: Diagram, sizes: ReadonlyMap<VariableId, Size>) => {
-  const variableById = new Map(diagram.variables.map((variable) => [variable.id, variable]));
-  const boxOf = (id: VariableId) => ({
-    center: variableById.get(id)!.position,
-    size: sizes.get(id) ?? FALLBACK_SIZE,
-  });
-  const boxes = diagram.variables.map((variable) => boxOf(variable.id));
-  // 関連を直線とみなさないのは、画面では逆向きの関連があると曲線で描かれ、記号がその曲線に重なりうるため
-  const pairs = new Set(diagram.links.map((link) => linkPairKey(link.from, link.to)));
-  const segments: [Point, Point][] = [];
-  const labels: Point[] = [];
-  for (const link of diagram.links) {
-    const curvature = defaultCurvature(pairs.has(linkPairKey(link.to, link.from)));
-    const { start, control, end, label } = linkGeometry(
-      boxOf(link.from),
-      boxOf(link.to),
-      curvature,
-    );
-    let previous = start;
-    for (let step = 1; step <= CURVE_STEPS; step++) {
-      const point = quadraticPoint(start, control, end, step / CURVE_STEPS);
-      segments.push([previous, point]);
-      previous = point;
-    }
-    labels.push(label);
-  }
-
-  const placed: Point[] = [];
-  const clearance = (point: Point) => {
-    let nearest = Infinity;
-    for (const box of boxes) nearest = Math.min(nearest, boxDistance(point, box.center, box.size));
-    for (const [a, b] of segments) nearest = Math.min(nearest, segmentDistance(point, a, b));
-    for (const label of labels)
-      nearest = Math.min(nearest, distance(point, label) - POLARITY_RADIUS);
-    for (const other of placed) nearest = Math.min(nearest, distance(point, other) - MARKER_RADIUS);
-    return nearest;
-  };
-
-  const fromByLink = new Map(diagram.links.map((link) => [link.id, link.from]));
-  const markers = new Map<LoopId, Point>();
-  for (const loop of diagram.loops) {
-    const polygon = loop.links.map((id) => variableById.get(fromByLink.get(id)!)!.position);
-    const center = centroid(polygon);
-    let best = { point: center, score: -Infinity, distance: Infinity };
-    const xs = polygon.map((point) => point.x);
-    const ys = polygon.map((point) => point.y);
-    for (let x = Math.min(...xs); x <= Math.max(...xs); x += MARKER_GRID) {
-      for (let y = Math.min(...ys); y <= Math.max(...ys); y += MARKER_GRID) {
-        const point = { x, y };
-        if (!insidePolygon(point, polygon)) continue;
-        const score = Math.min(clearance(point), MARKER_CLEARANCE);
-        const away = distance(point, center);
-        if (score > best.score || (score === best.score && away < best.distance)) {
-          best = { point, score, distance: away };
-        }
-      }
-    }
-    const marker = { x: Math.round(best.point.x), y: Math.round(best.point.y) };
-    placed.push(marker);
-    markers.set(loop.id, marker);
-  }
-  return markers;
-};
-
-const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-
-const boxDistance = (point: Point, center: Point, size: Size) => {
-  const dx = Math.max(Math.abs(point.x - center.x) - size.width / 2, 0);
-  const dy = Math.max(Math.abs(point.y - center.y) - size.height / 2, 0);
-  return Math.hypot(dx, dy);
-};
-
-const segmentDistance = (point: Point, a: Point, b: Point) => {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const length = dx * dx + dy * dy;
-  const t =
-    length === 0
-      ? 0
-      : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length));
-  return Math.hypot(point.x - (a.x + dx * t), point.y - (a.y + dy * t));
-};
-
-const insidePolygon = (point: Point, polygon: readonly Point[]) => {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const a = polygon[i]!;
-    const b = polygon[j]!;
-    if (a.y > point.y !== b.y > point.y) {
-      const x = ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x;
-      if (point.x < x) inside = !inside;
-    }
-  }
-  return inside;
-};
-
-/** 円周上の異なる点から始めるので重なることはまず無いが、0 で割らないよう守る */
-const delta = (pa: Point, pb: Point) => {
-  const dx = pa.x - pb.x;
-  const dy = pa.y - pb.y;
-  return { dx, dy, distance: Math.max(Math.hypot(dx, dy), 0.01) };
-};
-
-const apply = (forces: Point[], a: number, b: number, fx: number, fy: number) => {
-  forces[a]!.x += fx;
-  forces[a]!.y += fy;
-  forces[b]!.x -= fx;
-  forces[b]!.y -= fy;
 };

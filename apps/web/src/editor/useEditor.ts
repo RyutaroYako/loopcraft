@@ -236,7 +236,11 @@ export function useEditor(initial: Diagram, options: EditorOptions = {}) {
     if (!editable()) return;
     const sizes = new Map([...index.boxes.value].map(([id, box]) => [id, box.size]));
     const next = layoutDiagram(diagram.value, sizes);
-    commit(next);
+    if (next === diagram.value) {
+      notices.notify({ tone: "info", title: "整える所はありませんでした" });
+    } else {
+      commit(next);
+    }
     fitView(next);
   }
 

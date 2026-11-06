@@ -355,6 +355,7 @@ export function createProgram(
         `{"ok":true,"data":{"file":"diagram.json","written":true,"moved":["sales","staff"],"layout":{"errors":0,"warnings":0,"issues":[]}}}`,
         [
           "決まった手順で並べるので、同じ図からは毎回同じ配置になる",
+          "--pin の無い --all でも、組み直して突き抜けや交差が減らなければ、今の並びを残す",
           "細かく直すときは、edit の update-variable で position を書き換える",
         ],
       ),

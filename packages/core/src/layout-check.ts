@@ -22,7 +22,7 @@ const GRAZE = 2;
 const POLARITY_RADIUS = 11;
 const MARKER_RADIUS = 26;
 
-interface Box {
+export interface Box {
   id: VariableId;
   center: Point;
   size: Size;
@@ -61,11 +61,10 @@ export const findLayoutIssues = (
   const curves = diagram.links.map((link) => {
     const curvature =
       link.curvature ?? defaultCurvature(pairs.has(linkPairKey(link.to, link.from)));
-    const geometry = linkGeometry(boxById.get(link.from)!, boxById.get(link.to)!, curvature);
-    const points = Array.from({ length: CURVE_STEPS + 1 }, (_, step) =>
-      quadraticPoint(geometry.start, geometry.control, geometry.end, step / CURVE_STEPS),
-    );
-    return { link, points, label: geometry.label };
+    const from = boxById.get(link.from)!;
+    const to = boxById.get(link.to)!;
+    const points = curvePoints(from, to, curvature);
+    return { link, points, label: linkGeometry(from, to, curvature).label };
   });
 
   for (const { link, points } of curves) {
@@ -149,28 +148,40 @@ const boxDistance = (point: Point, box: Box) => {
   return Math.hypot(dx, dy);
 };
 
-const polylineHitsBox = (points: readonly Point[], box: Box) => {
-  const halfWidth = box.size.width / 2 - GRAZE;
-  const halfHeight = box.size.height / 2 - GRAZE;
-  if (halfWidth <= 0 || halfHeight <= 0) return false;
-  const min = { x: box.center.x - halfWidth, y: box.center.y - halfHeight };
-  const max = { x: box.center.x + halfWidth, y: box.center.y + halfHeight };
+export const curvePoints = (from: Box, to: Box, curvature: number): Point[] => {
+  const geometry = linkGeometry(from, to, curvature);
+  return Array.from({ length: CURVE_STEPS + 1 }, (_, step) =>
+    quadraticPoint(geometry.start, geometry.control, geometry.end, step / CURVE_STEPS),
+  );
+};
+
+export const polylineHitsBox = (points: readonly Point[], box: Box) => {
   for (let at = 1; at < points.length; at++) {
-    if (segmentHitsRect(points[at - 1]!, points[at]!, min, max)) return true;
+    if (segmentHitsBox(points[at - 1]!, points[at]!, box.center, box.size)) return true;
   }
   return false;
 };
 
-const segmentHitsRect = (a: Point, b: Point, min: Point, max: Point) => {
+/** 枠と線分の外接矩形が離れていれば、先に外す。整列で何度も呼ぶので、形を作らずに調べる */
+export const segmentHitsBox = (a: Point, b: Point, center: Point, size: Size) => {
+  const halfWidth = size.width / 2 - GRAZE;
+  const halfHeight = size.height / 2 - GRAZE;
+  if (halfWidth <= 0 || halfHeight <= 0) return false;
+  const minX = center.x - halfWidth;
+  const maxX = center.x + halfWidth;
+  const minY = center.y - halfHeight;
+  const maxY = center.y + halfHeight;
+  if (Math.max(a.x, b.x) < minX || Math.min(a.x, b.x) > maxX) return false;
+  if (Math.max(a.y, b.y) < minY || Math.min(a.y, b.y) > maxY) return false;
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   let low = 0;
   let high = 1;
   for (const [p, q] of [
-    [-dx, a.x - min.x],
-    [dx, max.x - a.x],
-    [-dy, a.y - min.y],
-    [dy, max.y - a.y],
+    [-dx, a.x - minX],
+    [dx, maxX - a.x],
+    [-dy, a.y - minY],
+    [dy, maxY - a.y],
   ] as const) {
     if (p === 0) {
       if (q < 0) return false;
@@ -184,7 +195,7 @@ const segmentHitsRect = (a: Point, b: Point, min: Point, max: Point) => {
   return true;
 };
 
-const polylinesCross = (a: readonly Point[], b: readonly Point[]) => {
+export const polylinesCross = (a: readonly Point[], b: readonly Point[]) => {
   for (let i = 1; i < a.length; i++) {
     for (let j = 1; j < b.length; j++) {
       if (segmentsCross(a[i - 1]!, a[i]!, b[j - 1]!, b[j]!)) return true;
@@ -193,7 +204,13 @@ const polylinesCross = (a: readonly Point[], b: readonly Point[]) => {
   return false;
 };
 
-const segmentsCross = (p1: Point, p2: Point, p3: Point, p4: Point) => {
+export const segmentsCross = (p1: Point, p2: Point, p3: Point, p4: Point) => {
+  if (Math.max(p1.x, p2.x) < Math.min(p3.x, p4.x) || Math.max(p3.x, p4.x) < Math.min(p1.x, p2.x)) {
+    return false;
+  }
+  if (Math.max(p1.y, p2.y) < Math.min(p3.y, p4.y) || Math.max(p3.y, p4.y) < Math.min(p1.y, p2.y)) {
+    return false;
+  }
   const d1 = cross(p3, p4, p1);
   const d2 = cross(p3, p4, p2);
   const d3 = cross(p1, p2, p3);

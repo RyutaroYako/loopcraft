@@ -10,6 +10,7 @@ import {
   mount,
   node,
   nodeElement,
+  notice,
   canvasSvg,
   inlineLabel,
   page,
@@ -271,7 +272,7 @@ describe("メニュー", () => {
   it("タイトルの横のメニューからファイルを操作し、整列は下端から押せる", async () => {
     await atPhoneSize(async () => {
       await button("整列").click();
-      await expect.element(button("元に戻す")).not.toBeDisabled();
+      await expect.element(notice()).toMatchTextContent(/整える所はありませんでした/);
 
       await button("ファイル").click();
       await menuItem("ファイル", "新規").click();
